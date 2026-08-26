@@ -121,4 +121,7 @@ etwa einer halben Stunde auf.
 
 ## Lizenz
 
-Noch keine gewählt.
+Für den Programmcode ist noch keine gewählt.
+
+Die mitgelieferte Schrift **Inter** von Rasmus Andersson steht unter der
+SIL Open Font License 1.1 — Einzelheiten in [schriften/LIESMICH.md](schriften/LIESMICH.md).
