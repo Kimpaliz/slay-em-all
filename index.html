@@ -20,17 +20,20 @@
         <p class="untertitel">Von links kommen die Recken. Sie gehen hinein. Was herauskommt, kommt einzeln.</p>
       </div>
       <div class="beutel">
-        <div class="beute">
+        <div class="beute beute-blut">
           <div class="beute-name">Blut</div>
-          <div class="beute-wert wert-blut" data-feld="blut">0</div>
+          <div class="beute-wert wert-blut"><span data-feld="blut">0</span> <span class="einheit">L</span></div>
+          <div class="beute-vergleich" data-feld="blutVergleich"></div>
         </div>
         <div class="beute">
           <div class="beute-name">Knochen</div>
           <div class="beute-wert wert-knochen" data-feld="knochen">0</div>
+          <div class="beute-vergleich" data-feld="knochenHinweis"></div>
         </div>
         <div class="beute">
           <div class="beute-name">Schrott</div>
           <div class="beute-wert wert-schrott" data-feld="schrott">0</div>
+          <div class="beute-vergleich" data-feld="schrottHinweis"></div>
         </div>
       </div>
     </header>
@@ -51,6 +54,19 @@
       </div>
     </div>
 
+    <div class="tagesleiste" data-phase="tag">
+      <div class="tagesleiste-kopf">
+        <span class="tag-zahl" data-feld="tagZahl">Tag 1</span>
+        <span class="tag-phase" data-feld="phase">Tag — die Wellen kommen</span>
+        <span class="tag-rest" data-feld="phaseRest">noch 100 s</span>
+      </div>
+      <div class="balken"><div class="balken-fuellung" data-balken="phase"></div></div>
+      <div class="tagesleiste-fuss">
+        <span data-feld="haufenStand">Beutehaufen: 0 / 70</span>
+        <span data-feld="haufenWarnung"></span>
+      </div>
+    </div>
+
     <div class="karten">
 
       <section class="karte">
@@ -61,7 +77,7 @@
             <div class="kennzahl-wert" data-feld="reckenProMinute">0</div>
           </div>
           <div>
-            <div class="kennzahl-name">Blut / Sek.</div>
+            <div class="kennzahl-name">Liter / Sek.</div>
             <div class="kennzahl-wert wert-blut" data-feld="blutProSekunde">0</div>
           </div>
           <div>
@@ -76,14 +92,14 @@
         <div class="fussleiste">
           <div>
             <div class="kennzahl-name">Im Tor</div>
-            <div class="kennzahl-wert" style="font-size:14px" data-feld="imTor">0 / 1</div>
+            <div class="kennzahl-wert klein" data-feld="imTor">0 / 1</div>
           </div>
           <div>
             <div class="kennzahl-name">Auf der Brücke</div>
-            <div class="kennzahl-wert" style="font-size:14px" data-feld="aufBruecke">0</div>
+            <div class="kennzahl-wert klein" data-feld="aufBruecke">0</div>
           </div>
         </div>
-        <p class="hinweis">Keine Niederlage vorgesehen. Der Durchsatz steigt, bis das Tor keine Pausen mehr kennt.</p>
+        <p class="hinweis" data-feld="engpass">Der Engpass wird berechnet.</p>
       </section>
 
       <section class="karte karte-breit">
@@ -93,7 +109,7 @@
             <tr>
               <th>Recke</th>
               <th class="zelle-zahl">Erledigt</th>
-              <th class="zelle-zahl">Blut/Stk.</th>
+              <th class="zelle-zahl">Liter/Stk.</th>
             </tr>
           </thead>
           <tbody data-liste="bestiarium"></tbody>
@@ -103,13 +119,33 @@
       <section class="karte">
         <div>
           <div class="karte-kopf">Ausbau des Hauses</div>
-          <div class="hinweis">Der Hausherr kauft selbst ein. Zusehen genügt.</div>
+          <div class="hinweis" data-feld="kaufHinweis">Das Haus handelt nur bei Dunkelheit.</div>
         </div>
-        <div data-liste="ausbauten"></div>
-        <div class="letzter-kauf" data-feld="letzterKauf">Das Haus wirtschaftet selbst. Zusehen genügt.</div>
+        <div class="ausbauliste" data-liste="ausbauten"></div>
+        <div class="letzter-kauf" data-feld="letzterKauf">Das Haus wartet auf eine Entscheidung.</div>
       </section>
 
     </div>
+
+    <section class="karte neuanfang" data-bereich="neuanfang" hidden>
+      <div class="neuanfang-kopf">
+        <div>
+          <div class="karte-kopf">Den Haufen abtragen</div>
+          <p class="hinweis neuanfang-text" data-feld="neuanfangText">
+            Der Knochenhaufen wächst. Irgendwann trägt die Burg ihn ab und baut daraus
+            etwas, das bleibt.
+          </p>
+        </div>
+        <button type="button" class="knopf knopf-gross" data-tat="neuanfang" disabled>
+          Abtragen — <span data-feld="neuanfangSchaedel">0</span> Schädel
+        </button>
+      </div>
+      <div class="schaedel-zeile">
+        <span class="karte-kopf">Dauerhaft · <span data-feld="schaedel">0</span> Schädel übrig</span>
+      </div>
+      <div class="dauerhaftliste" data-liste="dauerhaft"></div>
+    </section>
+
   </div>
 </div>
 

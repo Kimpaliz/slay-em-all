@@ -34,7 +34,8 @@ spiel/
   szene.js              das Bild: Himmel, Schlucht, Burg, Tor, Brücke
   figuren.js            Recken, Trümmer, Raben, Klaue, Fackeln
   marktschreier.js      das Laufband unter dem Bild
-  anzeige.js            schreibt Zahlen und Listen in die Seite
+  anzeige.js            schreibt Zahlen und Listen in die Seite, nimmt Klicks an
+  tageslauf.js          Tag, Nacht und die Wellen
   speicher.js           Spielstand sichern und laden
   daten/
     recken.js           die fünf Reckenklassen
@@ -44,7 +45,8 @@ spiel/
 
 werkzeuge/
   wirtschaft.mjs        die gesamte Rechnerei — ohne Browser, in Node prüfbar
-  pruefe-wirtschaft.mjs Prüfungen und Verlaufsrechnung
+  pruefe-wirtschaft.mjs 101 Prüfungen
+  balance.mjs           spielt Tage durch und bewertet die Kurve
   vorschau-server.mjs   der lokale Server
 ```
 
@@ -56,35 +58,57 @@ dass jemand zusehen muss. Wer an der Balance schrauben will, tut es dort.
 
 ```bash
 node werkzeuge/pruefe-wirtschaft.mjs
+node werkzeuge/balance.mjs 25
 ```
 
-Das läuft in einer Sekunde und zeigt zwei Dinge: ob die Formeln noch das tun,
-was sie sollen (25 feste Prüfungen), und wie sich eine Stunde Spielzeit
-tatsächlich entwickelt — Erledigte, Blut, Käufe, Engpass, Freischaltungen.
+Das erste prüft in einer Sekunde 101 feste Erwartungen. Das zweite spielt
+25 Tage durch und bewertet sechs Kennzahlen: Käufe je Nacht, wann der erste
+Schädel kommt, wann die letzte Reckenklasse auftaucht, wie oft der Haufen
+überläuft, wie stark das Blut wächst und ob die Zahlen lesbar bleiben.
 
-## Was passiert
+## Wie es läuft
 
-- **Zulauf** — Recken kommen von links über die Zugbrücke und verschwinden im glühenden Torbogen.
-- **Gemetzel** — der Kampf bleibt unsichtbar. Sichtbar sind Arme, Beine, Rümpfe, rollende Helme,
-  Schädel, die in den Burggraben plumpsen, und Blutlachen, die auf den Planken liegen bleiben
-  und in die Tiefe tropfen.
-- **Bestiarium** — mit steigender Zahl an Erledigten kommen stärkere Klassen dazu:
-  Bauer → Söldner → Ritter → Paladin → Großmeister.
-- **Ausbau** — die Burg kauft **selbst** ein: Lockrufe, scharfe Klingen, breiteres Tor,
-  fettere Beute, Kobold-Diener.
-- **Marktschreier** — ein Nachrichten-Laufband kommentiert jeden Toten in gereimten Zweizeilern.
-- **Währungen** — Blut, Knochen, Schrott.
+Ein Tag dauert 100 Sekunden, die Nacht 50.
 
-Der Spielstand liegt im Browser unter `slayemall.stand.v2` und läuft beim Neuladen weiter.
-Ein alter Stand unter `burgtor.scene.v1` wird beim ersten Start übernommen.
+**Tagsüber** kommen die Recken in Wellen über die Zugbrücke und verschwinden im
+glühenden Torbogen. Der Kampf bleibt unsichtbar. Sichtbar sind Arme, Beine,
+Rümpfe, rollende Helme, Schädel, die in den Burggraben plumpsen, und Blutlachen,
+die auf den Planken liegen bleiben und in die Tiefe tropfen. **Blut** fließt
+sofort ins Haus. **Knochen und Schrott** bleiben als Haufen an der Mauer liegen.
 
-## Stand der Dinge
+**Nachts** kommt niemand mehr. Die Kobolde tragen den Haufen ab — erst jetzt
+werden Knochen und Schrott gutgeschrieben. Und nur jetzt wird eingekauft:
+Das Haus handelt nicht bei Tageslicht.
 
-Das hier ist bislang eine **Szene**, kein Spiel: Es gibt kein einziges Bedienelement,
-und Blut, Knochen und Schrott werden nirgends ausgegeben. Sie zählen nur hoch.
-Der Ausbau läuft von allein und kostet nichts.
+Ist der Haufen voll, fällt neue Beute in die Schlucht. Deshalb lohnen sich
+Kobolde: Sie ernten schneller und stapeln höher.
 
-Was daraus eine echte Idle-Schleife macht, ist der nächste Arbeitsschritt.
+## Die drei Währungen
+
+| Währung | Woher | Wofür |
+| --- | --- | --- |
+| **Blut** (Liter) | fließt sofort beim Sterben | Lockrufe, breiteres Tor |
+| **Schrott** | nachts geerntet | Klingen, Presse, Kobolde |
+| **Knochen** | nachts geerntet | wird nie ausgegeben — daraus werden beim Neuanfang Schädel |
+
+Blut wird in Litern gerechnet; ein Bauer trägt fünf davon. Unter der Zahl steht,
+was sie bedeutet: *etwa 1,8 Schwimmbecken*, *etwa 3 Bodenseen*.
+
+## Neuanfang
+
+Der Knochenhaufen an der Mauer wächst sichtbar. Irgendwann trägt die Burg ihn ab:
+Blut, Schrott und alle Ausbauten gehen zurück auf null, dafür gibt es **Schädel**.
+Die kaufen Dauerhaftes — Blutzoll, Ruf im Tal, Erbe des Hauses und den
+**Verwalter**, der wieder von selbst einkauft.
+
+Wer lange spielt, bekommt nicht linear mehr Schädel, sondern nach der Wurzel.
+Eine Runde ewig auszudehnen lohnt sich also nicht.
+
+## Bestiarium
+
+Mit steigender Zahl an Erledigten kommen stärkere Klassen dazu:
+Bauer → Söldner → Ritter → Paladin → Großmeister. Der Letzte taucht nach
+etwa einer halben Stunde auf.
 
 ## Lizenz
 

@@ -5,7 +5,8 @@
 // Nichts hier verändert die Welt — hier wird nur angeschaut und gemalt.
 
 import { MASSE } from './masse.js';
-import { PALETTEN, PALETTE_STANDARD } from './daten/paletten.js';
+import { paletteFuer, PALETTE_STANDARD, SONNE } from './daten/paletten.js';
+import { tagesStand } from './tageslauf.js';
 import {
   streu, reckeZeichnen, truemmerZeichnen, rabeZeichnen, klaueZeichnen,
   fackelZeichnen, knochenhaufenZeichnen, ketteZeichnen
@@ -22,7 +23,8 @@ export function bogenHoehe(x) {
 
 export function zeichnen(ctx, welt, einstellungen = {}) {
   const { szene } = welt;
-  const P = PALETTEN[einstellungen.palette] || PALETTEN[PALETTE_STANDARD];
+  const stand = tagesStand(szene.zeit);
+  const P = paletteFuer(einstellungen.palette || PALETTE_STANDARD, stand.helligkeit);
   const B = MASSE.breite;
   const H = MASSE.hoehe;
   const PL = MASSE.planke;
@@ -38,7 +40,7 @@ export function zeichnen(ctx, welt, einstellungen = {}) {
   ctx.save();
   ctx.translate(vx, vy);
 
-  himmel(ctx, P, szene, B, PL);
+  himmel(ctx, P, szene, B, PL, stand);
   huegel(ctx, P, B, PL);
   schlucht(ctx, P, szene, B, H, PL);
   klippeLinks(ctx, P, H, PL);
@@ -66,9 +68,11 @@ export function zeichnen(ctx, welt, einstellungen = {}) {
     ctx.globalAlpha = 1;
   }
 
-  fackelZeichnen(ctx, 356, 104, szene.zeit);
-  fackelZeichnen(ctx, 402, 96, szene.zeit + 1.3);
-  fackelZeichnen(ctx, 448, 104, szene.zeit + 2.6);
+  // Bei Tageslicht fällt der Feuerschein kaum auf.
+  const schein = 1 - stand.helligkeit * 0.7;
+  fackelZeichnen(ctx, 356, 104, szene.zeit, schein);
+  fackelZeichnen(ctx, 402, 96, szene.zeit + 1.3, schein);
+  fackelZeichnen(ctx, 448, 104, szene.zeit + 2.6, schein);
 
   torblitz(ctx, szene, PL);
   ctx.restore();
@@ -77,40 +81,34 @@ export function zeichnen(ctx, welt, einstellungen = {}) {
 
 /* ---------------- Hintergrund ---------------- */
 
-function himmel(ctx, P, szene, B, PL) {
+function himmel(ctx, P, szene, B, PL, stand) {
   const verlauf = ctx.createLinearGradient(0, 0, 0, PL);
   verlauf.addColorStop(0, P.himmelOben);
   verlauf.addColorStop(1, P.himmelUnten);
   ctx.fillStyle = verlauf;
   ctx.fillRect(-6, -6, B + 12, PL + 6);
 
-  if (P.stern) {
+  const nachtAnteil = 1 - stand.helligkeit;
+
+  // Sterne verschwinden, sobald es hell wird
+  if (P.stern && nachtAnteil > 0.02) {
     for (const s of szene.sterne) {
       const funkeln = 0.55 + 0.45 * Math.sin(szene.zeit * 1.6 + s.phase);
-      ctx.globalAlpha = s.helligkeit * funkeln;
+      ctx.globalAlpha = s.helligkeit * funkeln * nachtAnteil;
       ctx.fillStyle = P.stern;
       ctx.fillRect(s.x, s.y, 1, 1);
     }
     ctx.globalAlpha = 1;
   }
 
-  if (P.mond) {
-    const umlauf = 260;
-    const anteil = (szene.zeit % umlauf) / umlauf;
-    const mx = Math.round(40 + anteil * 380);
-    const my = Math.round(46 - Math.sin(anteil * Math.PI) * 28);
-    const hof = ctx.createRadialGradient(mx + 4, my + 4, 1, mx + 4, my + 4, 26);
-    hof.addColorStop(0, 'rgba(' + P.licht + ',0.30)');
-    hof.addColorStop(1, 'rgba(' + P.licht + ',0)');
-    ctx.fillStyle = hof;
-    ctx.fillRect(mx - 24, my - 24, 60, 60);
-    ctx.fillStyle = P.mond;
-    ctx.fillRect(mx + 2, my, 4, 8);
-    ctx.fillRect(mx + 1, my + 1, 6, 6);
-    ctx.fillRect(mx, my + 2, 8, 4);
-    ctx.fillStyle = 'rgba(0,0,0,0.18)';
-    ctx.fillRect(mx + 4, my + 2, 2, 2);
-    ctx.fillRect(mx + 2, my + 5, 1, 1);
+  // Sonne am Tag, Mond in der Nacht — beide wandern von links nach rechts.
+  if (stand.helligkeit > 0.05) {
+    gestirn(ctx, bahn(stand.fortschritt), SONNE.scheibe, SONNE.hof, stand.helligkeit, true);
+  }
+  if (P.mond && nachtAnteil > 0.05) {
+    // Nachts von vorn, tagsüber steht er schon halb am Himmel und verblasst.
+    const lauf = stand.istTag ? 0.5 + stand.fortschritt * 0.5 : stand.fortschritt;
+    gestirn(ctx, bahn(lauf), P.mond, P.licht, nachtAnteil, false);
   }
 
   if (szene.fledermaeuse) {
@@ -124,6 +122,42 @@ function himmel(ctx, P, szene, B, PL) {
       ctx.fillRect(x + 2, y + (hoch ? -1 : 1), 2, 1);
     }
   }
+}
+
+/** Wo ein Gestirn bei diesem Phasenfortschritt steht. */
+function bahn(anteil) {
+  return {
+    x: Math.round(40 + anteil * 380),
+    y: Math.round(46 - Math.sin(anteil * Math.PI) * 28)
+  };
+}
+
+/** Sonne und Mond werden gleich gebaut — nur Farbe und Gesicht unterscheiden sich. */
+function gestirn(ctx, pos, scheibe, hofFarbe, deckkraft, istSonne) {
+  const { x, y } = pos;
+  ctx.globalAlpha = Math.max(0, Math.min(1, deckkraft));
+
+  const hof = ctx.createRadialGradient(x + 4, y + 4, 1, x + 4, y + 4, istSonne ? 34 : 26);
+  hof.addColorStop(0, 'rgba(' + hofFarbe + ',' + (istSonne ? 0.26 : 0.3) + ')');
+  hof.addColorStop(1, 'rgba(' + hofFarbe + ',0)');
+  ctx.fillStyle = hof;
+  ctx.fillRect(x - 30, y - 30, 72, 72);
+
+  ctx.fillStyle = scheibe;
+  if (istSonne) {
+    // Etwas größer und rund, ohne Krater
+    ctx.fillRect(x + 1, y - 1, 6, 10);
+    ctx.fillRect(x, y, 8, 8);
+    ctx.fillRect(x - 1, y + 1, 10, 6);
+  } else {
+    ctx.fillRect(x + 2, y, 4, 8);
+    ctx.fillRect(x + 1, y + 1, 6, 6);
+    ctx.fillRect(x, y + 2, 8, 4);
+    ctx.fillStyle = 'rgba(0,0,0,0.18)';
+    ctx.fillRect(x + 4, y + 2, 2, 2);
+    ctx.fillRect(x + 2, y + 5, 1, 1);
+  }
+  ctx.globalAlpha = 1;
 }
 
 function huegel(ctx, P, B, PL) {

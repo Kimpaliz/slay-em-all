@@ -205,12 +205,12 @@ export function klaueZeichnen(ctx, klaue) {
   ctx.fillRect(x + 2, y + 1, weite, 1);
 }
 
-export function fackelZeichnen(ctx, x, y, zeit) {
+export function fackelZeichnen(ctx, x, y, zeit, scheinStaerke = 1) {
   const flackern = Math.sin(zeit * 7.3) * 0.5 + Math.sin(zeit * 12.1) * 0.5;
   const hoehe = 3 + Math.round(Math.abs(flackern) * 2);
 
   const schein = ctx.createRadialGradient(x + 1, y, 1, x + 1, y, 16 + hoehe);
-  schein.addColorStop(0, 'rgba(255,150,60,0.34)');
+  schein.addColorStop(0, 'rgba(255,150,60,' + (0.34 * scheinStaerke).toFixed(3) + ')');
   schein.addColorStop(1, 'rgba(255,120,40,0)');
   ctx.fillStyle = schein;
   ctx.fillRect(x - 18, y - 18, 40, 40);

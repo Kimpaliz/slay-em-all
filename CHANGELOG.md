@@ -1,5 +1,87 @@
 # Änderungsprotokoll
 
+## 0.3.0 — 26.08.2026
+
+**Aus der Szene wird ein Spiel.** Vorher liefen drei Zähler hoch und das
+Haus baute sich gratis selbst aus. Jetzt gibt es eine Schleife.
+
+### Der Tag-und-Nacht-Takt
+
+Ein Tag dauert 100 Sekunden, die Nacht 50.
+
+- **Tagsüber** kommen die Recken in **Wellen** statt als gleichmäßiger
+  Strom — drei bis sechs Glockenkurven mit Ruhe dazwischen, mehr Wellen mit
+  steigender Tageszahl. Blut fließt sofort. Knochen und Schrott bleiben als
+  **Beutehaufen** an der Mauer liegen.
+- **Nachts** kommt niemand. Die Kobolde tragen den Haufen ab — daraus
+  entstehen Knochen und Schrott. **Nur nachts wird eingekauft.**
+- Ist der Haufen voll, fällt neue Beute in die Schlucht. Genau das macht
+  Kobolde interessant: Sie ernten schneller *und* stapeln höher.
+- Der Himmel zieht mit: Sonne und Mond wandern, Sterne verblassen im
+  Morgengrauen, der Fackelschein tritt bei Tag zurück. Bewusst kein blauer
+  Sommerhimmel, sondern ein trüber kalter Tag — sonst erschlägt das
+  Tageslicht die Torglut, von der die Szene lebt.
+
+Die Wellenkurve ist auf den Mittelwert 1 normiert. Ohne das würde jede
+Änderung an der Wellenform still die gesamte Balance verschieben.
+
+### Blut wird in Litern gerechnet
+
+Ein Bauer trägt fünf davon. Unter der Zahl steht, was das bedeutet:
+*etwa 1,8 Schwimmbecken*, *etwa 3 Bodenseen*. Die Leiter reicht vom Eimer
+über Badewanne, Tankwagen, Schwimmbecken, Öltanker und Bodensee bis zu den
+Weltmeeren — echte, gerundete Größen.
+
+Das löst nebenbei das Zahlenproblem der letzten Fassung eleganter als
+Zehnerpotenzen: Niemand kann sich 4·10¹³ Liter vorstellen, einen Bodensee
+schon.
+
+### Die Schleife
+
+- **Blut** (Liter) kauft Zulauf und Torplätze — fließt schnell, geht schnell.
+- **Schrott** kauft Maschinen: Klingen, Presse, Kobolde.
+- **Knochen** werden **nie ausgegeben**. Sie sind der Fortschrittsbalken zum
+  Neuanfang.
+- **Neuanfang:** Die Burg trägt den Haufen ab. Blut, Schrott und alle
+  Ausbauten gehen zurück auf null; dafür gibt es **Schädel**
+  (Wurzel der Knochenzahl, damit ewiges Ausdehnen einer Runde sich nicht
+  lohnt). Schädel kaufen Dauerhaftes: Blutzoll, Ruf im Tal, Erbe des Hauses
+  — und den **Verwalter**, der wieder von selbst einkauft. Damit ist
+  „Zusehen genügt" kein Anfangszustand mehr, sondern etwas, das man sich
+  verdient.
+
+Harte Regel für alle Preise: `preiswachstum > wirkung`. Sonst bringt jede
+Stufe mehr ein, als die nächste kostet, und das Spiel ist nach zwanzig
+Minuten vorbei. Wird geprüft.
+
+### Behoben
+
+- **Die sichtbare Brücke deckelte das ganze Spiel.** Auf die Planken passen
+  18 Figuren, und dieser Grafikwert begrenzte den echten Zulauf. Gemessen:
+  bei rechnerisch 6.148 fälligen Recken fielen **87**. Ab etwa drei Recken
+  je Sekunde war damit jeder weitere Ausbau wirkungslos. Anzeige und
+  Rechnung sind jetzt getrennt: Das Bild zeigt eine Auswahl, die Schlange
+  im Dunkeln läuft weiter. Nachgemessen 92–100 % statt 1,4 %.
+- Die Schlange im Dunkeln wächst nicht mehr unbegrenzt (vorher 15.337
+  Einträge und 781 ms Rechenzeit für 30 Spielsekunden, jetzt 312 und 119 ms).
+- Bewertungsfunktion des Verwalters maß nur Blut. Kobolde bringen kein Blut,
+  sondern retten Knochen und Schrott — sie wurden deshalb **nie** gekauft,
+  und im Rechendurchlauf gingen an Tag 20 46.359 von 46.429 Recken verloren.
+  Jetzt zählen alle drei Währungen, und zwar relativ.
+- Anzeige: „1,5 Badewanne" → „1,5 Badewannen".
+
+### Geprüft
+
+- `werkzeuge/pruefe-wirtschaft.mjs`: **101 Prüfungen**, alle bestanden.
+- Neu `werkzeuge/balance.mjs`: spielt 25 Tage durch und bewertet sechs
+  Kennzahlen — Käufe je Nacht 15,1; erster Schädel Tag 3; letzte
+  Reckenklasse nach 27 Min; 13 von 25 Tagen mit Haufendruck; alle grün.
+- Im Browser mit echten Knopfdrücken durchgespielt: 204 Käufe über zwölf
+  Tage, Neuanfang mit 7 Schädeln, dauerhafter Kauf zieht korrekt ab.
+- Durchsatz gegen die Rechnung gemessen (vier Ausbaustände): 92–100 %.
+- Tageslauf im Bild nachgemessen: Mitternacht 42,41,68 gegen Mittag
+  105,110,122.
+
 ## 0.2.0 — 26.08.2026
 
 **Aus einer 481-KB-Datei wurden 18 lesbare Dateien.** Am Aussehen und am

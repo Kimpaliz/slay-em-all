@@ -1,11 +1,12 @@
 {
   "name": "slay-em-all",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Slay'Em All! — Burg-Idle-Spiel. Die Recken gehen hinein. Was herauskommt, kommt einzeln.",
   "type": "module",
   "private": true,
   "scripts": {
     "vorschau": "node werkzeuge/vorschau-server.mjs",
-    "pruefen": "node werkzeuge/pruefe-wirtschaft.mjs"
+    "pruefen": "node werkzeuge/pruefe-wirtschaft.mjs",
+    "balance": "node werkzeuge/balance.mjs"
   }
 }

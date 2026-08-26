@@ -8,14 +8,34 @@ import { MASSE } from './masse.js';
 import { VORNAMEN, BEINAMEN, REIME } from './daten/texte.js';
 import { KAUFSPRUCH } from './daten/ausbauten.js';
 import {
-  raten, klasseWaehlen, kaufAbstand, hausWaehltAusbau
+  raten, klasseWaehlen, kaufen, bestesAngebot, verwalterTakt
 } from '../werkzeuge/wirtschaft.mjs';
+import { tagesStand, zulaufFaktor } from './tageslauf.js';
 
 const STANDARD = { blutigkeit: 9, beben: true };
 
-/** Wie viele Recken höchstens gleichzeitig sichtbar sind. Reine Optik. */
+/** Wie viele Recken höchstens gleichzeitig gezeichnet werden. Reine Optik. */
 const MAX_AUF_BRUECKE = 18;
-const MAX_IM_TOR = 26;
+/**
+ * Wie viel mehr losgeschickt wird, als das Tor schafft.
+ *
+ * Mehr wäre sinnlos: Wer nicht bedient werden kann, staut sich nur. Ein
+ * kleiner Überschuss sorgt dafür, dass das Tor nie leerläuft. Ohne diese
+ * Deckelung stünden bei hohem Zulauf zehntausende Recken gleichzeitig
+ * unterwegs im Speicher.
+ */
+const UEBERSCHUSS = 1.15;
+/**
+ * Wie lang die Schlange im Dunkeln höchstens wird.
+ *
+ * Doppelt so viele, wie gleichzeitig bedient werden, plus etwas Puffer:
+ * genug, dass das Tor nie leerläuft, und wenig genug, dass sich der kleine
+ * Überschuss nicht über Stunden zu Zehntausenden aufstaut. Wer keinen
+ * Platz mehr findet, dreht am Torbogen wieder um.
+ */
+function maxSchlange(torplaetze) {
+  return Math.ceil(torplaetze * 2) + 60;
+}
 
 export function reckenName(zufall = Math.random) {
   const vorname = VORNAMEN[(zufall() * VORNAMEN.length) | 0];
@@ -26,15 +46,20 @@ export function reckenName(zufall = Math.random) {
 export function schritt(welt, dt, einstellungen = {}) {
   const opt = { ...STANDARD, ...einstellungen };
   const { zustand, szene } = welt;
-  const r = raten(zustand.stufen);
+  const r = raten(zustand.stufen, zustand.dauerhaft);
   szene.zeit += dt;
   zustand.spielzeit = szene.zeit;
+  zustand.gesamtzeit += dt;
 
-  hausKauftEin(welt, dt);
+  const stand = tagesStand(szene.zeit);
+  phasenWechsel(welt, stand);
+
+  hausKauftEin(welt, dt, stand);
   zulauf(welt, dt, r);
   gangUeberDieBruecke(welt, dt);
   klaue(welt, dt, opt);
   torVerarbeitet(welt, dt, r, opt);
+  ernte(welt, dt, r, stand);
   kobolde(welt, dt, r);
   truemmerPhysik(welt, dt);
   spritzerPhysik(welt, dt);
@@ -45,50 +70,138 @@ export function schritt(welt, dt, einstellungen = {}) {
   if (szene.aufblitzen > 0) szene.aufblitzen = Math.max(0, szene.aufblitzen - dt * 3.2);
 }
 
-/* ---------------- das Haus baut sich selbst aus ---------------- */
+/* ---------------- Tag wird Nacht ---------------- */
 
-function hausKauftEin(welt, dt) {
+function phasenWechsel(welt, stand) {
+  const { szene } = welt;
+  if (stand.phase === szene.letztePhase) return;
+  szene.letztePhase = stand.phase;
+
+  if (stand.phase === 'nacht') {
+    const verloren = Math.round(szene.verlorenHeute);
+    szene.spruchSchlange.unshift(verloren > 0
+      ? `Es wird dunkel. ${verloren} Stück sind in den Graben gefallen — der Haufen war voll!`
+      : 'Es wird dunkel. Die Kobolde treten an, der Haufen wird abgetragen.');
+  } else {
+    const g = szene.geerntetHeute;
+    szene.spruchSchlange.unshift(
+      `Ein neuer Tag. Eingebracht: ${Math.round(g.knochen)} Knochen und ${Math.round(g.schrott)} Schrott.`);
+    szene.verlorenHeute = 0;
+    szene.geerntetHeute = { knochen: 0, schrott: 0 };
+  }
+}
+
+/* ---------------- der Verwalter kauft für einen ein ---------------- */
+
+// Erst wenn der Spieler dauerhaft einen Verwalter angestellt hat, kauft das
+// Haus wieder von selbst — und dann bezahlt es auch, und nur nachts. In der
+// ersten Fassung kaufte es umsonst und immerzu; daran ist die Schleife
+// gescheitert.
+
+function hausKauftEin(welt, dt, stand) {
   const { zustand, szene } = welt;
+  if (stand.istTag) return;
+  const proNacht = verwalterTakt(zustand.dauerhaft);
+  if (proNacht <= 0) return;
+
   szene.kaufRest += dt;
-  if (szene.kaufRest < kaufAbstand(zustand.kaeufe)) return;
+  const abstand = 50 / proNacht; // eine Nacht dauert 50 Sekunden
+  if (szene.kaufRest < abstand) return;
   szene.kaufRest = 0;
 
-  const id = hausWaehltAusbau(zustand.stufen);
-  zustand.stufen[id] += 1;
+  const id = bestesAngebot(zustand, true);
+  if (!id) return;
+  kaufVerbuchen(welt, id, 'Der Verwalter hat entschieden: ');
+}
+
+/* ---------------- nachts wird der Haufen abgetragen ---------------- */
+
+function ernte(welt, dt, r, stand) {
+  const { zustand, szene } = welt;
+  if (stand.istTag) return;
+  const haufen = szene.haufen;
+  if (haufen.stueck <= 0) return;
+
+  szene.ernteRest += r.ernteTempo * dt;
+  if (szene.ernteRest < 0.001) return;
+
+  const stueck = Math.min(haufen.stueck, szene.ernteRest);
+  szene.ernteRest -= stueck;
+
+  // Jedes Stück nimmt seinen Anteil am Haufen mit.
+  const anteil = stueck / haufen.stueck;
+  const knochen = haufen.knochen * anteil;
+  const schrott = haufen.schrott * anteil;
+
+  haufen.stueck -= stueck;
+  haufen.knochen -= knochen;
+  haufen.schrott -= schrott;
+
+  zustand.knochen += knochen;
+  zustand.schrott += schrott;
+  szene.geerntetHeute.knochen += knochen;
+  szene.geerntetHeute.schrott += schrott;
+  szene.knochenhaufen = Math.min(150, Math.round(haufen.stueck));
+}
+
+/** Bucht einen Kauf und lässt den Marktschreier davon reden. */
+export function kaufVerbuchen(welt, id, vorspann = '') {
+  const { zustand } = welt;
+  if (!kaufen(zustand, id)) return false;
   zustand.kaeufe += 1;
   const sprueche = KAUFSPRUCH[id];
-  zustand.letzterKauf = sprueche[(Math.random() * sprueche.length) | 0] + ' (Stufe ' + zustand.stufen[id] + ')';
+  const spruch = sprueche[(Math.random() * sprueche.length) | 0];
+  zustand.letzterKauf = vorspann + spruch + ' (Stufe ' + zustand.stufen[id] + ')';
+  return true;
 }
 
 /* ---------------- Recken kommen ins Tal ---------------- */
 
 function zulauf(welt, dt, r) {
   const { zustand, szene } = welt;
-  szene.zulaufRest += dt * r.zulauf;
+  // Es wird nie mehr losgeschickt, als das Tor verarbeiten kann.
+  const torLeistung = r.torplaetze / r.verweildauer;
+  const kommen = Math.min(r.zulauf * zulaufFaktor(szene.zeit), torLeistung * UEBERSCHUSS);
+
+  // Nachts ist der Faktor null — dann kommt niemand mehr.
+  szene.zulaufRest += dt * kommen;
+  const grenze = maxSchlange(r.torplaetze);
+
   while (szene.zulaufRest >= 1) {
     szene.zulaufRest -= 1;
-    if (szene.recken.length >= MAX_AUF_BRUECKE || szene.imTor.length >= MAX_IM_TOR) continue;
+    if (szene.imTor.length >= grenze) {
+      szene.zulaufRest = 0; // voll ist voll — nicht weiter aufstauen
+      break;
+    }
     const klasse = klasseWaehlen(zustand.erledigte);
-    // Mit jedem Ausbau des Hauses gehen sie zügiger — gedeckelt, sonst rennen sie.
-    const eile = Math.min(3.2, 1.35 + zustand.kaeufe * 0.055);
-    szene.recken.push({
-      nr: szene.laufendeNummer++,
-      klasse,
-      x: -8 - Math.random() * 26,
-      name: reckenName(),
-      phase: Math.random() * 6.28,
-      zweifelt: Math.random() < 0.1,
-      zweifelZeit: 0,
-      hatGezweifelt: false,
-      sichtbarkeit: 1,
-      tempo: klasse.tempo * (0.85 + Math.random() * 0.3) * eile
-    });
+
+    if (szene.recken.length < MAX_AUF_BRUECKE) {
+      // Mit jedem Ausbau gehen sie zügiger — gedeckelt, sonst rennen sie.
+      const eile = Math.min(3.2, 1.35 + zustand.kaeufe * 0.055);
+      szene.recken.push({
+        nr: szene.laufendeNummer++,
+        klasse,
+        tempo: klasse.tempo * (0.85 + Math.random() * 0.3) * eile,
+        name: reckenName(),
+        x: -8 - Math.random() * 26,
+        phase: Math.random() * 6.28,
+        zweifelt: Math.random() < 0.1,
+        zweifelZeit: 0,
+        hatGezweifelt: false,
+        sichtbarkeit: 1
+      });
+    } else {
+      // Kein Platz im Bild. Er reiht sich trotzdem ein — den Weg über die
+      // Brücke muss nur nachspielen, wer dabei zu sehen ist. Einen Namen
+      // bekommt er erst, wenn der Marktschreier ihn braucht.
+      verschlucken(szene, klasse, null, r);
+    }
   }
 }
 
 function gangUeberDieBruecke(welt, dt) {
   const { szene } = welt;
-  const r = raten(welt.zustand.stufen);
+  const r = raten(welt.zustand.stufen, welt.zustand.dauerhaft);
   for (let i = szene.recken.length - 1; i >= 0; i--) {
     const recke = szene.recken[i];
 
@@ -105,14 +218,17 @@ function gangUeberDieBruecke(welt, dt) {
     }
     if (recke.x >= MASSE.eintritt) {
       szene.recken.splice(i, 1);
-      szene.imTor.push({
-        klasse: recke.klasse,
-        name: recke.name,
-        rest: r.verweildauer * (0.8 + Math.random() * 0.4),
-        dran: false
-      });
+      verschlucken(szene, recke.klasse, recke.name, r);
     }
   }
+}
+
+function verschlucken(szene, klasse, name, r) {
+  szene.imTor.push({
+    klasse, name,
+    rest: r.verweildauer * (0.8 + Math.random() * 0.4),
+    dran: false
+  });
 }
 
 /* ---------------- die Klaue holt sich einen Nachzügler ---------------- */
@@ -168,7 +284,7 @@ function torVerarbeitet(welt, dt, r, opt) {
 /** Ein Recke ist fertig. Beute buchen, Teile werfen, Reim in die Schlange. */
 export function erledigen(welt, opfer, opt = STANDARD) {
   const { zustand, szene } = welt;
-  const r = raten(zustand.stufen);
+  const r = raten(zustand.stufen, zustand.dauerhaft);
   const k = opfer.klasse;
   const maulX = MASSE.torLinks + 4;
   const maulY = MASSE.planke - 10;
@@ -188,22 +304,31 @@ export function erledigen(welt, opfer, opt = STANDARD) {
     }
   }
 
-  szene.knochenhaufen = Math.min(150, szene.knochenhaufen + 1);
-
-  zustand.blut += Math.round(k.blut * r.beute);
-  zustand.knochen += k.knochen;
-  zustand.schrott += k.schrott;
+  // Blut fließt sofort ins Haus. Knochen und Schrott bleiben liegen und
+  // werden erst nachts eingesammelt — wenn denn noch Platz auf dem Haufen ist.
+  zustand.blut += k.blut * r.beute;
   zustand.erledigte += 1;
   zustand.proKlasse[k.id] = (zustand.proKlasse[k.id] || 0) + 1;
+
+  if (szene.haufen.stueck < r.lagerplatz) {
+    szene.haufen.stueck += 1;
+    szene.haufen.knochen += k.knochen;
+    szene.haufen.schrott += k.schrott * r.beute;
+  } else {
+    szene.verlorenHeute += 1;
+  }
+  szene.knochenhaufen = Math.min(150, Math.round(szene.haufen.stueck));
 
   reimEinreihen(welt, opfer.name);
 }
 
-function reimEinreihen(welt, name) {
+function reimEinreihen(welt, gefallenerName) {
   const { szene } = welt;
   const darf = szene.zeit - szene.letzterSpruch > 0.9 && szene.spruchSchlange.length < 14;
   if (!darf) return;
   szene.letzterSpruch = szene.zeit;
+  // Ungesehene tragen keinen Namen mit sich herum — jetzt bekommen sie einen.
+  const name = gefallenerName || reckenName();
   let i = (Math.random() * REIME.length) | 0;
   if (i === szene.letzterReim) i = (i + 1 + ((Math.random() * 3) | 0)) % REIME.length;
   szene.letzterReim = i;
@@ -273,26 +398,20 @@ export function lacheSetzen(welt, x, breite) {
   if (szene.lachen.length > 46) szene.lachen.shift();
 }
 
-/* ---------------- Kobolde: wischen und bringen Blut ---------------- */
+/* ---------------- Kobolde wischen die Planken ---------------- */
+
+// Reine Optik: die herumliegenden Einzelteile und ein Teil der Blutlachen
+// verschwinden nach und nach. Der Ertrag steckt im Beutehaufen, nicht hier.
 
 function kobolde(welt, dt, r) {
-  const { zustand, szene } = welt;
-  if (r.kobold <= 0) return;
+  const { szene } = welt;
+  if (!szene.liegendes.length) return;
 
-  if (szene.liegendes.length) {
-    szene.wischRest += dt * r.kobold * 0.5;
-    while (szene.wischRest >= 1 && szene.liegendes.length) {
-      szene.wischRest -= 1;
-      szene.liegendes.shift();
-      if (szene.lachen.length > 6) szene.lachen.shift();
-    }
-  }
-
-  szene.blutRest += r.kobold * r.beute * dt;
-  if (szene.blutRest >= 1) {
-    const ganze = Math.floor(szene.blutRest);
-    szene.blutRest -= ganze;
-    zustand.blut += ganze;
+  szene.wischRest += dt * r.ernteTempo * 0.35;
+  while (szene.wischRest >= 1 && szene.liegendes.length) {
+    szene.wischRest -= 1;
+    szene.liegendes.shift();
+    if (szene.lachen.length > 6) szene.lachen.shift();
   }
 }
 

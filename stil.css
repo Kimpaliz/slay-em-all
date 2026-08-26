@@ -121,6 +121,21 @@ h1 {
   font-variant-numeric: tabular-nums;
 }
 
+.beute-blut { min-width: 130px; }
+
+.einheit {
+  font-size: 15px;
+  opacity: 0.65;
+}
+
+.beute-vergleich {
+  font-size: 9.5px;
+  color: var(--gedaempft);
+  margin-top: 3px;
+  line-height: 1.25;
+  min-height: 1.2em;
+}
+
 .wert-blut { color: var(--blut); }
 .wert-knochen { color: var(--knochen); }
 .wert-schrott { color: var(--akzent); }
@@ -219,6 +234,71 @@ canvas[data-szene] {
   pointer-events: none;
 }
 
+/* ---------- Tagesleiste ---------- */
+
+.tagesleiste {
+  background: var(--flaeche);
+  border-radius: var(--rundung);
+  box-shadow: var(--kante);
+  padding: 10px var(--abstand-4) 11px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  border-left: 3px solid var(--tag-ton, var(--akzent));
+}
+
+.tagesleiste[data-phase="tag"] { --tag-ton: #8b8f9c; }
+.tagesleiste[data-phase="nacht"] { --tag-ton: var(--akzent); }
+
+.tagesleiste-kopf,
+.tagesleiste-fuss {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.tag-zahl {
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.tag-phase {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--tag-ton, var(--akzent));
+  margin-right: auto;
+}
+
+.tag-rest {
+  font-size: 11px;
+  color: var(--gedaempft);
+  font-variant-numeric: tabular-nums;
+}
+
+.balken {
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(233, 233, 237, 0.09);
+  overflow: hidden;
+}
+
+.balken-fuellung {
+  height: 100%;
+  width: 0%;
+  background: var(--tag-ton, var(--akzent));
+  transition: width 0.2s linear;
+}
+
+.tagesleiste-fuss {
+  font-size: 10.5px;
+  color: var(--gedaempft);
+  font-variant-numeric: tabular-nums;
+}
+
+.tagesleiste-fuss span:last-child { color: var(--blut); }
+
 /* ---------- die drei Karten ---------- */
 
 .karten {
@@ -274,6 +354,8 @@ canvas[data-szene] {
   font-variant-numeric: tabular-nums;
 }
 
+.kennzahl-wert.klein { font-size: 14px; }
+
 .kennzahl-wert.wert-blut { color: var(--blut); }
 
 .fussleiste {
@@ -320,31 +402,129 @@ th:last-child, td:last-child { padding-right: var(--abstand-4); }
   flex: 0 0 auto;
 }
 
-/* ---------- Ausbauten ---------- */
+/* ---------- Ausbauten als Knöpfe ---------- */
+
+.ausbauliste,
+.dauerhaftliste {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.knopf {
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: 1px solid var(--linie);
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.knopf:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
+}
+
+.knopf:focus-visible {
+  outline: 2px solid var(--akzent);
+  outline-offset: 2px;
+}
 
 .ausbau {
   display: flex;
   align-items: center;
-  gap: 9px;
-  font-size: 12px;
-  line-height: 1.25;
+  gap: 10px;
   justify-content: space-between;
+  padding: 7px 9px;
+  width: 100%;
+  line-height: 1.25;
+  transition: background 0.12s ease, border-color 0.12s ease;
 }
 
-.ausbau-name { color: var(--text); }
+.ausbau-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.ausbau-name { font-size: 12px; }
 
 .ausbau-wirkung {
-  font-size: 10.5px;
+  font-size: 10px;
   color: var(--gedaempft);
   margin-top: 1px;
+  text-wrap: pretty;
 }
 
-.ausbau-stufe {
+.ausbau-rechts {
   flex: 0 0 auto;
-  font-variant-numeric: tabular-nums;
-  color: var(--akzent-hell);
-  font-size: 11.5px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
 }
+
+.ausbau-preis {
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.knopf[data-waehrung="blut"] .ausbau-preis { color: var(--blut); }
+.knopf[data-waehrung="schrott"] .ausbau-preis { color: var(--akzent); }
+
+.ausbau-stufe {
+  font-size: 9.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--gedaempft);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Bezahlbar heißt: hervorheben. Alles andere bleibt ruhig. */
+.knopf.bezahlbar {
+  border-color: color-mix(in srgb, var(--akzent) 55%, transparent);
+  background: color-mix(in srgb, var(--akzent) 9%, transparent);
+}
+
+.knopf.bezahlbar:hover {
+  background: color-mix(in srgb, var(--akzent) 17%, transparent);
+  border-color: var(--akzent);
+}
+
+.knopf.bezahlbar:active { transform: translateY(1px); }
+
+/* ---------- Neuanfang ---------- */
+
+.neuanfang { gap: var(--abstand-3); }
+
+.neuanfang-kopf {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--abstand-4);
+  flex-wrap: wrap;
+}
+
+.neuanfang-kopf > div { flex: 1 1 320px; }
+
+.neuanfang-text { max-width: 62ch; }
+
+.knopf-gross {
+  flex: 0 0 auto;
+  padding: 10px 16px;
+  font-size: 13px;
+  border-radius: var(--rundung);
+  white-space: nowrap;
+}
+
+.schaedel-zeile {
+  border-top: 1px solid var(--linie);
+  padding-top: var(--abstand-3);
+}
+
+.ausbau-dauerhaft .ausbau-preis { color: var(--knochen); }
 
 .letzter-kauf {
   border-top: 1px solid var(--linie);
