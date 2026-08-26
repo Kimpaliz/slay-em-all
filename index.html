@@ -38,112 +38,164 @@
       </div>
     </header>
 
-    <div class="rahmen">
-      <canvas data-szene="burgtor" width="480" height="200" aria-label="Die Zugbrücke zum Burgtor"></canvas>
-      <div class="laufband">
-        <div class="laufband-schild">
-          <span class="puls"></span>
-          <span class="laufband-name">Marktschreier</span>
-        </div>
-        <div class="laufband-bahn" data-laufband>
-          <span data-bahn><span>Hereinspaziert, ihr Recken! Das Tor steht offen, der Hausherr hat Hunger!</span><span class="trenner">✦</span></span>
-          <span data-bahn><span>Ruhm, Gold und ewige Ehre — hinten links, einfach reingehen!</span><span class="trenner">✦</span></span>
-          <span data-bahn><span>Kein Anstehen nötig, es geht immer noch einer rein!</span><span class="trenner">✦</span></span>
-          <div class="verlauf-rechts"></div>
+    <nav class="reiter-leiste" role="tablist" aria-label="Ansicht wählen">
+      <button type="button" class="reiter reiter-aktiv" role="tab" data-zu-ansicht="tor" aria-selected="true">Das Tor</button>
+      <button type="button" class="reiter" role="tab" data-zu-ansicht="schatzkammer" aria-selected="false">Schatzkammer</button>
+      <span class="wisch-hinweis">wischen oder Pfeiltasten</span>
+    </nav>
+
+    <!-- ═══════════════ Ansicht 1: das Tor ═══════════════ -->
+    <section data-ansicht="tor" class="ansicht">
+
+      <div class="rahmen">
+        <canvas data-szene="burgtor" width="480" height="200" aria-label="Die Zugbrücke zum Burgtor"></canvas>
+        <div class="laufband">
+          <div class="laufband-schild">
+            <span class="puls"></span>
+            <span class="laufband-name">Marktschreier</span>
+          </div>
+          <div class="laufband-bahn" data-laufband>
+            <span data-bahn><span>Hereinspaziert, ihr Recken! Das Tor steht offen, der Hausherr hat Hunger!</span><span class="trenner">✦</span></span>
+            <span data-bahn><span>Ruhm, Gold und ewige Ehre — hinten links, einfach reingehen!</span><span class="trenner">✦</span></span>
+            <span data-bahn><span>Kein Anstehen nötig, es geht immer noch einer rein!</span><span class="trenner">✦</span></span>
+            <div class="verlauf-rechts"></div>
+          </div>
         </div>
       </div>
-    </div>
 
-    <div class="tagesleiste" data-phase="tag">
-      <div class="tagesleiste-kopf">
-        <span class="tag-zahl" data-feld="tagZahl">Tag 1</span>
-        <span class="tag-phase" data-feld="phase">Tag — die Wellen kommen</span>
-        <span class="tag-rest" data-feld="phaseRest">noch 100 s</span>
+      <div class="tagesleiste" data-phase="tag">
+        <div class="tagesleiste-kopf">
+          <span class="tag-zahl" data-feld="tagZahl">Tag 1</span>
+          <span class="tag-phase" data-feld="phase">Tag — die Wellen kommen</span>
+          <span class="tag-rest" data-feld="phaseRest">noch 100 s</span>
+        </div>
+        <div class="balken"><div class="balken-fuellung" data-balken="phase"></div></div>
+        <div class="tagesleiste-fuss">
+          <span data-feld="haufenStand">Beutehaufen: 0 / 70</span>
+          <span data-feld="haufenWarnung"></span>
+        </div>
       </div>
-      <div class="balken"><div class="balken-fuellung" data-balken="phase"></div></div>
-      <div class="tagesleiste-fuss">
-        <span data-feld="haufenStand">Beutehaufen: 0 / 70</span>
-        <span data-feld="haufenWarnung"></span>
+
+      <div class="karten karten-zwei">
+
+        <section class="karte">
+          <div class="karte-kopf">Torbetrieb</div>
+          <div class="kennzahlen">
+            <div>
+              <div class="kennzahl-name">Recken / Min.</div>
+              <div class="kennzahl-wert" data-feld="reckenProMinute">0</div>
+            </div>
+            <div>
+              <div class="kennzahl-name">Liter / Sek.</div>
+              <div class="kennzahl-wert wert-blut" data-feld="blutProSekunde">0</div>
+            </div>
+            <div>
+              <div class="kennzahl-name">Verweildauer im Tor</div>
+              <div class="kennzahl-wert" data-feld="verweildauer">0 s</div>
+            </div>
+            <div>
+              <div class="kennzahl-name">Erledigt</div>
+              <div class="kennzahl-wert" data-feld="erledigte">0</div>
+            </div>
+          </div>
+          <div class="fussleiste">
+            <div>
+              <div class="kennzahl-name">Im Tor</div>
+              <div class="kennzahl-wert klein" data-feld="imTor">0 / 1</div>
+            </div>
+            <div>
+              <div class="kennzahl-name">Auf der Brücke</div>
+              <div class="kennzahl-wert klein" data-feld="aufBruecke">0</div>
+            </div>
+          </div>
+          <p class="hinweis" data-feld="engpass">Der Engpass wird berechnet.</p>
+
+          <div class="abschnitt">
+            <div class="karte-kopf">Was das Haus selbst bezahlt</div>
+            <div class="hinweis" data-feld="kaufHinweis">Das Haus handelt nur bei Dunkelheit.</div>
+          </div>
+          <div class="ausbauliste" data-liste="blut-ausbauten"></div>
+          <div class="letzter-kauf" data-feld="letzterKauf">Das Haus wartet auf eine Entscheidung.</div>
+        </section>
+
+        <section class="karte karte-breit">
+          <div class="karte-kopf">Bestiarium</div>
+          <table>
+            <thead>
+              <tr>
+                <th>Recke</th>
+                <th class="zelle-zahl">Erledigt</th>
+                <th class="zelle-zahl">Liter/Stk.</th>
+              </tr>
+            </thead>
+            <tbody data-liste="bestiarium"></tbody>
+          </table>
+        </section>
+
       </div>
-    </div>
+    </section>
 
-    <div class="karten">
+    <!-- ═══════════════ Ansicht 2: die Schatzkammer ═══════════════ -->
+    <section data-ansicht="schatzkammer" class="ansicht" hidden>
 
-      <section class="karte">
-        <div class="karte-kopf">Torbetrieb</div>
-        <div class="kennzahlen">
-          <div>
-            <div class="kennzahl-name">Recken / Min.</div>
-            <div class="kennzahl-wert" data-feld="reckenProMinute">0</div>
-          </div>
-          <div>
-            <div class="kennzahl-name">Liter / Sek.</div>
-            <div class="kennzahl-wert wert-blut" data-feld="blutProSekunde">0</div>
-          </div>
-          <div>
-            <div class="kennzahl-name">Verweildauer im Tor</div>
-            <div class="kennzahl-wert" data-feld="verweildauer">0 s</div>
-          </div>
-          <div>
-            <div class="kennzahl-name">Erledigt</div>
-            <div class="kennzahl-wert" data-feld="erledigte">0</div>
-          </div>
+      <div class="kammer">
+        <div class="portraet-rahmen">
+          <canvas data-portraet="grutz" width="120" height="150" aria-label="Grutz, der Kobold in der Schatzkammer"></canvas>
+          <div class="portraet-name">Grutz</div>
         </div>
-        <div class="fussleiste">
-          <div>
-            <div class="kennzahl-name">Im Tor</div>
-            <div class="kennzahl-wert klein" data-feld="imTor">0 / 1</div>
-          </div>
-          <div>
-            <div class="kennzahl-name">Auf der Brücke</div>
-            <div class="kennzahl-wert klein" data-feld="aufBruecke">0</div>
-          </div>
-        </div>
-        <p class="hinweis" data-feld="engpass">Der Engpass wird berechnet.</p>
-      </section>
-
-      <section class="karte karte-breit">
-        <div class="karte-kopf">Bestiarium</div>
-        <table>
-          <thead>
-            <tr>
-              <th>Recke</th>
-              <th class="zelle-zahl">Erledigt</th>
-              <th class="zelle-zahl">Liter/Stk.</th>
-            </tr>
-          </thead>
-          <tbody data-liste="bestiarium"></tbody>
-        </table>
-      </section>
-
-      <section class="karte">
-        <div>
-          <div class="karte-kopf">Ausbau des Hauses</div>
-          <div class="hinweis" data-feld="kaufHinweis">Das Haus handelt nur bei Dunkelheit.</div>
-        </div>
-        <div class="ausbauliste" data-liste="ausbauten"></div>
-        <div class="letzter-kauf" data-feld="letzterKauf">Das Haus wartet auf eine Entscheidung.</div>
-      </section>
-
-    </div>
-
-    <section class="karte neuanfang" data-bereich="neuanfang" hidden>
-      <div class="neuanfang-kopf">
-        <div>
-          <div class="karte-kopf">Den Haufen abtragen</div>
-          <p class="hinweis neuanfang-text" data-feld="neuanfangText">
-            Der Knochenhaufen wächst. Irgendwann trägt die Burg ihn ab und baut daraus
-            etwas, das bleibt.
+        <div class="kammer-text">
+          <div class="karte-kopf">Die Schatzkammer</div>
+          <p class="grutz-rede" data-feld="grutzRede">
+            „Runter die Treppe, Vorsicht, Kopf. Was der Hausherr auswringt, sortiere ich.
+            Eisen bleibt Eisen. Sag an, was du brauchst."
           </p>
+          <div class="kammer-zahlen">
+            <div>
+              <div class="kennzahl-name">Schrott im Lager</div>
+              <div class="kennzahl-wert wert-schrott" data-feld="schrottKammer">0</div>
+            </div>
+            <div>
+              <div class="kennzahl-name">Knochen gesammelt</div>
+              <div class="kennzahl-wert wert-knochen" data-feld="knochenKammer">0</div>
+            </div>
+            <div>
+              <div class="kennzahl-name">Schädel im Keller</div>
+              <div class="kennzahl-wert" data-feld="schaedel">0</div>
+            </div>
+          </div>
         </div>
-        <button type="button" class="knopf knopf-gross" data-tat="neuanfang" disabled>
-          Abtragen — <span data-feld="neuanfangSchaedel">0</span> Schädel
-        </button>
       </div>
-      <div class="schaedel-zeile">
-        <span class="karte-kopf">Dauerhaft · <span data-feld="schaedel">0</span> Schädel übrig</span>
+
+      <div class="karten karten-zwei">
+
+        <section class="karte">
+          <div>
+            <div class="karte-kopf">Grutz’ Waren · gegen Schrott</div>
+            <div class="hinweis" data-feld="schrottHinweisKammer">Er handelt nur bei Dunkelheit.</div>
+          </div>
+          <div class="ausbauliste" data-liste="schrott-ausbauten"></div>
+        </section>
+
+        <section class="karte">
+          <div class="neuanfang-kopf">
+            <div>
+              <div class="karte-kopf">Den Haufen abtragen</div>
+              <p class="hinweis neuanfang-text" data-feld="neuanfangText">
+                Der Knochenhaufen wächst. Irgendwann trägt die Burg ihn ab und baut daraus
+                etwas, das bleibt.
+              </p>
+            </div>
+            <button type="button" class="knopf knopf-gross" data-tat="neuanfang" disabled>
+              Abtragen — <span data-feld="neuanfangSchaedel">0</span> Schädel
+            </button>
+          </div>
+          <div class="schaedel-zeile">
+            <span class="karte-kopf">Was bleibt · gegen Schädel</span>
+          </div>
+          <div class="dauerhaftliste" data-liste="dauerhaft"></div>
+        </section>
+
       </div>
-      <div class="dauerhaftliste" data-liste="dauerhaft"></div>
     </section>
 
   </div>
@@ -155,6 +207,7 @@
   const laufbandRahmen = document.querySelector('[data-laufband]');
   window.slayEmAll = spielStarten({
     leinwand: document.querySelector('canvas[data-szene]'),
+    portraet: document.querySelector('canvas[data-portraet]'),
     laufband: {
       rahmen: laufbandRahmen,
       felder: [...laufbandRahmen.querySelectorAll('[data-bahn]')]

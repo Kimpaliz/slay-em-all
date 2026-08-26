@@ -234,6 +234,133 @@ canvas[data-szene] {
   pointer-events: none;
 }
 
+/* ---------- Reiter zwischen den Ansichten ---------- */
+
+.reiter-leiste {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-bottom: 1px solid var(--linie);
+  padding-bottom: 1px;
+  margin-bottom: -8px;
+}
+
+.reiter {
+  font: inherit;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  color: var(--gedaempft);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 7px 12px 8px;
+  cursor: pointer;
+  margin-bottom: -2px;
+}
+
+.reiter:hover { color: var(--text); }
+
+.reiter-aktiv {
+  color: var(--akzent-hell);
+  border-bottom-color: var(--akzent);
+}
+
+.reiter:focus-visible {
+  outline: 2px solid var(--akzent);
+  outline-offset: -2px;
+}
+
+.wisch-hinweis {
+  margin-left: auto;
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--gedaempft);
+  opacity: 0.7;
+}
+
+.ansicht {
+  display: flex;
+  flex-direction: column;
+  gap: var(--abstand-6);
+}
+
+.ansicht[hidden] { display: none; }
+
+.karten-zwei { grid-template-columns: 1fr 1fr; }
+
+@media (max-width: 860px) {
+  .karten-zwei { grid-template-columns: 1fr; }
+  .wisch-hinweis { display: none; }
+}
+
+/* ---------- Schatzkammer ---------- */
+
+.kammer {
+  display: flex;
+  gap: var(--abstand-6);
+  align-items: stretch;
+  background: linear-gradient(105deg, #221a12 0%, var(--flaeche) 55%);
+  border-radius: var(--rundung);
+  box-shadow: var(--kante-tief);
+  padding: var(--abstand-4);
+  flex-wrap: wrap;
+}
+
+.portraet-rahmen {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+canvas[data-portraet] {
+  display: block;
+  width: 168px;
+  height: 210px;
+  image-rendering: pixelated;
+  border-radius: 3px;
+}
+
+.portraet-name {
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #b8964f;
+}
+
+.kammer-text {
+  flex: 1 1 300px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--abstand-3);
+  justify-content: center;
+}
+
+.grutz-rede {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: #d8cdb4;
+  text-wrap: pretty;
+  max-width: 52ch;
+}
+
+.kammer-zahlen {
+  display: flex;
+  gap: 26px;
+  flex-wrap: wrap;
+  border-top: 1px solid var(--linie);
+  padding-top: var(--abstand-3);
+}
+
+.abschnitt {
+  border-top: 1px solid var(--linie);
+  padding-top: var(--abstand-3);
+  margin-top: var(--abstand-2);
+}
+
 /* ---------- Tagesleiste ---------- */
 
 .tagesleiste {

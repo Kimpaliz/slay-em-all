@@ -20,12 +20,16 @@ export function anzeigeAnlegen(wurzel = document, taten = {}) {
   for (const el of wurzel.querySelectorAll('[data-feld]')) felder.set(el.dataset.feld, el);
 
   const bestiarZeilen = zeilenAnlegen(wurzel.querySelector('[data-liste="bestiarium"]'));
-  const ausbauZeilen = ausbautenAnlegen(wurzel.querySelector('[data-liste="ausbauten"]'), taten.kaufen);
+  // Blut kauft man am Tor, Schrott in der Schatzkammer — zwei Listen,
+  // aber dieselben Zeilen, damit das Aktualisieren einfach bleibt.
+  const ausbauZeilen = [
+    ...ausbautenAnlegen(wurzel.querySelector('[data-liste="blut-ausbauten"]'), taten.kaufen, 'blut'),
+    ...ausbautenAnlegen(wurzel.querySelector('[data-liste="schrott-ausbauten"]'), taten.kaufen, 'schrott')
+  ];
   const dauerZeilen = dauerhaftAnlegen(wurzel.querySelector('[data-liste="dauerhaft"]'), taten.dauerhaftKaufen);
 
   const tagesleiste = wurzel.querySelector('.tagesleiste');
   const phasenBalken = wurzel.querySelector('[data-balken="phase"]');
-  const neuanfangBereich = wurzel.querySelector('[data-bereich="neuanfang"]');
   const neuanfangKnopf = wurzel.querySelector('[data-tat="neuanfang"]');
   if (neuanfangKnopf && taten.neuanfang) {
     neuanfangKnopf.addEventListener('click', () => taten.neuanfang());
@@ -58,6 +62,8 @@ export function anzeigeAnlegen(wurzel = document, taten = {}) {
     setze('blutVergleich', blutVergleich(z.blut));
     setze('knochen', zahl(z.knochen));
     setze('schrott', zahl(z.schrott));
+    setze('schrottKammer', zahl(z.schrott));
+    setze('knochenKammer', zahl(z.knochen));
 
     const bis = knochenBisSchaedel(z.knochen);
     setze('knochenHinweis', `noch ${zahl(bis)} bis zum nächsten Schädel`);
@@ -119,9 +125,12 @@ export function anzeigeAnlegen(wurzel = document, taten = {}) {
 
   function ausbauten(z, stand) {
     const offen = !stand.istTag;
-    setze('kaufHinweis', offen
-      ? 'Es ist Nacht. Das Haus handelt.'
-      : 'Das Haus handelt nur bei Dunkelheit. Noch ' + dauer(stand.restSekunden) + '.');
+    const zu = 'Das Haus handelt nur bei Dunkelheit. Noch ' + dauer(stand.restSekunden) + '.';
+    setze('kaufHinweis', offen ? 'Es ist Nacht. Das Haus handelt.' : zu);
+    setze('schrottHinweisKammer', offen
+      ? 'Grutz ist wach und handelt.'
+      : 'Grutz schläft bei Tageslicht. Noch ' + dauer(stand.restSekunden) + '.');
+    setze('grutzRede', grutzSagt(z, offen));
     setze('letzterKauf', z.letzterKauf);
 
     for (const zeile of ausbauZeilen) {
@@ -139,14 +148,8 @@ export function anzeigeAnlegen(wurzel = document, taten = {}) {
   /* ---------------- Neuanfang ---------------- */
 
   function neuanfang(z) {
-    if (!neuanfangBereich) return;
     const gewinn = schaedelFuer(z.knochen);
     const moeglich = darfNeuAnfangen(z);
-    // Der ganze Bereich taucht erst auf, wenn er zum ersten Mal erreichbar ist.
-    const zeigen = moeglich || z.schaedel > 0 || z.runde > 1;
-    neuanfangBereich.hidden = !zeigen;
-    if (!zeigen) return;
-
     setze('neuanfangSchaedel', zahl(gewinn));
     setze('schaedel', zahl(z.schaedel));
     setze('neuanfangText', moeglich
@@ -169,6 +172,32 @@ export function anzeigeAnlegen(wurzel = document, taten = {}) {
   }
 
   return { zeichnen };
+}
+
+/**
+ * Was Grutz gerade zu sagen hat.
+ * Er kommentiert die Lage, statt immer dasselbe zu sagen — das ist der
+ * billigste Weg, einer stehenden Figur Leben einzuhauchen.
+ */
+function grutzSagt(z, offen) {
+  if (!offen) {
+    return '„Bei Tageslicht wird nicht gehandelt. Komm wieder, wenn die ' +
+      'Fackeln brennen — dann sortiere ich, was oben heruntergefallen ist."';
+  }
+  if (z.schrott < 8) {
+    return '„Nichts da. Gar nichts. Bauern tragen kein Eisen, und Zähne ' +
+      'nehme ich nicht in Zahlung. Warte auf die mit den Rüstungen."';
+  }
+  if (z.schaedel > 0) {
+    return `„${Math.round(z.schaedel)} Schädel im Keller, und du stehst hier ` +
+      'herum. Die werden nicht mehr wert, weißt du."';
+  }
+  if (z.knochen > 60) {
+    return '„Der Haufen an der Mauer wird hoch. Irgendwann trägt der ' +
+      'Hausherr ihn ab, und dann bleibt etwas davon übrig. Etwas Dauerhaftes."';
+  }
+  return '„Runter die Treppe, Vorsicht, Kopf. Was der Hausherr auswringt, ' +
+    'sortiere ich. Eisen bleibt Eisen. Sag an, was du brauchst."';
 }
 
 /* ---------------- Listen einmalig aufbauen ---------------- */
@@ -199,10 +228,10 @@ function zeilenAnlegen(koerper) {
   });
 }
 
-function ausbautenAnlegen(liste, beiKauf) {
+function ausbautenAnlegen(liste, beiKauf, waehrung) {
   if (!liste) return [];
   liste.textContent = '';
-  return AUSBAUTEN.map((ausbau) => {
+  return AUSBAUTEN.filter((a) => !waehrung || a.waehrung === waehrung).map((ausbau) => {
     const knopf = document.createElement('button');
     knopf.type = 'button';
     knopf.className = 'knopf ausbau';

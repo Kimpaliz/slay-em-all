@@ -35,6 +35,8 @@ spiel/
   figuren.js            Recken, Trümmer, Raben, Klaue, Fackeln
   marktschreier.js      das Laufband unter dem Bild
   anzeige.js            schreibt Zahlen und Listen in die Seite, nimmt Klicks an
+  ansichten.js          Wischen und Reiter zwischen Tor und Schatzkammer
+  goblin.js             Grutz — das Portraet, von Hand gesetzt
   tageslauf.js          Tag, Nacht und die Wellen
   speicher.js           Spielstand sichern und laden
   daten/
@@ -47,6 +49,7 @@ werkzeuge/
   wirtschaft.mjs        die gesamte Rechnerei — ohne Browser, in Node prüfbar
   pruefe-wirtschaft.mjs 101 Prüfungen
   balance.mjs           spielt Tage durch und bewertet die Kurve
+  bild-erzeugen.mjs     malt Bilder ohne Browser und schreibt PNG
   vorschau-server.mjs   der lokale Server
 ```
 
@@ -82,6 +85,12 @@ Das Haus handelt nicht bei Tageslicht.
 
 Ist der Haufen voll, fällt neue Beute in die Schlucht. Deshalb lohnen sich
 Kobolde: Sie ernten schneller und stapeln höher.
+
+## Die zwei Ansichten
+
+Gewischt wird zwischen **dem Tor** und **der Schatzkammer** (oder geklickt,
+oder Pfeiltasten). Am Tor bezahlt der Hausherr mit Blut. In der Kammer sitzt
+**Grutz**, der Kobold, und handelt mit Schrott und Schädeln.
 
 ## Die drei Währungen
 

@@ -12,6 +12,8 @@ import { zeichnen as szeneZeichnen } from './szene.js';
 import { anzeigeAnlegen } from './anzeige.js';
 import { marktschreierAnlegen } from './marktschreier.js';
 import { laden, sichern } from './speicher.js';
+import { ansichtenAnlegen } from './ansichten.js';
+import { goblinZeichnen } from './goblin.js';
 import {
   dauerhaftKaufen, schaedelFuer, darfNeuAnfangen, zahl, dauer
 } from '../werkzeuge/wirtschaft.mjs';
@@ -39,6 +41,9 @@ export function spielStarten(optionen = {}) {
 
   const leinwand = optionen.leinwand || document.querySelector('canvas[data-szene]');
   const ctx = leinwand ? leinwand.getContext('2d') : null;
+  const portraet = optionen.portraet || document.querySelector('canvas[data-portraet]');
+  const portraetCtx = portraet ? portraet.getContext('2d') : null;
+  const ansichten = ansichtenAnlegen(optionen.wurzel || document);
   const schreier = optionen.laufband
     ? marktschreierAnlegen(optionen.laufband.rahmen, optionen.laufband.felder)
     : null;
@@ -98,9 +103,15 @@ export function spielStarten(optionen = {}) {
     vorruecken(echte);
 
     // Zeichnen lohnt nur, wenn jemand hinsieht.
-    if (ctx && !document.hidden) {
-      szeneZeichnen(ctx, welt, einstellungen);
-      if (schreier) schreier.schritt(welt, Math.min(0.25, echte));
+    if (!document.hidden) {
+      if (ctx && ansichten.aktuelle() === 'tor') {
+        szeneZeichnen(ctx, welt, einstellungen);
+        if (schreier) schreier.schritt(welt, Math.min(0.25, echte));
+      }
+      // Grutz blinzelt — mehr Bewegung braucht ein Porträt nicht.
+      if (portraetCtx && ansichten.aktuelle() === 'schatzkammer') {
+        goblinZeichnen(portraetCtx, welt.szene.zeit);
+      }
     }
     anzeige.zeichnen(welt);
   }

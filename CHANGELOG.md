@@ -1,5 +1,57 @@
 # Änderungsprotokoll
 
+## 0.4.0 — 26.08.2026
+
+**Die Schatzkammer.** Das Spiel hat jetzt zwei Ansichten, zwischen denen man
+wischt (oder klickt, oder die Pfeiltasten benutzt).
+
+- **Das Tor** — die Szene, der Tageslauf, das Bestiarium und alles, was mit
+  **Blut** bezahlt wird: Lockrufe und breiteres Tor.
+- **Die Schatzkammer** — **Grutz**, der Kobold, und alles, was mit **Schrott**
+  bezahlt wird: Klingen, Presse, Kobold-Diener. Dazu der Schädelhandel und
+  der Knopf zum Abtragen des Haufens.
+
+Die Trennung folgt der Fiktion: Blut ist die Sache des Hausherrn, Eisen und
+Knochen sind Grutz’ Geschäft. Er kommentiert die Lage — ob Schrott da ist,
+ob Schädel im Keller liegen, ob der Haufen an der Mauer hoch wird — und
+handelt wie das Haus nur bei Dunkelheit.
+
+### Grutz
+
+Ein Brustbild in einem Steinbogen, 120 × 150 Bildpunkte, im Geist der
+Gesprächsporträts von *Das Schwarze Auge — Die Schicksalsklinge* (1992):
+wenige Farben, harte Kanten, warmes Licht von unten links aus dem Gold,
+kalter Rand von rechts. Er blinzelt alle paar Sekunden.
+
+**Von Hand gesetzt, es gibt keine Bilddatei** — dieselbe Technik wie bei der
+Torszene. Das ist eine gezeichnete Annäherung, kein gemaltes Porträt; wer
+etwas anderes will, sagt es und es wird geändert.
+
+### Neu: ein Renderer ohne Browser
+
+`werkzeuge/bild-erzeugen.mjs` malt das Porträt in Node und schreibt es als
+PNG nach `vorschau/`. Dafür stecken darin ein sehr kleiner Nachbau des
+Zeichenstifts (nur das, was die Zeichenfunktionen benutzen: Rechtecke,
+Deckkraft, zwei Verlaufsarten) und ein PNG-Schreiber auf Basis von Nodes
+eingebautem zlib. Keine Abhängigkeiten.
+
+Damit lässt sich am Aussehen arbeiten, ohne jedes Mal die Seite zu öffnen:
+
+```bash
+node werkzeuge/bild-erzeugen.mjs grutz 3
+```
+
+### Geprüft
+
+- 101 Wirtschaftsprüfungen, sechs grüne Balance-Kennzahlen — unverändert.
+- Im Browser mit echten Knopfdrücken über **beide** Ansichten durchgespielt:
+  149 Käufe über zehn Tage, Ansichtswechsel in beide Richtungen, Neuanfang
+  bereit.
+- Porträt gerendert: 18.000 Bildpunkte, 211 Farben, Stichproben an Rahmen,
+  Haut, Auge, Kapuze und Fell stimmen.
+- Keine Konsolenmeldung, keine fremden Skripte.
+
+
 ## 0.3.0 — 26.08.2026
 
 **Aus der Szene wird ein Spiel.** Vorher liefen drei Zähler hoch und das
