@@ -1,6 +1,6 @@
 {
   "name": "slay-em-all",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Slay'Em All! — Burg-Idle-Spiel. Die Recken gehen hinein. Was herauskommt, kommt einzeln.",
   "type": "module",
   "private": true,

@@ -1,5 +1,32 @@
 # Änderungsprotokoll
 
+## 0.4.1 — 26.08.2026
+
+**Öffentlich und spielbar** (Entscheidung Jannik): <https://kimpaliz.github.io/slay-em-all/>
+
+Vor dem Umschalten geprüft, weil mit einem öffentlichen Repository auch die
+ganze Versionsgeschichte sichtbar wird:
+
+- Alle 30 Dateien, die je im Repository lagen, auf Zugangsdaten, Schlüssel,
+  Tokens, E-Mail-Adressen und persönliche Pfade durchsucht — **keine Treffer**,
+  auch nicht in älteren Fassungen.
+- Sichtbar wird die Absenderadresse in den Commits. Das ist bei
+   bereits so und damit nichts Neues.
+
+**Nachgetragen:** Die mitgelieferte Schrift **Inter** steht unter der SIL Open
+Font License 1.1. Deren Text muss bei jeder Weitergabe dabeibleiben — beim
+Schritt in ein öffentliches Repository wird das relevant. Liegt jetzt in
+, samt Begründung, warum nur der lateinische Teil
+mitgeliefert wird.
+
+**Live nachgeprüft:** Alle Teile werden mit korrektem Typ ausgeliefert (auch
+die  als  — die einzige offene Frage bei GitHub Pages).
+Auf der echten Adresse: Spiel startet, beide Ansichten da, Inter geladen,
+**null fremde Skripte**, keine Konsolenmeldung. Ein voller Tag-Nacht-Zyklus
+durchgespielt: 46 Recken gefallen, 294 Liter Blut, nächtliche Ernte brachte
+40 Knochen und 2 Schrott.
+
+
 ## 0.4.0 — 26.08.2026
 
 **Die Schatzkammer.** Das Spiel hat jetzt zwei Ansichten, zwischen denen man

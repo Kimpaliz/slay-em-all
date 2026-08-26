@@ -8,6 +8,13 @@ ist, wie schnell und wie viele.
 
 ## Spielen
 
+### → **[kimpaliz.github.io/slay-em-all](https://kimpaliz.github.io/slay-em-all/)**
+
+Läuft im Browser und auf dem Handy. Nichts zu installieren, nichts anzumelden.
+Der Spielstand liegt im Browser und läuft beim nächsten Besuch weiter.
+
+### Örtlich, zum Weiterentwickeln
+
 **Doppelklick auf `Vorschau-starten.cmd`.** Der Browser öffnet sich von selbst.
 Zum Beenden das schwarze Fenster schließen.
 
@@ -17,7 +24,7 @@ Festplatte geöffnete Seite weitere Dateien nachlädt. Über einen kleinen lokal
 Server geht es. Der steckt mit im Projekt, es muss nichts installiert werden
 außer [Node.js](https://nodejs.org).
 
-Auf GitHub Pages läuft es ohne diesen Umweg, weil dort ein echter Server steht.
+Im Netz läuft es ohne diesen Umweg, weil dort ein echter Server steht.
 
 ## Aufbau
 
