@@ -11,16 +11,16 @@ ganze Versionsgeschichte sichtbar wird:
   Tokens, E-Mail-Adressen und persönliche Pfade durchsucht — **keine Treffer**,
   auch nicht in älteren Fassungen.
 - Sichtbar wird die Absenderadresse in den Commits. Das ist bei
-   bereits so und damit nichts Neues.
+  `Kimpaliz/age-of-beast` bereits so und damit nichts Neues.
 
 **Nachgetragen:** Die mitgelieferte Schrift **Inter** steht unter der SIL Open
 Font License 1.1. Deren Text muss bei jeder Weitergabe dabeibleiben — beim
 Schritt in ein öffentliches Repository wird das relevant. Liegt jetzt in
-, samt Begründung, warum nur der lateinische Teil
+`schriften/LIESMICH.md`, samt Begründung, warum nur der lateinische Teil
 mitgeliefert wird.
 
 **Live nachgeprüft:** Alle Teile werden mit korrektem Typ ausgeliefert (auch
-die  als  — die einzige offene Frage bei GitHub Pages).
+die `.mjs` als `text/javascript` — die einzige offene Frage bei GitHub Pages).
 Auf der echten Adresse: Spiel startet, beide Ansichten da, Inter geladen,
 **null fremde Skripte**, keine Konsolenmeldung. Ein voller Tag-Nacht-Zyklus
 durchgespielt: 46 Recken gefallen, 294 Liter Blut, nächtliche Ernte brachte
