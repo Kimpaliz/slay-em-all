@@ -47,6 +47,14 @@ Passen mehr Recken gleichzeitig ins Tor, als die Burg fasst, ist das Monster
 Besondere Tode — Pfeil, Blitz, Pranke, Feuer — werfen mehr Gold ab als das
 bloße Verdauen. Das ist der Grund, überhaupt einzugreifen.
 
+### Dein Klick ist auch eine Waffe
+
+Bei Malvina für 15 Blut: **Berührung des Bösen**. Ein Klick auf einen Recken
+verwundet ihn — mit Abklingzeit, Schadenszahl und Chance auf kritische
+Treffer. Drei umschaltbare Spielarten: **Midas** (Klick-Tote werden zu
+Goldstatuen), **Inferno** (Brand, Explosion beim Tod, Kettenreaktion),
+**Titan** (Flächenschlag mit langer Abklingzeit).
+
 ### Vier Fähigkeiten, Tasten 1 bis 4
 
 **Drachenpranke** stößt aus dem Tor und zermalmt die Brücke ·
@@ -55,6 +63,15 @@ bloße Verdauen. Das ist der Grund, überhaupt einzugreifen.
 **Meteoritenschauer** sechs Sekunden Steinregen.
 
 Jede hat drei Ausbauachsen bei Malvina: Schaden, Abklingzeit, Wirkbereich.
+Beim Überfahren zeigt jeder Knopf seine Werte — Basis und Boni getrennt.
+
+### Die Burg frisst der Reihe nach
+
+Verschluckte Recken warten in einer **Schlange**; über dem, der gerade
+verdaut wird, läuft ein Balken ab. „Zweiter Schlund" bei Grommsch lässt
+mehrere zugleich fressen — Kapazität ist der Puffer, der Schlund der
+Durchsatz. Und nachts kündigt das Lager an, **was die nächste Welle
+bringt** — die Aufstellung ist dann schon ausgelost.
 
 ### Die fünf Ränge
 
@@ -87,7 +104,7 @@ spiel/
   daten/                    Recken, Texte, Paletten, Porträtbilder
 werkzeuge/
   wirtschaft.mjs            alle Regeln und Preise, ohne Browser
-  pruefe-wirtschaft.mjs     1.592 Prüfungen
+  pruefe-wirtschaft.mjs     1.910 Prüfungen
   balance.mjs               spielt Wellen durch und misst
   vorschau-server.mjs       örtlicher Server
 ```

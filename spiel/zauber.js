@@ -9,8 +9,8 @@
 // schlägt beim Klick ein. Deshalb hat er zwei Schritte statt einem.
 
 import { MASSE } from './masse.js';
-import { schaden } from './kampf.js';
-import { ZAUBER, zauberWerte } from '../werkzeuge/wirtschaft.mjs';
+import { schaden, spritzen, vergolden } from './kampf.js';
+import { ZAUBER, zauberWerte, klickWerte } from '../werkzeuge/wirtschaft.mjs';
 
 export function zauberNach(k) {
   return ZAUBER.find((z) => z.k === k);
@@ -106,6 +106,74 @@ function prankeAusfahren(szene, w) {
     schaden: w.schaden
   };
   szene.abklingzeit.pranke = w.abklingzeit;
+}
+
+/* ---------------- Der Klick als Fähigkeit ---------------- */
+
+/**
+ * Der eigene Angriff — ein Klick auf einen Recken.
+ *
+ * Vier Spielarten, alle mit derselben Uhr (`szene.klickAbklingzeit`):
+ *
+ *   normal   — Schaden auf das eine Ziel, Chance auf einen Krit.
+ *   midas    — wie normal; stirbt das Ziel daran, wird es zur Goldstatue.
+ *   inferno  — Schaden plus Brand; brennende explodieren beim Tod.
+ *   titan    — Flächenschlag um die Klickstelle, achtfacher Schaden,
+ *              lange eigene Abklingzeit.
+ *
+ * Gibt zurück, ob geschlagen wurde — die Oberfläche zeichnet nur dann neu.
+ */
+export function klickAngriff(welt, ziel, x, werte) {
+  const { zustand, szene } = welt;
+  const w = klickWerte(zustand.klick);
+  if (!w.gekauft) return false;
+  if (szene.phase !== 'tag') return false;
+  if (szene.klickAbklingzeit > 0) return false;
+
+  const krit = Math.random() < w.krit;
+  const faktor = krit ? 2 : 1;
+
+  if (w.variante === 'titan') {
+    // Die Faust trifft eine Fläche, nicht ein Ziel.
+    szene.klickAbklingzeit = w.titanAbklingzeit;
+    szene.explosionen.push({ x, zeit: 0 });
+    szene.explosionen.push({ x: x - 10, zeit: -0.08 });
+    szene.explosionen.push({ x: x + 10, zeit: -0.16 });
+    szene.ruettelt = Math.min(6, szene.ruettelt + 4);
+    szene.blitzlicht = 0.6;
+    for (let i = szene.recken.length - 1; i >= 0; i--) {
+      const r = szene.recken[i];
+      if (r.zustand === 'laeuft' && Math.abs(r.x + 3 - x) < w.titanBereich) {
+        schaden(welt, r, w.titanSchaden * faktor, 'titan', false, werte, krit);
+      }
+    }
+    return true;
+  }
+
+  if (!ziel) return false;
+  szene.klickAbklingzeit = w.abklingzeit;
+
+  // Der sichtbare Hieb: kurzer weißer Blitz am Ziel plus Blutspritzer.
+  ziel.getroffen = 0.22;
+  spritzen(szene, ziel.x + 3, MASSE.DECK - ziel.klasse.hoehe * 0.6, 3, ziel.klasse.blut);
+
+  const menge = w.schaden * faktor;
+
+  if (w.variante === 'midas' && ziel.lp <= menge) {
+    szene.zahlen.push({
+      x: ziel.x + 3, y: MASSE.DECK - ziel.klasse.hoehe - 7,
+      text: '-' + menge, farbe: krit ? '#ffd08a' : '#ff8a6a', gross: krit, zeit: 0
+    });
+    vergolden(welt, ziel, werte);
+    return true;
+  }
+
+  if (w.variante === 'inferno' && !ziel.brand) {
+    ziel.brand = { rest: w.brandDauer, takt: 0, schadenJeSekunde: w.brandSchaden };
+  }
+
+  schaden(welt, ziel, menge, 'klick', false, werte, krit);
+  return true;
 }
 
 /** Der Blitz schlägt an der angeklickten Stelle ein. */

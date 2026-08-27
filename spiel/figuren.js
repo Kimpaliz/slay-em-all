@@ -98,6 +98,16 @@ export function reckeZeichnen(ctx, r, zeit) {
     ctx.fillRect(x, oben + 7, 1, 3);
   }
 
+  // Ein brennender Recke trägt kleine Flammen
+  if (r.brand) {
+    for (let i = 0; i < 3; i++) {
+      const fx = x + 1 + ((streu(i * 7 + zeit * 30) * 5) | 0);
+      const fh = 2 + ((streu(i * 3 + zeit * 45) * 3) | 0);
+      ctx.fillStyle = i % 2 ? '#ff7a2a' : '#ffd08a';
+      ctx.fillRect(fx, oben - fh, 1, fh);
+    }
+  }
+
   // Trefferblitz
   if (r.getroffen > 0) {
     ctx.globalAlpha = Math.min(0.8, r.getroffen * 4);
@@ -249,6 +259,42 @@ export function restZeichnen(ctx, rest) {
     ctx.fillStyle = rest.farbe; ctx.fillRect(x, DECK - 2, rest.art === 'bein' ? 5 : 4, 2);
     ctx.fillStyle = '#8e1f28'; ctx.fillRect(x, DECK - 2, 1, 2);
     ctx.fillStyle = rest.haut || '#c39066'; ctx.fillRect(x + (rest.art === 'bein' ? 4 : 3), DECK - 2, 1, 2);
+  }
+}
+
+/**
+ * Eine Goldstatue — der vergoldete Recke der Midas-Berührung.
+ *
+ * Dieselbe Bauform wie ein Recke, aber alles in Gold; kurz vor dem
+ * Selbst-Auszahlen beginnt sie zu blinken.
+ */
+export function statueZeichnen(ctx, st, zeit) {
+  const x = Math.round(st.x);
+  const hoehe = st.klasse.hoehe;
+  const fuesse = MASSE.DECK;
+  const oben = fuesse - hoehe;
+  const blinkt = st.zeit > 20 && Math.sin(zeit * 8) > 0;
+
+  ctx.fillStyle = 'rgba(0,0,0,0.4)';
+  ctx.fillRect(x, fuesse, 6, 1);
+
+  // Sockelchen
+  ctx.fillStyle = '#a5761f';
+  ctx.fillRect(x, fuesse - 1, 7, 1);
+
+  ctx.fillStyle = blinkt ? '#f6d492' : '#e0b64f';
+  ctx.fillRect(x + 1, oben + 4, 5, hoehe - 5);          // Rumpf
+  ctx.fillRect(x + 2, oben + 1, 3, 3);                  // Kopf
+  ctx.fillRect(x + 1, fuesse - 3, 2, 2);                // Beine
+  ctx.fillRect(x + 4, fuesse - 3, 2, 2);
+  ctx.fillStyle = '#a5761f';
+  ctx.fillRect(x + 1, oben + 4, 1, hoehe - 5);          // Schattenkante
+  ctx.fillRect(x + 7, oben + 1, 1, hoehe - 2);          // erstarrte Waffe
+  ctx.fillStyle = '#fff6c8';                            // Glanzpunkte
+  ctx.fillRect(x + 3, oben + 1, 1, 1);
+  ctx.fillRect(x + 5, oben + 6, 1, 1);
+  if (Math.sin(zeit * 3 + st.x) > 0.9) {
+    ctx.fillRect(x + 2, oben + 9, 1, 1);
   }
 }
 

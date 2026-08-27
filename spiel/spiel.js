@@ -22,10 +22,11 @@ import { marktschreierAnlegen } from './marktschreier.js';
 import { portraetsAnlegen } from './portraets.js';
 import { eingabeAnlegen } from './eingabe.js';
 import { laden, sichern, loeschen, altlastenEntfernen } from './speicher.js';
-import { welleStarten } from './wellen.js';
+import { welleStarten, welleAuslosen } from './wellen.js';
 import { ausloesen } from './zauber.js';
 import {
-  beiGrommsch, beiPips, zauberLernen, zauberVerbessern, ritualKaufen, ritualUmschalten
+  beiGrommsch, beiPips, zauberLernen, zauberVerbessern, ritualKaufen, ritualUmschalten,
+  klickKaufen, klickVerbessern, varianteKaufen, varianteWaehlen
 } from './handel.js';
 
 /** Feste Schrittweite der Simulation, in Sekunden. */
@@ -49,6 +50,8 @@ export function spielStarten(optionen = {}) {
       farbe: '#9184d9', zeit: 0, dauer: 4
     };
   }
+  // Damit das Nachtlager von Anfang an ankündigen kann, was kommt.
+  if (!welt.zustand.anstehend.length) welleAuslosen(welt.zustand);
 
   const leinwand = optionen.leinwand || wurzel.querySelector('canvas[data-szene]');
   const ctx = leinwand ? leinwand.getContext('2d') : null;
@@ -58,12 +61,29 @@ export function spielStarten(optionen = {}) {
     neustart: () => {
       loeschen();
       weltZuruecksetzen(welt);
+      welleAuslosen(welt.zustand);
       anzeige.auffrischen(welt);
     },
     kaufGrommsch: (k) => { if (beiGrommsch(welt, k)) nachKauf(); },
-    kaufPips: (k) => { if (beiPips(welt, k)) nachKauf(); },
+    kaufPips: (k) => {
+      if (!beiPips(welt, k)) return;
+      // Lockrufe und Köder ändern die kommende Welle — die Ankündigung
+      // im Nachtlager muss dann neu ausgelost werden.
+      if ((k === 'lockruf' || k === 'koeder') && welt.szene.phase === 'nacht') {
+        welleAuslosen(welt.zustand);
+      }
+      nachKauf();
+    },
     zauberLernen: (k) => { if (zauberLernen(welt, k)) nachKauf(); },
     zauberVerbessern: (k, achse) => { if (zauberVerbessern(welt, k, achse)) nachKauf(); },
+    klickKaufen: () => { if (klickKaufen(welt)) nachKauf(); },
+    klickVerbessern: (achse) => { if (klickVerbessern(welt, achse)) nachKauf(); },
+    variante: (k) => {
+      const zustand = welt.zustand;
+      const ok = zustand.klick.varianten[k] >= 1 ? varianteWaehlen(welt, k) : varianteKaufen(welt, k);
+      if (ok) nachKauf();
+    },
+    zustand: () => welt.zustand,
     ritual: () => {
       const zustand = welt.zustand;
       if (zustand.ritual >= 1) ritualUmschalten(welt);

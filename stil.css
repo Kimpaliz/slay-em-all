@@ -575,6 +575,102 @@ canvas[data-szene] {
   box-shadow: 0 0 0 1px var(--akzent);
 }
 
+/* ---------------- Tooltip der Aktionsleiste ---------------- */
+
+.zaubertipp {
+  position: absolute;
+  z-index: 40;
+  width: 218px;
+  padding: 9px 11px 10px;
+  background: #14151f;
+  border-radius: var(--rundung-klein);
+  box-shadow: 0 0 0 1px #3f424d, 0 8px 22px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+  font-size: 11px;
+}
+
+.tipp-kopf {
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--akzent-hell);
+  margin-bottom: 2px;
+}
+
+.tipp-text {
+  color: var(--gedaempft);
+  font-size: 10.5px;
+  margin-bottom: 7px;
+  text-wrap: pretty;
+}
+
+.tipp-zeile {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 2px 0;
+  border-top: 1px solid color-mix(in srgb, #e9e9ed 8%, transparent);
+  font-variant-numeric: tabular-nums;
+}
+
+.tipp-name { color: var(--gedaempft); }
+.tipp-wert { font-weight: 600; }
+.tipp-bonus { color: #7fd48a; font-weight: 600; }
+.tipp-bonus.schlecht { color: var(--blut); }
+
+/* ---------------- Nachtvorschau ---------------- */
+
+.vorschau {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+.vorschau[hidden] { display: none; }
+
+.vorschau-marke {
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--gedaempft);
+}
+
+.vorschau-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10.5px;
+  padding: 2px 8px 2px 5px;
+  background: var(--flaeche-hoch);
+  border-radius: 999px;
+  box-shadow: 0 0 0 1px var(--linie);
+  white-space: nowrap;
+}
+
+.vorschau-punkt {
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5);
+}
+
+/* ---------------- Währungszeichen in den Knöpfen ---------------- */
+
+.ware-knopf {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+
+.ware-knopf .waehrung {
+  width: 12px;
+  height: 12px;
+  image-rendering: pixelated;
+  flex: 0 0 auto;
+}
+.ware-knopf .waehrung[hidden] { display: none; }
+
 /* ---------------- Rücksicht ---------------- */
 
 @media (prefers-reduced-motion: reduce) {

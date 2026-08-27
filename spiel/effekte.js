@@ -147,7 +147,8 @@ export function blitzZeichnen(ctx, b) {
  * Welle verloren. Deshalb blinkt sie bei Vollstand und schreibt "VOLL!"
  * darüber — die reine Zahl wird im Getümmel übersehen.
  */
-export function belegungZeichnen(ctx, anzahl, kapazitaet, zeit) {
+export function belegungZeichnen(ctx, imTor, kapazitaet, schlund, zeit) {
+  const anzahl = imTor.length;
   const zeigen = Math.min(kapazitaet, 10);
   const abstand = 7;
   const breite = zeigen * abstand - 2;
@@ -156,10 +157,20 @@ export function belegungZeichnen(ctx, anzahl, kapazitaet, zeit) {
   const voll = anzahl >= kapazitaet;
 
   ctx.fillStyle = 'rgba(6,7,12,0.55)';
-  ctx.fillRect(x0 - 4, y - 4, breite + 8, 12);
+  ctx.fillRect(x0 - 4, y - 7, breite + 8, 15);
 
   for (let i = 0; i < zeigen; i++) {
     const x = x0 + i * abstand;
+    // Fressbalken: Über jedem Recken, der gerade im Maul steckt, läuft
+    // sein Restleben ab — von voll (frisch geschluckt) bis leer (tot).
+    if (i < anzahl && i < schlund) {
+      const opfer = imTor[i];
+      const anteil = Math.max(0, Math.min(1, opfer.lp / (opfer.maxLp || opfer.klasse.lp)));
+      ctx.fillStyle = 'rgba(6,7,12,0.8)';
+      ctx.fillRect(x, y - 5, 5, 2);
+      ctx.fillStyle = anteil > 0.5 ? '#ff9a4a' : '#ff6a52';
+      ctx.fillRect(x, y - 5, Math.max(1, Math.round(5 * anteil)), 1);
+    }
     if (i < anzahl) {
       ctx.fillStyle = voll ? (Math.sin(zeit * 8) > 0 ? '#ff6a52' : '#c1444f') : '#c1444f';
       ctx.fillRect(x, y, 5, 4);
@@ -214,7 +225,8 @@ export function spruchbandZeichnen(ctx, band) {
 /** Aufsteigende Zahlen beim Münzensammeln. */
 export function zahlZeichnen(ctx, z) {
   ctx.globalAlpha = Math.max(0, Math.min(1, 1.6 - z.zeit));
-  ctx.font = 'bold 8px ui-monospace, monospace';
+  // Kritische Treffer und Goldfunde sind eine Spur größer.
+  ctx.font = z.gross ? 'bold 9px ui-monospace, monospace' : 'bold 8px ui-monospace, monospace';
   const breite = ctx.measureText(z.text).width;
   ctx.fillStyle = 'rgba(6,7,12,0.8)';
   ctx.fillRect(Math.round(z.x - breite / 2) - 2, Math.round(z.y) - 8, Math.ceil(breite) + 4, 10);

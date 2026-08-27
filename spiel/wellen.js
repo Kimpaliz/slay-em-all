@@ -15,14 +15,45 @@
 import { MASSE } from './masse.js';
 import { buehneRaeumen } from './welt.js';
 import { melden } from './marktschreier.js';
+import { RECKEN } from './daten/recken.js';
 import { WELLE_GESCHAFFT, WELLE_VERLOREN, ausListe } from './daten/texte.js';
-import { wellenStaerke, rueckfall } from '../werkzeuge/wirtschaft.mjs';
+import {
+  wellenStaerke, rueckfall, verfuegbareKlassen, klassenGewichte
+} from '../werkzeuge/wirtschaft.mjs';
 
 /** Wie lange die Dämmerung zwischen zwei Phasen dauert. */
 const DAEMMERUNG = 1.1;
 
 /** Nach so vielen Sekunden Nacht startet das Morgenritual die Welle. */
 export const RITUAL_WARTEZEIT = 22;
+
+/**
+ * Die nächste Welle vorab auslosen.
+ *
+ * Früher würfelte jeder Spawn seine Klasse erst im Moment des Erscheinens.
+ * Jetzt steht die ganze Aufstellung fest, bevor die Welle beginnt — nur so
+ * kann das Nachtlager ehrlich ankündigen, was kommt. Die Liste liegt im
+ * Zustand und überlebt damit auch ein Neuladen.
+ */
+export function welleAuslosen(zustand) {
+  const anzahl = wellenStaerke(zustand.welle, zustand.stufenP.lockruf);
+  const moeglich = verfuegbareKlassen(RECKEN, zustand.welle, zustand.stufenP.koeder);
+  const gewichte = klassenGewichte(moeglich, zustand.welle);
+  const summe = gewichte.reduce((a, b) => a + b, 0);
+
+  const liste = [];
+  for (let i = 0; i < anzahl; i++) {
+    let wurf = Math.random() * summe;
+    let gewaehlt = moeglich[moeglich.length - 1];
+    for (let j = 0; j < moeglich.length; j++) {
+      wurf -= gewichte[j];
+      if (wurf <= 0) { gewaehlt = moeglich[j]; break; }
+    }
+    liste.push(gewaehlt.id);
+  }
+  zustand.anstehend = liste;
+  return liste;
+}
 
 function phaseSetzen(szene, phase) {
   szene.phase = phase;
@@ -34,7 +65,10 @@ export function welleStarten(welt) {
   if (szene.phase !== 'nacht') return false;
 
   phaseSetzen(szene, 'tag');
-  szene.wellenGroesse = wellenStaerke(zustand.welle, zustand.stufenP.lockruf);
+  if (!zustand.anstehend.length) welleAuslosen(zustand);
+  szene.spawnListe = zustand.anstehend.slice();
+  szene.wellenGroesse = szene.spawnListe.length;
+  zustand.anstehend = [];
   szene.erschienen = 0;
   szene.naechsterRecke = 0.9;
   szene.nachtzeit = 0;
@@ -63,6 +97,7 @@ export function welleGewonnen(welt) {
   melden(szene, ausListe(WELLE_GESCHAFFT));
   zustand.welle += 1;
   zustand.phase = 'nacht';
+  welleAuslosen(zustand);
 }
 
 /**
@@ -117,4 +152,5 @@ export function niederlageBeenden(welt) {
   phaseSetzen(szene, 'nacht');
   szene.nachtzeit = 0;
   zustand.phase = 'nacht';
+  welleAuslosen(zustand);
 }

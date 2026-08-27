@@ -12,7 +12,8 @@
 //   Malvina  — Blut
 
 import {
-  WAREN_GROMMSCH, WAREN_PIPS, ZAUBER, RITUAL_PREIS, ausbauPreis
+  WAREN_GROMMSCH, WAREN_PIPS, ZAUBER, RITUAL_PREIS, ausbauPreis,
+  KLICK, KLICK_VARIANTEN, klickAusbauPreis
 } from '../werkzeuge/wirtschaft.mjs';
 import {
   SPRUCH_GROMMSCH, SPRUCH_PIPS, SPRUCH_MALVINA, ausListe
@@ -85,6 +86,65 @@ export function zauberVerbessern(welt, schluessel, achse) {
   zustand.blut -= preis;
   stufen[achse] += 1;
   welt.sprueche.malvina = ausListe(SPRUCH_MALVINA);
+  return true;
+}
+
+/* ---------------- Der Klick ---------------- */
+
+/** Die drei Achsen des Klicks — Krit statt Wirkbereich. */
+export const KLICK_ACHSEN = [
+  { k: 'schaden', zeichen: '⚔', name: 'Schaden +1' },
+  { k: 'abklingzeit', zeichen: '⏱', name: 'Abklingzeit −12 %' },
+  { k: 'krit', zeichen: '✛', name: 'Kritische Treffer +4 %' }
+];
+
+/** Den eigenen Angriff überhaupt erst lernen. */
+export function klickKaufen(welt) {
+  const zustand = welt.zustand;
+  if (zustand.klick.gekauft >= 1) return false;
+  if (zustand.blut < KLICK.preis) return false;
+  zustand.blut -= KLICK.preis;
+  zustand.klick.gekauft = 1;
+  welt.sprueche.malvina = ausListe(SPRUCH_MALVINA);
+  return true;
+}
+
+/** Eine der drei Klick-Achsen um eine Stufe erhöhen. */
+export function klickVerbessern(welt, achse) {
+  const zustand = welt.zustand;
+  if (zustand.klick.gekauft < 1) return false;
+  const preis = klickAusbauPreis(zustand.klick[achse]);
+  if (zustand.blut < preis) return false;
+  zustand.blut -= preis;
+  zustand.klick[achse] += 1;
+  welt.sprueche.malvina = ausListe(SPRUCH_MALVINA);
+  return true;
+}
+
+/** Eine Spielart des Klicks kaufen (einmalig). */
+export function varianteKaufen(welt, k) {
+  const zustand = welt.zustand;
+  const variante = KLICK_VARIANTEN.find((v) => v.k === k);
+  if (!variante) return false;
+  if (zustand.klick.gekauft < 1) return false;
+  if (zustand.klick.varianten[k] >= 1) return false;
+  if (zustand.blut < variante.preis) return false;
+  zustand.blut -= variante.preis;
+  zustand.klick.varianten[k] = 1;
+  zustand.klick.aktiv = k;
+  welt.sprueche.malvina = ausListe(SPRUCH_MALVINA);
+  return true;
+}
+
+/**
+ * Zwischen gekauften Spielarten umschalten.
+ * Ein zweiter Druck auf die aktive schaltet zurück auf den schlichten Klick.
+ */
+export function varianteWaehlen(welt, k) {
+  const zustand = welt.zustand;
+  if (zustand.klick.gekauft < 1) return false;
+  if (k !== 'normal' && !(zustand.klick.varianten[k] >= 1)) return false;
+  zustand.klick.aktiv = (zustand.klick.aktiv === k) ? 'normal' : k;
   return true;
 }
 

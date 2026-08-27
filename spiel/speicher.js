@@ -12,7 +12,7 @@
 
 import { proKlasseLeer } from './daten/recken.js';
 import {
-  STUFEN_GROMMSCH_LEER, STUFEN_PIPS_LEER, zauberStufenLeer
+  STUFEN_GROMMSCH_LEER, STUFEN_PIPS_LEER, zauberStufenLeer, klickStufenLeer
 } from '../werkzeuge/wirtschaft.mjs';
 
 const SCHLUESSEL = 'slayemall.wellen.v1';
@@ -41,6 +41,8 @@ export function sichern(zustand) {
       stufenG: zustand.stufenG,
       stufenP: zustand.stufenP,
       zauber: zustand.zauber,
+      klick: zustand.klick,
+      anstehend: zustand.anstehend,
       ritual: zustand.ritual,
       ritualAn: zustand.ritualAn,
       spielzeit: zustand.spielzeit
@@ -80,6 +82,17 @@ export function laden() {
     if (d.zauber && d.zauber[k]) Object.assign(zauber[k], d.zauber[k]);
   }
 
+  const klick = klickStufenLeer();
+  if (d.klick && typeof d.klick === 'object') {
+    Object.assign(klick, d.klick, {
+      varianten: { ...klick.varianten, ...(d.klick.varianten || {}) }
+    });
+    // Eine gewählte, aber nie gekaufte Variante wäre ein kaputter Stand.
+    if (klick.aktiv !== 'normal' && !(klick.varianten[klick.aktiv] >= 1)) {
+      klick.aktiv = 'normal';
+    }
+  }
+
   return {
     blut: zahlOder(d.blut, 0),
     gold: zahlOder(d.gold, 0),
@@ -91,6 +104,8 @@ export function laden() {
     stufenG: { ...STUFEN_GROMMSCH_LEER, ...(d.stufenG || {}) },
     stufenP: { ...STUFEN_PIPS_LEER, ...(d.stufenP || {}) },
     zauber,
+    klick,
+    anstehend: Array.isArray(d.anstehend) ? d.anstehend.filter((k) => typeof k === 'string') : [],
     ritual: d.ritual >= 1 ? 1 : 0,
     ritualAn: d.ritualAn !== false,
     spielzeit: zahlOder(d.spielzeit, 0)

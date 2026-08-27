@@ -39,6 +39,17 @@ export const WAREN_GROMMSCH = [
     text: '+1 Pfeilschaden (braucht Schützen)',
     preis: (st) => Math.round(24 * Math.pow(2.2, st)),
     bedingung: (stufen) => stufen.schuetze > 0
+  },
+  {
+    k: 'schlund', name: 'Zweiter Schlund',
+    text: '+1 Recke wird gleichzeitig gefressen',
+    preis: (st) => Math.round(18 * Math.pow(2.15, st)), max: 4
+  },
+  {
+    k: 'krit', name: 'Zielwasser',
+    text: '+6 % kritische Treffer für Schützen (braucht Schützen)',
+    preis: (st) => Math.round(15 * Math.pow(1.9, st)), max: 5,
+    bedingung: (stufen) => stufen.schuetze > 0
   }
 ];
 
@@ -64,8 +75,8 @@ export const WAREN_PIPS = [
   },
   {
     k: 'sammler', name: 'Sammel-Drachling',
-    text: 'Fliegt nachts und zieht Gold zu sich',
-    preis: (st) => Math.round(40 * Math.pow(2.3, st)), max: 3
+    text: 'Fliegt nachts, zieht Gold an — je Stufe +1 % Chance auf doppeltes Gold',
+    preis: (st) => Math.round(40 * Math.pow(2.3, st)), max: 10
   },
   {
     k: 'stolz', name: 'Sammlerstolz',
@@ -91,7 +102,7 @@ export const WAREN_PIPS = [
 export const ZAUBER = [
   {
     k: 'pranke', name: 'Drachenpranke', taste: '1',
-    preis: 30, schaden: 10, abklingzeit: 14, wirkbereich: 70,
+    preis: 30, schaden: 10, abklingzeit: 22, wirkbereich: 70,
     schadenSchritt: 5, einheit: 'px Brücke',
     kurz: 'Pranke stößt aus dem Tor',
     lang: 'Stößt aus dem Tor, zermalmt alles auf der Brücke und schleift die Reste hinein.'
@@ -127,7 +138,7 @@ const ABKLING_BODEN = 0.35;
 
 /* ---------------- Leere Stufen ---------------- */
 
-export const STUFEN_GROMMSCH_LEER = { klauen: 0, hallen: 0, schuetze: 0, pfeile: 0 };
+export const STUFEN_GROMMSCH_LEER = { klauen: 0, hallen: 0, schuetze: 0, pfeile: 0, schlund: 0, krit: 0 };
 export const STUFEN_PIPS_LEER = { lockruf: 0, marsch: 0, koeder: 0, sammler: 0, stolz: 0, ernte: 0 };
 
 export function zauberStufenLeer() {
@@ -149,11 +160,17 @@ export function werte(stufenG, stufenP) {
   return {
     angriff: Math.pow(1.28, stufenG.klauen),
     kapazitaet: 3 + stufenG.hallen,
+    // Wie viele Recken gleichzeitig gefressen werden. Der Rest wartet in
+    // der Schlange — Kapazität ist der Puffer, der Schlund der Durchsatz.
+    schlund: 1 + (stufenG.schlund || 0),
     schuetzen: stufenG.schuetze,
     pfeilSchaden: 1 + stufenG.pfeile,
+    schuetzenKrit: 0.06 * (stufenG.krit || 0),
     tempoFaktor: 1 + 0.13 * stufenP.marsch,
     stolzFaktor: 1 + 0.25 * stufenP.stolz,
-    ernteFaktor: 1.5 * (1 + 0.5 * stufenP.ernte)
+    ernteFaktor: 1.5 * (1 + 0.5 * stufenP.ernte),
+    // Chance des Drachlings, eine Münze doppelt zu werten.
+    doppelGold: 0.01 * stufenP.sammler
   };
 }
 
@@ -210,6 +227,85 @@ export function ausbauPreis(zauber, stufe) {
 /** Wohin die Welle nach einer Niederlage zurückfällt. */
 export function rueckfall(welle) {
   return Math.max(1, welle - 5);
+}
+
+/* ---------------- Der Klick als Fähigkeit ---------------- */
+
+/**
+ * Der eigene Angriff: ein Klick auf einen Recken.
+ *
+ * Er wird bei Malvina gekauft und verhält sich wie ein Zauber — mit
+ * Abklingzeit, Schaden und einer Trefferchance für kritische Schläge.
+ * Drei Achsen: Schaden, Abklingzeit, kritische Treffer.
+ */
+export const KLICK = {
+  name: 'Berührung des Bösen',
+  preis: 15,
+  schaden: 1,        // je Schadensstufe +1
+  abklingzeit: 2,
+  krit: 0.05,        // je Kritstufe +4 %
+  kritSchritt: 0.04,
+  kurz: 'Dein Klick verwundet Recken',
+  lang: 'Ein Klick auf einen Recken verwundet ihn. Kritische Treffer machen doppelten Schaden.'
+};
+
+/**
+ * Die drei kaufbaren Spielarten des Klicks. Gekaufte lassen sich
+ * jederzeit umschalten; es ist immer genau eine aktiv.
+ */
+export const KLICK_VARIANTEN = [
+  {
+    k: 'midas', name: 'Midas-Berührung', preis: 350,
+    text: 'Stirbt ein Recke am Klick, wird er zur Goldstatue — aufsammeln lohnt sich'
+  },
+  {
+    k: 'inferno', name: 'Infernale Berührung', preis: 500,
+    text: 'Das Ziel brennt (1 Schaden je Sekunde); stirbt es brennend, explodiert es'
+  },
+  {
+    k: 'titan', name: 'Faust des Titanen', preis: 900,
+    text: 'Flächenschlag mit massivem Schaden und langer Abklingzeit'
+  }
+];
+
+export function klickStufenLeer() {
+  return {
+    gekauft: 0,
+    schaden: 0, abklingzeit: 0, krit: 0,
+    varianten: { midas: 0, inferno: 0, titan: 0 },
+    aktiv: 'normal'
+  };
+}
+
+/** Die Werte des Klicks auf seinen aktuellen Stufen. */
+export function klickWerte(klick) {
+  const schaden = KLICK.schaden + klick.schaden;
+  const abkling = Math.max(
+    KLICK.abklingzeit * 0.35,
+    KLICK.abklingzeit * Math.pow(0.88, klick.abklingzeit)
+  );
+  const werte = {
+    gekauft: klick.gekauft >= 1,
+    variante: klick.aktiv,
+    schaden,
+    abklingzeit: abkling,
+    krit: Math.min(0.6, KLICK.krit + KLICK.kritSchritt * klick.krit),
+    // Nur die Faust weicht ab: achtfacher Schaden plus Sockel, dafür
+    // eine lange eigene Abklingzeit und ein Wirkbereich.
+    titanSchaden: schaden * 8 + 10,
+    titanAbklingzeit: Math.max(30 * 0.35, 30 * Math.pow(0.88, klick.abklingzeit)),
+    titanBereich: 36,
+    brandSchaden: 1,
+    brandDauer: 4,
+    explosionSchaden: 2,
+    explosionBereich: 14
+  };
+  return werte;
+}
+
+/** Preis der nächsten Stufe auf einer Klick-Achse. */
+export function klickAusbauPreis(stufe) {
+  return Math.round(KLICK.preis * 0.4 * Math.pow(1.6, stufe));
 }
 
 /* ---------------- Anzeige ---------------- */

@@ -17,7 +17,7 @@ import { RUHESPRUCH } from './daten/texte.js';
 import { sterneAnlegen } from './daten/paletten.js';
 import { MASSE } from './masse.js';
 import {
-  STUFEN_GROMMSCH_LEER, STUFEN_PIPS_LEER, zauberStufenLeer
+  STUFEN_GROMMSCH_LEER, STUFEN_PIPS_LEER, zauberStufenLeer, klickStufenLeer
 } from '../werkzeuge/wirtschaft.mjs';
 
 export function neuerZustand() {
@@ -34,6 +34,11 @@ export function neuerZustand() {
     stufenG: { ...STUFEN_GROMMSCH_LEER },   // bei Grommsch gekauft
     stufenP: { ...STUFEN_PIPS_LEER },       // bei Pips gekauft
     zauber: zauberStufenLeer(),             // bei Malvina gelernt
+    klick: klickStufenLeer(),               // der eigene Angriff
+
+    // Die nächste Welle wird vorab ausgelost, damit das Nachtlager sie
+    // ankündigen kann. Liste von Klassen-Kennungen, in Auftrittsreihenfolge.
+    anstehend: [],
 
     ritual: 0,           // Morgenritual gekauft?
     ritualAn: true,      // ... und gerade eingeschaltet?
@@ -84,7 +89,9 @@ export function neueSzene() {
     daemmerung: 0,
     sichtbarTag: false,
 
-    // Zauber
+    // Zauber und eigener Angriff
+    klickAbklingzeit: 0,
+    statuen: [],         // vergoldete Recken der Midas-Berührung
     pranke: null,
     flamme: null,
     donnerBereit: false,
@@ -151,6 +158,8 @@ export function buehneRaeumen(szene) {
   szene.recken = [];
   szene.imTor = [];
   szene.brennende = [];
+  szene.klickAbklingzeit = 0;
+  // Statuen bleiben absichtlich stehen — sie sind Beute, keine Gegner.
   szene.pranke = null;
   szene.flamme = null;
   szene.donnerBereit = false;

@@ -159,6 +159,46 @@ function malvinaBewegt(ctx, t) {
   }
 }
 
+/* ---------------- Währungszeichen ---------------- */
+
+/**
+ * Zeichnet ein 10x10-Zeichen für eine Währung auf eine kleine Leinwand.
+ * Wird in den Ladenknöpfen neben dem Preis gezeigt — einmal gemalt,
+ * dann gemerkt.
+ */
+export function waehrungZeichnen(cv, art) {
+  if (!cv || cv.__art === art) return;
+  cv.__art = art;
+  const ctx = cv.getContext('2d');
+  if (!ctx) return;
+  ctx.clearRect(0, 0, 10, 10);
+  const px = (c, a, b, w, h) => {
+    ctx.fillStyle = c;
+    ctx.fillRect(a, b, w || 1, h || 1);
+  };
+
+  if (art === 'blut') {
+    // Ein fallender Tropfen
+    px('#c1444f', 4, 1, 2, 2); px('#c1444f', 3, 3, 4, 3); px('#c1444f', 2, 4, 6, 3);
+    px('#c1444f', 3, 7, 4, 1); px('#c1444f', 4, 8, 2, 1);
+    px('#e8867e', 3, 4, 1, 2); px('#7e1a22', 6, 5, 1, 2);
+  } else if (art === 'gold') {
+    // Eine Münze mit Glanz
+    px('#a5761f', 2, 2, 6, 6); px('#a5761f', 3, 1, 4, 8); px('#a5761f', 1, 3, 8, 4);
+    px('#e0b64f', 3, 2, 4, 6); px('#e0b64f', 2, 3, 6, 4);
+    px('#f6d492', 3, 3, 2, 2); px('#fff6c8', 3, 3, 1, 1);
+    px('#a5761f', 5, 4, 2, 2);
+  } else {
+    // Ein Zahnrad aus Schrott
+    px('#9aa0b0', 3, 3, 4, 4);
+    px('#9aa0b0', 4, 1, 2, 2); px('#9aa0b0', 4, 7, 2, 2);
+    px('#9aa0b0', 1, 4, 2, 2); px('#9aa0b0', 7, 4, 2, 2);
+    px('#6a6f7d', 6, 3, 1, 4); px('#6a6f7d', 3, 6, 3, 1);
+    px('#2b2d38', 4, 4, 2, 2);
+    px('#c6ccda', 3, 3, 1, 1);
+  }
+}
+
 /* ---------------- Zaubersymbole ---------------- */
 
 /**
@@ -173,7 +213,14 @@ export function symbolZeichnen(cv, k) {
   ctx.clearRect(0, 0, 16, 16);
   const px = stift(ctx);
 
-  if (k === 'pranke') {
+  if (k === 'klick') {
+    // Eine zupackende Hand — der eigene Angriff.
+    px('#c39066', 5, 3, 6, 2); px('#c39066', 4, 5, 8, 5);
+    px('#b07f57', 4, 8, 8, 2);
+    px('#c39066', 3, 6, 2, 3); px('#c39066', 11, 6, 2, 3);
+    px('#fff6c8', 7, 1, 2, 1); px('#fff6c8', 5, 2, 1, 1); px('#fff6c8', 10, 2, 1, 1);
+    px('#6e161c', 6, 12, 4, 2); px('#a82430', 5, 13, 2, 1); px('#a82430', 9, 13, 2, 1);
+  } else if (k === 'pranke') {
     px('#33202c', 3, 5, 10, 7); px('#4d3046', 3, 5, 10, 2); px('#1b0f18', 3, 10, 10, 2);
     px('#d8cfc0', 2, 11, 2, 3); px('#d8cfc0', 6, 11, 2, 4);
     px('#d8cfc0', 10, 11, 2, 4); px('#d8cfc0', 13, 11, 2, 3);

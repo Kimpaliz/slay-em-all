@@ -125,17 +125,113 @@ export function verbuchen(welt, klasse) {
 /**
  * Schaden zufügen. Überlebt er, blitzt er kurz weiß auf.
  * `feuer` entscheidet, ob er zu Asche zerfällt oder in Stücke geht.
+ *
+ * Jeder Treffer zeigt seine Zahl über dem Getroffenen — kritische in Gold
+ * und eine Spur größer. Stirbt ein brennender Recke, explodiert er und
+ * verletzt seine Nachbarn; die Kette darf sich fortsetzen, weil jeder nur
+ * einmal sterben kann.
  */
-export function schaden(welt, recke, menge, ursache, feuer, werte) {
+export function schaden(welt, recke, menge, ursache, feuer, werte, krit) {
   const szene = welt.szene;
   recke.lp -= menge;
   recke.getroffen = 0.18;
+  schadenAnzeigen(szene, recke, menge, krit);
   if (recke.lp > 0) return;
+
   const i = szene.recken.indexOf(recke);
   if (i < 0) return;
   szene.recken.splice(i, 1);
-  if (feuer) verbrennen(welt, recke, ursache);
+
+  const brannte = !!recke.brand;
+  if (feuer || brannte) verbrennen(welt, recke, ursache);
   else brueckenTod(welt, recke, ursache, werte);
+  if (brannte) explodieren(welt, recke.x + 3, werte);
+}
+
+/** Die schwebende Schadenszahl über dem Getroffenen. */
+export function schadenAnzeigen(szene, recke, menge, krit) {
+  const wert = Math.round(menge * 10) / 10;
+  szene.zahlen.push({
+    x: recke.x + 3 + (Math.random() * 4 - 2),
+    y: MASSE.DECK - recke.klasse.hoehe - 7,
+    text: '-' + String(wert).replace('.', ','),
+    farbe: krit ? '#ffd08a' : '#ff8a6a',
+    gross: !!krit,
+    zeit: 0
+  });
+}
+
+/**
+ * Die Explosion eines brennenden Recken.
+ *
+ * Der Schaden ist selbst Feuerschaden — wer daran stirbt, brennt ebenfalls.
+ * So kann eine dichte Reihe als Kette hochgehen, genau wie es die
+ * Infernale Berührung verspricht.
+ */
+export function explodieren(welt, x, werte) {
+  const szene = welt.szene;
+  szene.explosionen.push({ x, zeit: 0 });
+  szene.ruettelt = Math.min(5, szene.ruettelt + 1.2);
+  for (let i = szene.recken.length - 1; i >= 0; i--) {
+    const r = szene.recken[i];
+    if (r.zustand === 'laeuft' && Math.abs(r.x + 3 - x) < 14) {
+      schaden(welt, r, 2, 'explosion', true, werte);
+    }
+  }
+}
+
+/**
+ * Die Midas-Berührung: Statt zu sterben, erstarrt der Recke zu Gold.
+ *
+ * Blut und Schrott gibt es sofort — gestorben ist er ja. Das Gold aber
+ * steckt in der Statue und will abgeholt werden; dafür ist es das
+ * Zweieinhalbfache des üblichen Wurfs.
+ */
+export function vergolden(welt, recke, werte) {
+  const szene = welt.szene;
+  const k = recke.klasse;
+  const i = szene.recken.indexOf(recke);
+  if (i >= 0) szene.recken.splice(i, 1);
+
+  szene.statuen.push({
+    x: recke.x,
+    klasse: k,
+    wert: Math.max(1, Math.round(k.gold * werte.ernteFaktor * 2.5)),
+    zeit: 0
+  });
+  if (szene.statuen.length > 10) {
+    // Die älteste zahlt sich selbst aus, bevor sie verschwindet.
+    const alt = szene.statuen.shift();
+    welt.zustand.gold += alt.wert;
+  }
+  szene.zahlen.push({
+    x: recke.x + 3, y: MASSE.DECK - k.hoehe - 8,
+    text: 'Gold!', farbe: '#e0b64f', gross: true, zeit: 0
+  });
+
+  // Beute wie bei jedem Tod — nur die Münzen bleiben aus.
+  welt.zustand.blut += k.blut;
+  welt.zustand.erledigte += 1;
+  welt.zustand.proKlasse[k.id] = (welt.zustand.proKlasse[k.id] || 0) + 1;
+  welt.schrottRest += k.schrott;
+  if (welt.schrottRest >= 1) {
+    const ganz = Math.floor(welt.schrottRest);
+    welt.schrottRest -= ganz;
+    welt.zustand.schrott += ganz;
+  }
+}
+
+/** Eine Statue anklicken: Gold kassieren, Statue weg. */
+export function statueEinsammeln(welt, statue) {
+  const szene = welt.szene;
+  const i = szene.statuen.indexOf(statue);
+  if (i < 0) return;
+  szene.statuen.splice(i, 1);
+  welt.zustand.gold += statue.wert;
+  szene.zahlen.push({
+    x: statue.x + 3, y: MASSE.DECK - statue.klasse.hoehe - 6,
+    text: '+' + statue.wert, farbe: '#e0b64f', gross: true, zeit: 0
+  });
 }
 
 /** Er zerfällt zu Asche. Die Beute gibt es erst, wenn er ausgebrannt ist. */

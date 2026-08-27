@@ -14,7 +14,7 @@ import { NACHT_PALETTEN, TAG_PALETTE } from './daten/paletten.js';
 import {
   reckeZeichnen, brennendenZeichnen, truemmerZeichnen, restZeichnen,
   muenzeZeichnen, rabeZeichnen, schuetzeZeichnen, drachlingZeichnen,
-  fackelZeichnen, ketteZeichnen
+  fackelZeichnen, ketteZeichnen, statueZeichnen
 } from './figuren.js';
 import {
   prankeZeichnen, flammeZeichnen, meteorZeichnen, explosionZeichnen,
@@ -56,6 +56,7 @@ export function zeichnen(ctx, welt, einstellungen = {}) {
   plankenZeichnen(ctx, DECK);
   bodenZeichnen(ctx, szene, DECK);
 
+  for (const st of szene.statuen) statueZeichnen(ctx, st, zeit);
   for (const m of szene.muenzen) muenzeZeichnen(ctx, m, zeit);
   for (const rabe of szene.raben) rabeZeichnen(ctx, rabe);
   for (const r of szene.recken) reckeZeichnen(ctx, r, zeit);
@@ -279,6 +280,7 @@ function mauerZeichnen(ctx, P, zustand, szene, W, H, DECK, zeit) {
  */
 function torZeichnen(ctx, P, zustand, szene, DECK, zeit) {
   const kapazitaet = 3 + zustand.stufenG.hallen;
+  const schlund = 1 + (zustand.stufenG.schlund || 0);
   const drin = szene.imTor.length;
   const fastVoll = drin >= kapazitaet;
   const puls = 0.82 + 0.18 * Math.sin(zeit * (fastVoll ? 5 : 1.9)) + szene.blitzlicht * 0.5;
@@ -317,7 +319,7 @@ function torZeichnen(ctx, P, zustand, szene, DECK, zeit) {
   ctx.fillStyle = ausstrahlung;
   ctx.fillRect(MASSE.TOR_LINKS - 80, DECK - 70, 160, 80);
 
-  belegungZeichnen(ctx, drin, kapazitaet, zeit);
+  belegungZeichnen(ctx, szene.imTor, kapazitaet, schlund, zeit);
 
   // Aufhängung der Zugbrücke
   ctx.fillStyle = P.stein[2];

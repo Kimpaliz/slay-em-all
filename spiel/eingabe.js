@@ -9,8 +9,8 @@
 // Donnerschlag scharf ist, jede Stelle der Brücke.
 
 import { MASSE } from './masse.js';
-import { muenzeAufsammeln } from './kampf.js';
-import { blitzSetzen } from './zauber.js';
+import { muenzeAufsammeln, statueEinsammeln } from './kampf.js';
+import { blitzSetzen, klickAngriff } from './zauber.js';
 import { ZAUBER, werte as werteAus } from '../werkzeuge/wirtschaft.mjs';
 
 /** Wie großzügig eine Münze getroffen wird. Fingerbedienung braucht mehr. */
@@ -45,6 +45,34 @@ export function eingabeAnlegen(leinwand, welt, rueckrufe) {
     fingerBedienung = e.pointerType !== 'mouse';
   });
 
+  /** Die nächstgelegene Goldstatue — großzügiger Fang, sie ist ja groß. */
+  function statueBei(x, y) {
+    void y;
+    let beste = null;
+    let abstand = 11;
+    for (const st of welt.szene.statuen) {
+      const d = Math.abs(st.x + 3 - x);
+      if (d < abstand) { abstand = d; beste = st; }
+    }
+    return beste;
+  }
+
+  /** Der nächstgelegene laufende Recke unter dem Zeiger. */
+  function reckeBei(x, y) {
+    if (y < 60) return null;
+    let bester = null;
+    let abstand = 9;
+    for (const r of welt.szene.recken) {
+      if (r.zustand !== 'laeuft') continue;
+      const d = Math.abs(r.x + 3 - x);
+      if (d < abstand) { abstand = d; bester = r; }
+    }
+    return bester;
+  }
+
+  // Die Reihenfolge ist die Rangfolge der Absichten: Ein scharfer Blitz
+  // geht vor allem; Beute (Statue, Münze) geht vor dem Angriff, damit
+  // Aufsammeln nie versehentlich die Klick-Abklingzeit anwirft.
   leinwand.addEventListener('click', (e) => {
     const { x, y } = ortAus(e);
     const werte = werteAus(welt.zustand.stufenG, welt.zustand.stufenP);
@@ -54,15 +82,26 @@ export function eingabeAnlegen(leinwand, welt, rueckrufe) {
       rueckrufe.geaendert();
       return;
     }
+    const st = statueBei(x, y);
+    if (st) { statueEinsammeln(welt, st); return; }
     const m = muenzeBei(x, y);
-    if (m) muenzeAufsammeln(welt, m, true, werte.stolzFaktor);
+    if (m) { muenzeAufsammeln(welt, m, true, werte.stolzFaktor); return; }
+
+    const klick = welt.zustand.klick;
+    if (klick.gekauft >= 1) {
+      const ziel = klick.aktiv === 'titan' ? null : reckeBei(x, y);
+      if (klickAngriff(welt, ziel, x, werte)) rueckrufe.geaendert();
+    }
   });
 
   leinwand.addEventListener('mousemove', (e) => {
     const { x, y } = ortAus(e);
     let zeiger = 'default';
     if (welt.szene.donnerBereit) zeiger = 'crosshair';
-    else if (muenzeBei(x, y)) zeiger = 'pointer';
+    else if (welt.zustand.klick.aktiv === 'titan' && welt.zustand.klick.gekauft >= 1
+      && welt.szene.phase === 'tag' && welt.szene.klickAbklingzeit <= 0) zeiger = 'crosshair';
+    else if (statueBei(x, y) || muenzeBei(x, y)) zeiger = 'pointer';
+    else if (welt.zustand.klick.gekauft >= 1 && welt.szene.klickAbklingzeit <= 0 && reckeBei(x, y)) zeiger = 'pointer';
     if (leinwand.style.cursor !== zeiger) leinwand.style.cursor = zeiger;
   });
 

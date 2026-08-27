@@ -7,10 +7,10 @@
 // wird negativ, nichts läuft ins Unendliche.
 
 import {
-  WAREN_GROMMSCH, WAREN_PIPS, ZAUBER, RITUAL_PREIS,
-  STUFEN_GROMMSCH_LEER, STUFEN_PIPS_LEER, zauberStufenLeer,
+  WAREN_GROMMSCH, WAREN_PIPS, ZAUBER, RITUAL_PREIS, KLICK, KLICK_VARIANTEN,
+  STUFEN_GROMMSCH_LEER, STUFEN_PIPS_LEER, zauberStufenLeer, klickStufenLeer,
   werte, wellenStaerke, spawnAbstand, verfuegbareKlassen, klassenGewichte,
-  zauberWerte, ausbauPreis, rueckfall, zahl
+  zauberWerte, ausbauPreis, klickWerte, klickAusbauPreis, rueckfall, zahl
 } from './wirtschaft.mjs';
 import { RECKEN } from '../spiel/daten/recken.js';
 
@@ -54,7 +54,12 @@ for (const [name, waren] of [['Grommsch', WAREN_GROMMSCH], ['Pips', WAREN_PIPS]]
 console.log('Höchststufen und Bedingungen');
 gleich(WAREN_GROMMSCH.find((w) => w.k === 'schuetze').max, 4, 'Höchstens 4 Bogenschützen');
 gleich(WAREN_PIPS.find((w) => w.k === 'koeder').max, 3, 'Höchstens 3 Stufen Köder');
-gleich(WAREN_PIPS.find((w) => w.k === 'sammler').max, 3, 'Höchstens 3 Drachlinge');
+gleich(WAREN_PIPS.find((w) => w.k === 'sammler').max, 10, 'Drachling geht bis Stufe 10');
+gleich(WAREN_GROMMSCH.find((w) => w.k === 'schlund').max, 4, 'Höchstens 4 Stufen Schlund');
+gleich(WAREN_GROMMSCH.find((w) => w.k === 'krit').max, 5, 'Höchstens 5 Stufen Zielwasser');
+const zielwasser = WAREN_GROMMSCH.find((w) => w.k === 'krit');
+pruefe(zielwasser.bedingung({ ...STUFEN_GROMMSCH_LEER }) === false, 'Zielwasser ohne Schützen gesperrt');
+pruefe(zielwasser.bedingung({ ...STUFEN_GROMMSCH_LEER, schuetze: 1 }) === true, 'Zielwasser mit Schütze frei');
 const pfeile = WAREN_GROMMSCH.find((w) => w.k === 'pfeile');
 pruefe(pfeile.bedingung({ ...STUFEN_GROMMSCH_LEER }) === false, 'Pfeile ohne Schützen gesperrt');
 pruefe(pfeile.bedingung({ ...STUFEN_GROMMSCH_LEER, schuetze: 1 }) === true, 'Pfeile mit Schütze frei');
@@ -84,6 +89,78 @@ nahe(voll.stolzFaktor, 1.5, 'Zwei Stufen Stolz ergeben +50 %');
 
 pruefe(werte({ ...STUFEN_GROMMSCH_LEER, klauen: 40 }, { ...STUFEN_PIPS_LEER }).angriff > 0,
   'Angriff bleibt auch bei Stufe 40 endlich und positiv');
+
+gleich(leer.schlund, 1, 'Ohne Ausbau frisst das Monster einen zugleich');
+gleich(werte({ ...STUFEN_GROMMSCH_LEER, schlund: 3 }, { ...STUFEN_PIPS_LEER }).schlund, 4,
+  'Drei Stufen Schlund ergeben vier Mäuler');
+nahe(leer.schuetzenKrit, 0, 'Ohne Zielwasser kein Schützen-Krit');
+nahe(werte({ ...STUFEN_GROMMSCH_LEER, krit: 5 }, { ...STUFEN_PIPS_LEER }).schuetzenKrit, 0.3,
+  'Fünf Stufen Zielwasser ergeben 30 % Krit');
+nahe(leer.doppelGold, 0, 'Ohne Drachling kein Doppelgold');
+nahe(werte({ ...STUFEN_GROMMSCH_LEER }, { ...STUFEN_PIPS_LEER, sammler: 10 }).doppelGold, 0.1,
+  'Zehn Drachling-Stufen ergeben 10 % Doppelgold');
+
+/* ---------------- Der Klick ---------------- */
+
+console.log('Der Klick als Fähigkeit');
+{
+  const leer0 = klickStufenLeer();
+  gleich(leer0.gekauft, 0, 'Anfangs nicht gekauft');
+  gleich(leer0.aktiv, 'normal', 'Anfangs die schlichte Spielart');
+
+  const w0 = klickWerte(leer0);
+  gleich(w0.gekauft, false, 'Werte melden: nicht gekauft');
+  gleich(w0.schaden, 1, 'Grundschaden ist 1');
+  nahe(w0.abklingzeit, 2, 'Grundabklingzeit ist 2 s');
+  nahe(w0.krit, 0.05, 'Grundkrit ist 5 %');
+  gleich(w0.titanSchaden, 18, 'Titanschaden: 1 mal 8 plus 10');
+  nahe(w0.titanAbklingzeit, 30, 'Titan startet bei 30 s');
+
+  // Schaden steigt um 1 je Stufe
+  for (let st = 1; st <= 8; st++) {
+    const w = klickWerte({ ...leer0, schaden: st });
+    gleich(w.schaden, 1 + st, 'Klickschaden Stufe ' + st);
+    gleich(w.titanSchaden, (1 + st) * 8 + 10, 'Titanschaden folgt dem Klickschaden, Stufe ' + st);
+  }
+  // Abklingzeit faellt bis zum Boden
+  let letzteCd = Infinity;
+  for (let st = 0; st <= 30; st++) {
+    const w = klickWerte({ ...leer0, abklingzeit: st });
+    pruefe(w.abklingzeit <= letzteCd + 1e-9, 'Klick-Abklingzeit steigt nie, Stufe ' + st);
+    pruefe(w.abklingzeit >= 2 * 0.35 - 1e-9, 'Klick-Abklingzeit hält den Boden, Stufe ' + st);
+    pruefe(w.titanAbklingzeit >= 30 * 0.35 - 1e-9, 'Titan-Abklingzeit hält den Boden, Stufe ' + st);
+    letzteCd = w.abklingzeit;
+  }
+  // Krit steigt und ist gedeckelt
+  let letzterKrit = 0;
+  for (let st = 0; st <= 30; st++) {
+    const w = klickWerte({ ...leer0, krit: st });
+    pruefe(w.krit >= letzterKrit - 1e-9, 'Klick-Krit fällt nie, Stufe ' + st);
+    pruefe(w.krit <= 0.6 + 1e-9, 'Klick-Krit ist bei 60 % gedeckelt, Stufe ' + st);
+    letzterKrit = w.krit;
+  }
+  nahe(klickWerte({ ...leer0, krit: 99 }).krit, 0.6, 'Der Krit-Deckel wird erreicht');
+
+  // Ausbaupreise steigen
+  let letzterPreis = -1;
+  for (let st = 0; st < 10; st++) {
+    const preis = klickAusbauPreis(st);
+    pruefe(Number.isInteger(preis) && preis > 0, 'Klick-Ausbaupreis Stufe ' + st + ' positiv und ganz');
+    pruefe(preis > letzterPreis, 'Klick-Ausbaupreis steigt, Stufe ' + st);
+    letzterPreis = preis;
+  }
+  pruefe(klickAusbauPreis(0) < KLICK.preis, 'Die erste Stufe kostet weniger als der Kauf');
+
+  // Varianten
+  gleich(KLICK_VARIANTEN.length, 3, 'Drei Spielarten des Klicks');
+  gleich(KLICK_VARIANTEN.map((v) => v.k).join(','), 'midas,inferno,titan', 'Ihre Kennungen');
+  let letzterV = 0;
+  for (const v of KLICK_VARIANTEN) {
+    pruefe(v.preis > letzterV, v.name + ' kostet mehr als die Spielart davor');
+    pruefe(v.preis > KLICK.preis, v.name + ' kostet mehr als der Grundklick');
+    letzterV = v.preis;
+  }
+}
 
 /* ---------------- Wellen ---------------- */
 
@@ -182,6 +259,10 @@ for (const z of ZAUBER) {
   }
   pruefe(ausbauPreis(z, 0) < z.preis, z.name + ': die erste Verbesserung kostet weniger als der Zauber selbst');
 }
+
+console.log('Abklingzeit der Pranke');
+gleich(ZAUBER.find((z) => z.k === 'pranke').abklingzeit, 22,
+  'Die Pranke startet bewusst träge mit 22 s');
 
 console.log('Reihenfolge der Zauber');
 for (let i = 1; i < ZAUBER.length; i++) {

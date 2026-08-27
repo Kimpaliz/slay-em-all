@@ -15,8 +15,10 @@ import { neueWelt } from '../spiel/welt.js';
 import { schritt } from '../spiel/simulation.js';
 import { welleStarten } from '../spiel/wellen.js';
 import { muenzeAufsammeln } from '../spiel/kampf.js';
-import { beiGrommsch, beiPips, zauberLernen, zauberVerbessern, ritualKaufen } from '../spiel/handel.js';
-import { ausloesen } from '../spiel/zauber.js';
+import {
+  beiGrommsch, beiPips, zauberLernen, zauberVerbessern, ritualKaufen, klickKaufen
+} from '../spiel/handel.js';
+import { ausloesen, klickAngriff } from '../spiel/zauber.js';
 import {
   werte as werteAus, wellenStaerke, WAREN_GROMMSCH, WAREN_PIPS, ZAUBER, zahl
 } from './wirtschaft.mjs';
@@ -32,12 +34,17 @@ const GEDULD = 400;
  * Kapazität zuerst, weil Überlauf die einzige Art ist zu verlieren.
  * Danach Fressgeschwindigkeit, dann Schützen, dann Gold-Bequemlichkeit.
  */
-const ORDNUNG_SCHROTT = ['hallen', 'klauen', 'schuetze', 'pfeile'];
+const ORDNUNG_SCHROTT = ['hallen', 'schlund', 'klauen', 'schuetze', 'krit', 'pfeile'];
 const ORDNUNG_GOLD = ['sammler', 'stolz', 'marsch', 'ernte', 'lockruf', 'koeder'];
 
 function einkaufen(welt) {
   const zustand = welt.zustand;
   let gekauft = 0;
+
+  // Der Klick zuerst — er ist billig und die wichtigste Fruehhilfe.
+  if (zustand.klick.gekauft < 1 && zustand.blut >= 15) {
+    if (klickKaufen(welt)) gekauft++;
+  }
 
   // Zauber: sobald bezahlbar, in der Reihenfolge ihres Preises
   for (const z of ZAUBER) {
@@ -81,6 +88,15 @@ function spielen(welt, werte) {
       if (z.k === 'donner') continue;   // braucht einen Mausklick
       ausloesen(welt, z.k);
     }
+  }
+
+  // Klicken wie ein Mensch: auf den vordersten Recken, sobald bereit.
+  if (szene.phase === 'tag' && welt.zustand.klick.gekauft >= 1 && szene.klickAbklingzeit <= 0) {
+    let vorderster = null;
+    for (const r of szene.recken) {
+      if (r.zustand === 'laeuft' && (!vorderster || r.x > vorderster.x)) vorderster = r;
+    }
+    if (vorderster) klickAngriff(welt, vorderster, vorderster.x + 3, werte);
   }
 }
 

@@ -16,12 +16,10 @@ import { melden } from './marktschreier.js';
 import {
   schaden, torTod, zermalmen, lacheSetzen, muenzenFallen, muenzeAufsammeln
 } from './kampf.js';
-import { welleGewonnen, welleVerloren, niederlageBeenden, welleStarten, RITUAL_WARTEZEIT } from './wellen.js';
 import { RECKEN } from './daten/recken.js';
+import { welleGewonnen, welleVerloren, niederlageBeenden, welleStarten, RITUAL_WARTEZEIT } from './wellen.js';
 import { NACHTS, ausListe, reckenName } from './daten/texte.js';
-import {
-  werte as werteAus, spawnAbstand, verfuegbareKlassen, klassenGewichte
-} from '../werkzeuge/wirtschaft.mjs';
+import { werte as werteAus, spawnAbstand } from '../werkzeuge/wirtschaft.mjs';
 
 /** Wie blutig es zugeht: 1 bis 10. */
 const BLUTMENGE = 9;
@@ -40,6 +38,7 @@ export function schritt(welt, dt, einstellungen = {}) {
   reckenFuehren(welt, dt, werte);
   abklingzeitenFuehren(szene, dt);
 
+  brandFuehren(welt, dt, werte);
   prankeFuehren(welt, dt, werte);
   schuetzenFuehren(welt, dt, werte);
   pfeileFuehren(welt, dt, werte);
@@ -49,7 +48,8 @@ export function schritt(welt, dt, einstellungen = {}) {
   brennendeFuehren(welt, dt, werte);
 
   muenzenFuehren(welt, dt, werte);
-  drachlingFuehren(welt, dt);
+  drachlingFuehren(welt, dt, werte);
+  statuenFuehren(welt, dt);
   truemmerFuehren(szene, dt, blutmenge);
   spritzerFuehren(szene, dt);
   lachenFuehren(szene, dt);
@@ -90,12 +90,19 @@ function phaseFuehren(welt, dt, werte) {
         const abstand = spawnAbstand(zustand.welle);
         szene.naechsterRecke = abstand * (0.7 + Math.random() * 0.6);
         szene.erschienen++;
-        szene.recken.push(reckeAnlegen(szene, klasseWaehlen(zustand), reckenName(), werte.tempoFaktor));
+        // Die Aufstellung wurde nachts ausgelost und angekündigt —
+        // gespawnt wird genau diese Liste, nichts anderes.
+        const id = (szene.spawnListe || []).shift();
+        const klasse = RECKEN.find((r) => r.id === id) || RECKEN[0];
+        szene.recken.push(reckeAnlegen(szene, klasse, reckenName(), werte.tempoFaktor));
       }
     }
 
-    // Verdauung: Das Monster frisst mit `angriff` Lebenspunkten je Sekunde.
-    for (let i = szene.imTor.length - 1; i >= 0; i--) {
+    // Verdauung als Warteschlange: Nur die vordersten `schlund` Recken
+    // werden gefressen, der Rest wartet. Die Kapazität ist der Puffer,
+    // der Schlund der Durchsatz — zwei getrennte Käufe, zwei Nöte.
+    const maeuler = Math.min(werte.schlund, szene.imTor.length);
+    for (let i = maeuler - 1; i >= 0; i--) {
       szene.imTor[i].lp -= werte.angriff * dt;
       if (szene.imTor[i].lp <= 0) {
         const opfer = szene.imTor[i];
@@ -127,19 +134,6 @@ function phaseFuehren(welt, dt, werte) {
   }
 }
 
-/** Welche Klasse als Nächstes kommt — späte Wellen bringen höhere Ränge. */
-function klasseWaehlen(zustand) {
-  const moeglich = verfuegbareKlassen(RECKEN, zustand.welle, zustand.stufenP.koeder);
-  const gewichte = klassenGewichte(moeglich, zustand.welle);
-  const summe = gewichte.reduce((a, b) => a + b, 0);
-  let wurf = Math.random() * summe;
-  for (let i = 0; i < moeglich.length; i++) {
-    wurf -= gewichte[i];
-    if (wurf <= 0) return moeglich[i];
-  }
-  return moeglich[moeglich.length - 1];
-}
-
 /* ---------------- Recken ---------------- */
 
 function reckenFuehren(welt, dt, werte) {
@@ -166,7 +160,7 @@ function reckenFuehren(welt, dt, werte) {
     r.x += r.tempo * dt;
     if (r.x >= MASSE.TOR_EINTRITT) {
       szene.recken.splice(i, 1);
-      szene.imTor.push({ klasse: r.klasse, name: r.name, lp: r.lp });
+      szene.imTor.push({ klasse: r.klasse, name: r.name, lp: r.lp, maxLp: r.klasse.lp });
       if (szene.imTor.length > werte.kapazitaet) {
         welleVerloren(welt);
         break;
@@ -178,6 +172,46 @@ function reckenFuehren(welt, dt, werte) {
 function abklingzeitenFuehren(szene, dt) {
   for (const k in szene.abklingzeit) {
     if (szene.abklingzeit[k] > 0) szene.abklingzeit[k] = Math.max(0, szene.abklingzeit[k] - dt);
+  }
+  if (szene.klickAbklingzeit > 0) szene.klickAbklingzeit = Math.max(0, szene.klickAbklingzeit - dt);
+}
+
+/**
+ * Brennende Recken verlieren jede volle Sekunde Lebenspunkte.
+ *
+ * Der Brand kommt von der Infernalen Berührung. Stirbt der Recke daran,
+ * läuft in `schaden()` der Feuer-Pfad samt Explosion.
+ */
+function brandFuehren(welt, dt, werte) {
+  const szene = welt.szene;
+  for (let i = szene.recken.length - 1; i >= 0; i--) {
+    const r = szene.recken[i];
+    if (!r.brand || r.zustand !== 'laeuft') continue;
+    r.brand.rest -= dt;
+    r.brand.takt += dt;
+    if (r.brand.takt >= 1) {
+      r.brand.takt -= 1;
+      schaden(welt, r, r.brand.schadenJeSekunde, 'brand', true, werte);
+      continue;   // schaden() kann den Recken entfernt haben
+    }
+    if (r.brand.rest <= 0) delete r.brand;
+  }
+}
+
+/** Goldstatuen halten nicht ewig — irgendwann zahlen sie sich selbst aus. */
+function statuenFuehren(welt, dt) {
+  const szene = welt.szene;
+  for (let i = szene.statuen.length - 1; i >= 0; i--) {
+    const st = szene.statuen[i];
+    st.zeit += dt;
+    if (st.zeit > 25) {
+      szene.statuen.splice(i, 1);
+      welt.zustand.gold += st.wert;
+      szene.zahlen.push({
+        x: st.x + 3, y: MASSE.DECK - st.klasse.hoehe - 5,
+        text: '+' + st.wert, farbe: '#e0b64f', zeit: 0
+      });
+    }
   }
 }
 
@@ -259,7 +293,9 @@ function pfeileFuehren(welt, dt, werte) {
       if (treffer) {
         szene.pfeile.splice(i, 1);
         szene.spritzer.push({ x: p.x, y: p.y, vx: -20, vy: -30, lebt: 0.7, farbe: '#a82430' });
-        schaden(welt, treffer, werte.pfeilSchaden, 'pfeil', false, werte);
+        // Zielwasser: Chance auf einen kritischen Pfeil mit doppeltem Schaden.
+        const krit = Math.random() < werte.schuetzenKrit;
+        schaden(welt, treffer, werte.pfeilSchaden * (krit ? 2 : 1), 'pfeil', false, werte, krit);
         continue;
       }
     }
@@ -389,7 +425,15 @@ function muenzenFuehren(welt, dt, werte) {
       const dx = d.x - m.x;
       const dy = d.y - m.y;
       const weg = Math.max(0.001, Math.hypot(dx, dy));
-      if (weg < 5) { muenzeAufsammeln(welt, m, false, werte.stolzFaktor); continue; }
+      if (weg < 5) {
+        // Je Drachling-Stufe 1 % Chance, dass er die Muenze doppelt wertet.
+        if (Math.random() < werte.doppelGold) {
+          m.wert *= 2;
+          szene.zahlen.push({ x: m.x, y: m.y - 8, text: 'x2!', farbe: '#fff6c8', gross: true, zeit: 0 });
+        }
+        muenzeAufsammeln(welt, m, false, werte.stolzFaktor);
+        continue;
+      }
       m.x += (dx / weg) * 95 * dt;
       m.y += (dy / weg) * 95 * dt;
       continue;
@@ -425,7 +469,7 @@ function muenzenFuehren(welt, dt, werte) {
 }
 
 /** Der Sammel-Drachling zieht nachts über die Brücke und magnetisiert Gold. */
-function drachlingFuehren(welt, dt) {
+function drachlingFuehren(welt, dt, werte) {
   const { zustand, szene } = welt;
   const stufe = zustand.stufenP.sammler;
   if (szene.phase !== 'nacht' || stufe <= 0) return;

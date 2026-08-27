@@ -1,5 +1,78 @@
 # Änderungsprotokoll
 
+## 0.6.0 — 27.08.2026
+
+**Der Klick wird eine Waffe, die Burg bekommt eine Warteschlange.** Sieben
+Wünsche von Jannik in einer Fassung:
+
+### Der eigene Angriff
+
+Bei Malvina kaufbar (15 Blut): **Berührung des Bösen** — ein Klick auf einen
+Recken verwundet ihn. Startschaden 1, Abklingzeit 2 s, 5 % kritische Treffer
+(doppelter Schaden), mit Treffer-Blitz und Blutspritzern. Drei Ausbauachsen:
+Schaden +1, Abklingzeit −12 %, Krit +4 %.
+
+Dazu drei kaufbare Spielarten, jederzeit umschaltbar:
+
+- **Midas-Berührung** (350): Stirbt das Ziel am Klick, erstarrt es zur
+  **Goldstatue** — anklicken bringt das Zweieinhalbfache des üblichen Golds.
+  Nach 25 Sekunden zahlt sie sich selbst aus.
+- **Infernale Berührung** (500): Das Ziel brennt (1 Schaden je Sekunde,
+  4 Sekunden). Stirbt es brennend, **explodiert** es und zündet Nachbarn an —
+  Kettenreaktionen sind möglich und beabsichtigt.
+- **Faust des Titanen** (900): Flächenschlag, achtfacher Klickschaden plus
+  Sockel, 36 px Wirkbereich, 30 s Abklingzeit.
+
+Beim Klicken gilt eine feste Rangfolge: scharfer Blitz vor Statue vor Münze
+vor Angriff — Aufsammeln wirft nie versehentlich die Abklingzeit an.
+
+### Die Fressschlange
+
+Recken in der Burg werden nicht mehr alle gleichzeitig verdaut, sondern
+**einer nach dem anderen**. Über dem Gefressenen läuft ein Balken ab.
+**Zweiter Schlund** bei Grommsch (max 4) lässt mehrere zugleich fressen.
+Kapazität ist jetzt der Puffer, der Schlund der Durchsatz — zwei getrennte
+Käufe, zwei Nöte. Die Lage-Zeile zeigt beides („Burg 2/3 · frisst 1/2").
+
+### Rund um die Werte
+
+- **Schwebende Schadenszahlen** über Getroffenen; kritische in Gold und größer.
+- **Tooltip an der Aktionsleiste**: farbig, mit Zeichen je Wert, Basiswert und
+  Bonus getrennt („⚔ 10 **+15**", „⏱ 22 s **−5,0 s**").
+- **Zielwasser** bei Grommsch (max 5): +6 % kritische Pfeile je Stufe.
+- **Drachenpranke** startet träger: 22 s statt 14 s Abklingzeit.
+- **Sammel-Drachling** jetzt bis Stufe 10; je Stufe +1 % Chance, dass er eine
+  Münze **doppelt** wertet (mit „×2!"-Anzeige).
+- **Währungszeichen** (Tropfen, Münze, Zahnrad) in allen Ladenknöpfen.
+
+### Die Nacht kündigt an, was kommt
+
+Die nächste Welle wird **vorab ausgelost** und im Nachtlager als Chips
+angezeigt („Gleich kommen: 7× Bauer · 6× Söldner …"). Gespawnt wird genau
+diese Liste. Lockrufe und Köder losen neu aus; die Ankündigung überlebt das
+Neuladen, weil sie im Spielstand liegt.
+
+### Geprüft
+
+- `pruefe-wirtschaft.mjs` — jetzt **1.910 Prüfungen**, 0 Fehler (Klickwerte,
+  Deckel, Preise, neue Waren).
+- `balance.mjs` über 30 Wellen mit klickendem Bot: **alle neun Kennzahlen
+  grün**, 0 Niederlagen trotz Fressschlange.
+- Im Browser mit echten Klicks: Kauf, Angriff, Abklingzeit, Midas-Statue
+  samt Aufsammeln, Inferno mit Brand-Ticks und Kettenexplosion (ein
+  zufälliger Krit im Test hat die Kette gleich mitbelegt), Titan gegen vier
+  Ritter, Fressschlange (nur der Vorderste verliert Lebenspunkte, mit
+  zweitem Schlund zwei), Tooltip auf und zu, Vorschau nach Sieg, Speichern
+  und Laden aller neuen Felder.
+
+### Technisch
+
+Klick-Zustand und Ankündigung liegen im Spielstand (`slayemall.wellen.v1`,
+Felder werden beim Laden defensiv aufgefüllt — alte Stände laufen weiter).
+Eine gewählte, aber nicht gekaufte Spielart wird beim Laden auf `normal`
+zurückgestellt.
+
+
 ## 0.5.0 — 27.08.2026
 
 **Die Wellen-Fassung ersetzt das Idle-Spiel.** Jannik hat in der
