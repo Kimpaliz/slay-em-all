@@ -1,9 +1,10 @@
 /* Slay'Em All! — Gestaltung.
-   Übernommen aus dem ursprünglichen Entwurf, aber auf das eingedampft, was
-   diese eine Seite wirklich benutzt. Farbwerte und Abstände sind unverändert.
 
-   Die Schrift liegt lokal im Ordner `schriften/`; die Seite lädt nichts
-   von fremden Servern. */
+   Die Farbwerte stammen aus dem Entwurf "Nocturne" und sind unverändert
+   übernommen. Eingedampft auf das, was diese Seite wirklich benutzt.
+
+   Die Schrift liegt lokal in `schriften/`; die Seite lädt nichts von
+   fremden Servern. */
 
 @font-face {
   font-family: 'Inter';
@@ -19,26 +20,28 @@
 
 :root {
   --grund: #101220;
-  --flaeche: #232532;
+  --flaeche: #1f212d;
+  --flaeche-hoch: #272a38;
   --text: #e9e9ed;
   --gedaempft: color-mix(in srgb, #e9e9ed 55%, transparent);
+  --schwach: color-mix(in srgb, #e9e9ed 34%, transparent);
   --akzent: #9184d9;
   --akzent-hell: #d2cefd;
+  --akzent-tief: #6b5eb0;
   --linie: color-mix(in srgb, #e9e9ed 16%, transparent);
+
   --blut: #c1444f;
-  --knochen: #cfcbb6;
+  --gold: #e0b64f;
+  --schrott: #9aa0b0;
+  --feuer: #ff7a2a;
 
   --schrift: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
-
-  --abstand-1: 2.8px;
-  --abstand-2: 5.6px;
-  --abstand-3: 8.4px;
-  --abstand-4: 11.2px;
-  --abstand-6: 16.8px;
+  --schrift-fest: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
   --rundung: 8px;
+  --rundung-klein: 5px;
   --kante: 0 0 0 1px #3f424d;
-  --kante-tief: 0 0 0 1px #595d6c, 0 6px 18px rgba(0, 0, 0, 0.55);
+  --schatten: 0 6px 18px rgba(0, 0, 0, 0.45);
 }
 
 * { box-sizing: border-box; }
@@ -48,25 +51,24 @@ body {
   background: var(--grund);
   color: var(--text);
   font-family: var(--schrift);
+  -webkit-text-size-adjust: 100%;
 }
 
-.buehne {
+.wurzel {
   min-height: 100vh;
-  padding: 22px 22px 34px;
+  padding: clamp(10px, 2.2vw, 22px) clamp(10px, 2.2vw, 22px) 34px;
   background: radial-gradient(120% 70% at 50% 0%, #1b1d2e 0%, #161826 45%, #101220 100%);
-}
-
-.spalte {
-  max-width: 1180px;
-  margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: var(--abstand-6);
+  gap: 14px;
 }
 
-/* ---------- Kopfzeile ---------- */
+/* ---------------- Kopf ---------------- */
 
 .kopf {
+  max-width: 1180px;
+  width: 100%;
+  margin: 0 auto;
   display: flex;
   align-items: flex-end;
   gap: 24px;
@@ -75,20 +77,19 @@ body {
 
 .kopf-titel { margin-right: auto; }
 
+.vorspann {
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--gedaempft);
+  margin-bottom: 3px;
+}
+
 h1 {
-  font-size: 36px;
+  font-size: clamp(26px, 4vw, 36px);
   margin: 0;
   letter-spacing: -0.02em;
   line-height: 1;
-  font-weight: 500;
-}
-
-.vorspann {
-  font-size: 10px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--akzent);
-  margin-bottom: 3px;
 }
 
 .untertitel {
@@ -101,12 +102,24 @@ h1 {
 
 .beutel {
   display: flex;
-  gap: 22px;
+  gap: 18px;
   align-items: flex-end;
 }
 
-.beute { text-align: right; min-width: 66px; }
-.beute:first-child { min-width: 78px; }
+.wellenmarke {
+  align-self: center;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--akzent-hell);
+  background: rgba(145, 132, 217, 0.16);
+  box-shadow: 0 0 0 1px var(--akzent-tief);
+  border-radius: 999px;
+  padding: 4px 11px;
+  white-space: nowrap;
+}
+
+.beute { text-align: right; min-width: 62px; }
 
 .beute-name {
   font-size: 9.5px;
@@ -116,36 +129,49 @@ h1 {
 }
 
 .beute-wert {
-  font-size: 27px;
+  font-size: clamp(19px, 2.6vw, 27px);
   line-height: 1.05;
   font-variant-numeric: tabular-nums;
 }
 
-.beute-blut { min-width: 130px; }
-
-.einheit {
-  font-size: 15px;
-  opacity: 0.65;
-}
-
-.beute-vergleich {
-  font-size: 9.5px;
-  color: var(--gedaempft);
-  margin-top: 3px;
-  line-height: 1.25;
-  min-height: 1.2em;
-}
-
 .wert-blut { color: var(--blut); }
-.wert-knochen { color: var(--knochen); }
-.wert-schrott { color: var(--akzent); }
+.wert-gold { color: var(--gold); }
+.wert-schrott { color: var(--schrott); }
 
-/* ---------- Bild und Laufband ---------- */
+.knopf-neustart {
+  align-self: center;
+  font: inherit;
+  font-size: 11px;
+  color: var(--gedaempft);
+  background: transparent;
+  border: 0;
+  box-shadow: 0 0 0 1px var(--linie);
+  border-radius: var(--rundung-klein);
+  padding: 6px 10px;
+  cursor: pointer;
+}
+.knopf-neustart:hover { color: var(--text); box-shadow: 0 0 0 1px var(--schwach); }
+.knopf-neustart.scharf { color: #fff; background: var(--blut); box-shadow: none; }
 
-.rahmen {
+/* ---------------- Seiten ---------------- */
+
+.seiten {
+  max-width: 1180px;
+  width: 100%;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.seite { min-width: 0; }
+
+/* ---------------- Bühne ---------------- */
+
+.buehne {
   background: #0a0b12;
   border-radius: var(--rundung);
-  box-shadow: var(--kante-tief);
+  box-shadow: var(--schatten);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -156,9 +182,116 @@ canvas[data-szene] {
   width: 100%;
   height: auto;
   image-rendering: pixelated;
+  touch-action: manipulation;
 }
 
-.laufband {
+.steuerung {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 11px 14px;
+  background: var(--flaeche);
+  border-top: 1px solid var(--linie);
+}
+
+.lage { margin-right: auto; min-width: 0; }
+
+.phase {
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.lagezeile {
+  font-size: 11px;
+  color: var(--gedaempft);
+  font-variant-numeric: tabular-nums;
+}
+
+.zauberhinweis {
+  margin: 0;
+  font-size: 11px;
+  color: var(--gedaempft);
+}
+.zauberhinweis[hidden] { display: none; }
+
+.knopf-welle {
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: #150d08;
+  background: var(--feuer);
+  border: 0;
+  border-radius: var(--rundung-klein);
+  padding: 9px 16px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.knopf-welle:hover:not(:disabled) { background: #ff9550; }
+.knopf-welle:disabled {
+  color: var(--schwach);
+  background: transparent;
+  box-shadow: 0 0 0 1px var(--linie);
+  cursor: default;
+}
+
+/* ---------------- Aktionsleiste ---------------- */
+
+.aktionsleiste { display: flex; gap: 7px; }
+
+.zauberknopf {
+  position: relative;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--rundung-klein);
+  background: var(--flaeche-hoch);
+  box-shadow: 0 0 0 1px #3f424d;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+.zauberknopf.bereit { box-shadow: 0 0 0 1px var(--feuer), 0 0 8px rgba(255, 122, 42, 0.25); }
+.zauberknopf.scharf { box-shadow: 0 0 0 2px var(--akzent), 0 0 0 4px rgba(145, 132, 217, 0.3); }
+.zauberknopf.laeuft { box-shadow: 0 0 0 1px var(--feuer); }
+
+.zaubersymbol {
+  width: 24px;
+  height: 24px;
+  image-rendering: pixelated;
+  opacity: 0.45;
+}
+.zauberknopf.bereit .zaubersymbol,
+.zauberknopf.scharf .zaubersymbol,
+.zauberknopf.laeuft .zaubersymbol { opacity: 1; }
+
+.zauberdecke {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  display: grid;
+  place-items: center;
+  font-family: var(--schrift-fest);
+  font-size: 12px;
+  font-weight: 700;
+  color: #b9b7c9;
+  pointer-events: none;
+}
+
+.zaubertaste {
+  position: absolute;
+  right: 2px;
+  bottom: 1px;
+  font-family: var(--schrift-fest);
+  font-size: 8px;
+  color: var(--schwach);
+  pointer-events: none;
+}
+
+/* ---------------- Marktschreier ---------------- */
+
+.marktschreier {
   display: flex;
   align-items: stretch;
   background: var(--flaeche);
@@ -166,7 +299,7 @@ canvas[data-szene] {
   overflow: hidden;
 }
 
-.laufband-schild {
+.marktschreier-marke {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
@@ -174,37 +307,34 @@ canvas[data-szene] {
   padding: 12px 16px;
   background: #241620;
   border-right: 1px solid var(--linie);
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--gedaempft);
+  white-space: nowrap;
 }
 
-.puls {
+.punkt {
   width: 6px;
   height: 6px;
   border-radius: 50%;
   background: var(--blut);
-  animation: puls 1.4s ease-in-out infinite;
+  animation: pulsieren 1.4s ease-in-out infinite;
 }
 
-@keyframes puls {
-  0%, 100% { opacity: 0.5; }
-  50% { opacity: 1; }
+@keyframes pulsieren {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
 }
 
-.laufband-name {
-  font-size: 9.5px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  white-space: nowrap;
-  color: var(--gedaempft);
-}
-
-.laufband-bahn {
+.marktschreier-band {
   position: relative;
   flex: 1 1 auto;
   overflow: hidden;
   min-height: 44px;
 }
 
-.laufband-bahn > span {
+.bandfeld {
   position: absolute;
   top: 50%;
   left: 0;
@@ -212,457 +342,242 @@ canvas[data-szene] {
   display: flex;
   align-items: center;
   white-space: nowrap;
+  font-size: 14px;
   will-change: transform;
 }
 
-.laufband-bahn > span > span:first-child { font-size: 15px; }
-
-.trenner {
+.stern {
   padding: 0 20px;
   color: var(--akzent);
   opacity: 0.6;
   font-size: 12px;
 }
 
-.verlauf-rechts {
+.bandblende {
   position: absolute;
   top: 0;
   right: 0;
   width: 40px;
   height: 100%;
-  background: linear-gradient(90deg, rgba(35, 37, 50, 0) 0%, var(--flaeche) 85%);
+  background: linear-gradient(90deg, rgba(31, 33, 45, 0) 0%, var(--flaeche) 85%);
   pointer-events: none;
 }
 
-/* ---------- Reiter zwischen den Ansichten ---------- */
+/* ---------------- Händler ---------------- */
 
-.reiter-leiste {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  border-bottom: 1px solid var(--linie);
-  padding-bottom: 1px;
-  margin-bottom: -8px;
-}
-
-.reiter {
-  font: inherit;
-  font-size: 12px;
-  letter-spacing: 0.06em;
-  color: var(--gedaempft);
-  background: transparent;
-  border: none;
-  border-bottom: 2px solid transparent;
-  padding: 7px 12px 8px;
-  cursor: pointer;
-  margin-bottom: -2px;
-}
-
-.reiter:hover { color: var(--text); }
-
-.reiter-aktiv {
-  color: var(--akzent-hell);
-  border-bottom-color: var(--akzent);
-}
-
-.reiter:focus-visible {
-  outline: 2px solid var(--akzent);
-  outline-offset: -2px;
-}
-
-.wisch-hinweis {
-  margin-left: auto;
-  font-size: 9.5px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--gedaempft);
-  opacity: 0.7;
-}
-
-.ansicht {
-  display: flex;
-  flex-direction: column;
-  gap: var(--abstand-6);
-}
-
-.ansicht[hidden] { display: none; }
-
-.karten-zwei { grid-template-columns: 1fr 1fr; }
-
-@media (max-width: 860px) {
-  .karten-zwei { grid-template-columns: 1fr; }
-  .wisch-hinweis { display: none; }
-}
-
-/* ---------- Schatzkammer ---------- */
-
-.kammer {
-  display: flex;
-  gap: var(--abstand-6);
-  align-items: stretch;
-  background: linear-gradient(105deg, #221a12 0%, var(--flaeche) 55%);
-  border-radius: var(--rundung);
-  box-shadow: var(--kante-tief);
-  padding: var(--abstand-4);
-  flex-wrap: wrap;
-}
-
-.portraet-rahmen {
-  flex: 0 0 auto;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-}
-
-canvas[data-portraet] {
-  display: block;
-  width: 168px;
-  height: 210px;
-  image-rendering: pixelated;
-  border-radius: 3px;
-}
-
-.portraet-name {
-  font-size: 10px;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: #b8964f;
-}
-
-.kammer-text {
-  flex: 1 1 300px;
-  display: flex;
-  flex-direction: column;
-  gap: var(--abstand-3);
-  justify-content: center;
-}
-
-.grutz-rede {
-  margin: 0;
-  font-size: 13.5px;
-  line-height: 1.5;
-  color: #d8cdb4;
-  text-wrap: pretty;
-  max-width: 52ch;
-}
-
-.kammer-zahlen {
-  display: flex;
-  gap: 26px;
-  flex-wrap: wrap;
-  border-top: 1px solid var(--linie);
-  padding-top: var(--abstand-3);
-}
-
-.abschnitt {
-  border-top: 1px solid var(--linie);
-  padding-top: var(--abstand-3);
-  margin-top: var(--abstand-2);
-}
-
-/* ---------- Tagesleiste ---------- */
-
-.tagesleiste {
-  background: var(--flaeche);
-  border-radius: var(--rundung);
-  box-shadow: var(--kante);
-  padding: 10px var(--abstand-4) 11px;
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-  border-left: 3px solid var(--tag-ton, var(--akzent));
-}
-
-.tagesleiste[data-phase="tag"] { --tag-ton: #8b8f9c; }
-.tagesleiste[data-phase="nacht"] { --tag-ton: var(--akzent); }
-
-.tagesleiste-kopf,
-.tagesleiste-fuss {
-  display: flex;
-  align-items: baseline;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.tag-zahl {
-  font-size: 13px;
-  font-variant-numeric: tabular-nums;
-}
-
-.tag-phase {
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--tag-ton, var(--akzent));
-  margin-right: auto;
-}
-
-.tag-rest {
-  font-size: 11px;
-  color: var(--gedaempft);
-  font-variant-numeric: tabular-nums;
-}
-
-.balken {
-  height: 4px;
-  border-radius: 2px;
-  background: rgba(233, 233, 237, 0.09);
-  overflow: hidden;
-}
-
-.balken-fuellung {
-  height: 100%;
-  width: 0%;
-  background: var(--tag-ton, var(--akzent));
-  transition: width 0.2s linear;
-}
-
-.tagesleiste-fuss {
-  font-size: 10.5px;
-  color: var(--gedaempft);
-  font-variant-numeric: tabular-nums;
-}
-
-.tagesleiste-fuss span:last-child { color: var(--blut); }
-
-/* ---------- die drei Karten ---------- */
-
-.karten {
+.haendlergitter {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--abstand-6);
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
   align-items: start;
 }
 
-@media (max-width: 860px) {
-  .karten { grid-template-columns: 1fr; }
-  .kopf { gap: 14px; }
-  h1 { font-size: 28px; }
-}
-
-.karte {
-  display: flex;
-  flex-direction: column;
-  gap: var(--abstand-2);
-  padding: var(--abstand-3);
-  border-radius: var(--rundung);
+.haendler {
   background: var(--flaeche);
+  border-radius: var(--rundung);
   box-shadow: var(--kante);
-}
-
-.karte-breit { padding-left: 0; padding-right: 0; }
-.karte-breit .karte-kopf { padding: 0 var(--abstand-4); }
-
-.karte-kopf {
-  font-size: 10px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--akzent);
-}
-
-/* ---------- Torbetrieb ---------- */
-
-.kennzahlen {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px 14px;
-}
-
-.kennzahl-name {
-  font-size: 9.5px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--gedaempft);
-}
-
-.kennzahl-wert {
-  font-size: 20px;
-  font-variant-numeric: tabular-nums;
-}
-
-.kennzahl-wert.klein { font-size: 14px; }
-
-.kennzahl-wert.wert-blut { color: var(--blut); }
-
-.fussleiste {
-  border-top: 1px solid var(--linie);
-  padding-top: 9px;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-}
-
-/* ---------- Bestiarium ---------- */
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 14px;
-}
-
-th {
-  text-align: left;
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: color-mix(in srgb, var(--text) 60%, transparent);
-  padding: var(--abstand-2);
-  font-weight: 400;
-}
-
-td { padding: var(--abstand-2); }
-tbody tr { border-bottom: 1px solid var(--linie); }
-tbody tr:last-child { border-bottom: none; }
-
-th:first-child, td:first-child { padding-left: var(--abstand-4); }
-th:last-child, td:last-child { padding-right: var(--abstand-4); }
-
-.zelle-name { display: flex; align-items: center; gap: 8px; }
-.zelle-zahl { text-align: right; font-variant-numeric: tabular-nums; }
-.zelle-blut { color: var(--blut); }
-
-.klassenpunkt {
-  width: 7px;
-  height: 7px;
-  border-radius: 2px;
-  flex: 0 0 auto;
-}
-
-/* ---------- Ausbauten als Knöpfe ---------- */
-
-.ausbauliste,
-.dauerhaftliste {
+  padding: 13px 14px;
   display: flex;
   flex-direction: column;
-  gap: 5px;
-}
-
-.knopf {
-  font: inherit;
-  color: inherit;
-  background: transparent;
-  border: 1px solid var(--linie);
-  border-radius: 6px;
-  cursor: pointer;
-  text-align: left;
-}
-
-.knopf:disabled {
-  cursor: not-allowed;
-  opacity: 0.42;
-}
-
-.knopf:focus-visible {
-  outline: 2px solid var(--akzent);
-  outline-offset: 2px;
-}
-
-.ausbau {
-  display: flex;
-  align-items: center;
   gap: 10px;
-  justify-content: space-between;
-  padding: 7px 9px;
-  width: 100%;
-  line-height: 1.25;
-  transition: background 0.12s ease, border-color 0.12s ease;
-}
-
-.ausbau-text {
-  display: flex;
-  flex-direction: column;
   min-width: 0;
 }
 
-.ausbau-name { font-size: 12px; }
+.haendlerkopf {
+  display: flex;
+  gap: 11px;
+  align-items: flex-start;
+}
 
-.ausbau-wirkung {
-  font-size: 10px;
+.portraet {
+  width: 42px;
+  height: 48px;
+  flex: 0 0 auto;
+  image-rendering: pixelated;
+  border-radius: 3px;
+  background: #12101a;
+}
+
+.haendler h2 {
+  font-size: 14px;
+  margin: 1px 0 0;
+  letter-spacing: -0.01em;
+}
+
+.haendlerspruch {
+  margin: 3px 0 0;
+  font-size: 11px;
   color: var(--gedaempft);
-  margin-top: 1px;
   text-wrap: pretty;
 }
 
-.ausbau-rechts {
-  flex: 0 0 auto;
+.waren {
+  list-style: none;
+  margin: 0;
+  padding: 0;
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
-  gap: 1px;
+  gap: 6px;
 }
 
-.ausbau-preis {
-  font-size: 11.5px;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-.knopf[data-waehrung="blut"] .ausbau-preis { color: var(--blut); }
-.knopf[data-waehrung="schrott"] .ausbau-preis { color: var(--akzent); }
-
-.ausbau-stufe {
-  font-size: 9.5px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--gedaempft);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-/* Bezahlbar heißt: hervorheben. Alles andere bleibt ruhig. */
-.knopf.bezahlbar {
-  border-color: color-mix(in srgb, var(--akzent) 55%, transparent);
-  background: color-mix(in srgb, var(--akzent) 9%, transparent);
-}
-
-.knopf.bezahlbar:hover {
-  background: color-mix(in srgb, var(--akzent) 17%, transparent);
-  border-color: var(--akzent);
-}
-
-.knopf.bezahlbar:active { transform: translateY(1px); }
-
-/* ---------- Neuanfang ---------- */
-
-.neuanfang { gap: var(--abstand-3); }
-
-.neuanfang-kopf {
+.ware {
   display: flex;
-  align-items: flex-start;
-  gap: var(--abstand-4);
-  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 9px;
+  background: var(--flaeche-hoch);
+  border-radius: var(--rundung-klein);
 }
 
-.neuanfang-kopf > div { flex: 1 1 320px; }
+.ware-zauber { flex-direction: column; align-items: stretch; gap: 6px; }
+.ware-kopf { display: flex; align-items: center; gap: 10px; }
 
-.neuanfang-text { max-width: 62ch; }
+.ware-text { flex: 1 1 auto; min-width: 0; }
 
-.knopf-gross {
-  flex: 0 0 auto;
-  padding: 10px 16px;
-  font-size: 13px;
-  border-radius: var(--rundung);
-  white-space: nowrap;
+.ware-name {
+  font-size: 12px;
+  font-weight: 600;
 }
 
-.schaedel-zeile {
-  border-top: 1px solid var(--linie);
-  padding-top: var(--abstand-3);
-}
-
-.ausbau-dauerhaft .ausbau-preis { color: var(--knochen); }
-
-.letzter-kauf {
-  border-top: 1px solid var(--linie);
-  padding-top: 9px;
-  font-size: 11.5px;
-  color: var(--akzent);
+.ware-beschreibung {
+  font-size: 10.5px;
+  color: var(--gedaempft);
   text-wrap: pretty;
 }
 
-.hinweis {
+.ware-knopf {
+  flex: 0 0 auto;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  min-width: 46px;
+  color: var(--text);
+  background: rgba(145, 132, 217, 0.18);
+  border: 0;
+  box-shadow: 0 0 0 1px var(--akzent-tief);
+  border-radius: var(--rundung-klein);
+  padding: 6px 9px;
+  cursor: pointer;
+}
+.ware-knopf:hover:not(:disabled) { background: rgba(145, 132, 217, 0.34); }
+.ware-knopf:disabled {
+  color: var(--schwach);
+  background: transparent;
+  box-shadow: 0 0 0 1px var(--linie);
+  cursor: default;
+}
+.ware-knopf.gelernt { color: var(--akzent-hell); }
+
+.achsen { display: flex; gap: 5px; }
+.achsen[hidden] { display: none; }
+
+.achse {
+  flex: 1 1 0;
+  font: inherit;
   font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
   color: var(--gedaempft);
-  margin-top: 2px;
+  background: transparent;
+  border: 0;
+  box-shadow: 0 0 0 1px var(--linie);
+  border-radius: var(--rundung-klein);
+  padding: 5px 4px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.achse:hover:not(:disabled) { color: var(--text); box-shadow: 0 0 0 1px var(--schwach); }
+.achse:disabled { color: var(--schwach); opacity: 0.55; cursor: default; }
+
+.haendlerfuss {
+  margin: 0;
+  padding-top: 8px;
+  border-top: 1px solid var(--linie);
+  font-size: 11.5px;
+  color: var(--akzent);
+}
+
+/* ---------------- Reiter (nur schmal) ---------------- */
+
+.reiter { display: none; }
+
+/* ---------------- Schmale Bildschirme ---------------- */
+
+.wurzel.schmal {
+  height: 100dvh;
+  min-height: 0;
+  padding: max(12px, env(safe-area-inset-top)) 12px 8px;
+  gap: 6px;
+  overflow: hidden;
+}
+
+.wurzel.schmal .untertitel,
+.wurzel.schmal .vorspann,
+.wurzel.schmal .marktschreier { display: none; }
+
+.wurzel.schmal h1 { font-size: 19px; }
+.wurzel.schmal .kopf { gap: 10px; align-items: center; }
+.wurzel.schmal .beutel { gap: 12px; }
+.wurzel.schmal .beute-wert { font-size: 18px; }
+
+/* Zwei Wischseiten nebeneinander, eine Bildschirmbreite je Seite. */
+.wurzel.schmal .seiten {
+  flex: 1 1 auto;
+  flex-direction: row;
+  gap: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  min-height: 0;
+}
+.wurzel.schmal .seiten::-webkit-scrollbar { display: none; }
+
+.wurzel.schmal .seite {
+  flex: 0 0 100%;
+  scroll-snap-align: start;
+  overflow-y: auto;
+  padding-bottom: 4px;
+}
+
+.wurzel.schmal .seite-schlacht {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.wurzel.schmal .buehne { flex: 1 1 auto; min-height: 0; }
+
+.wurzel.schmal .haendlergitter { grid-template-columns: 1fr; }
+
+.wurzel.schmal .reiter {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  flex: 0 0 auto;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.reiter button {
+  font: inherit;
+  font-size: 11.5px;
+  color: var(--gedaempft);
+  background: var(--flaeche-hoch);
+  border: 0;
+  box-shadow: 0 0 0 1px var(--linie);
+  border-radius: 999px;
+  padding: 7px 18px;
+  cursor: pointer;
+}
+.reiter button.aktiv {
+  color: var(--text);
+  background: rgba(145, 132, 217, 0.22);
+  box-shadow: 0 0 0 1px var(--akzent);
+}
+
+/* ---------------- Rücksicht ---------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .punkt { animation: none; }
+  * { scroll-behavior: auto !important; }
 }

@@ -1,112 +1,111 @@
 // Spielstand sichern und laden.
 //
-// Gespeichert wird nur `zustand` — Währungen, Stufen, Zählwerk. Die Szene
-// (fliegende Trümmer, Blutlachen) entsteht beim Zusehen ohnehin neu. Der
-// Beutehaufen ist die Ausnahme: er gehört zur Bilanz, nicht zur Deko, und
-// wird deshalb mitgesichert.
+// Gespeichert wird nur `zustand` — Währungen, Welle, gekaufte Stufen.
+// Die Szene bleibt draußen: Sie ist in einer Sekunde neu aufgebaut, und
+// eine halb gelaufene Welle wiederherzustellen wäre viel Aufwand für ein
+// schlechteres Ergebnis.
 //
-// Der Schlüssel trägt eine Fassungsnummer. Ändert sich das Format
-// grundlegend, wird eine neue Nummer vergeben und der alte Stand bleibt
-// unangetastet liegen, statt halb eingelesen zu werden.
+// Zum Schlüssel: Er trägt eine Fassungsnummer. Ändert sich die Form des
+// Zustands, kommt eine neue Nummer, und die alten werden beim Start
+// gelöscht. Sonst läge im Browser ein Stand, den der neue Code nur
+// halb versteht — das ergäbe Fehler, die niemand nachvollziehen kann.
 
-import { STUFEN_LEER, DAUERHAFT_LEER } from '../werkzeuge/wirtschaft.mjs';
-import { neuerZustand } from './welt.js';
+import { proKlasseLeer } from './daten/recken.js';
+import {
+  STUFEN_GROMMSCH_LEER, STUFEN_PIPS_LEER, zauberStufenLeer
+} from '../werkzeuge/wirtschaft.mjs';
 
-export const SPEICHER_SCHLUESSEL = 'slayemall.stand.v3';
-/** Frühere Fassungen, in der Reihenfolge neu nach alt. */
-const ALTE_SCHLUESSEL = ['slayemall.stand.v2', 'burgtor.scene.v1'];
+const SCHLUESSEL = 'slayemall.wellen.v1';
 
-export function sichern(zustand, szene) {
+/** Frühere Fassungen, auch die aus der Werkbank-Zeit. */
+const VERALTET = [
+  'burgtor.scene.v1',
+  'burgtor.waves.v2', 'burgtor.waves.v3', 'burgtor.waves.v4', 'burgtor.waves.v5'
+];
+
+export function altlastenEntfernen() {
   try {
-    localStorage.setItem(SPEICHER_SCHLUESSEL, JSON.stringify({
+    for (const k of VERALTET) localStorage.removeItem(k);
+  } catch (e) { /* Browser ohne Speicher — dann eben nicht */ }
+}
+
+export function sichern(zustand) {
+  try {
+    localStorage.setItem(SCHLUESSEL, JSON.stringify({
       blut: zustand.blut,
-      knochen: zustand.knochen,
+      gold: zustand.gold,
       schrott: zustand.schrott,
-      schaedel: zustand.schaedel,
-      dauerhaft: zustand.dauerhaft,
+      welle: zustand.welle,
       erledigte: zustand.erledigte,
-      stufen: zustand.stufen,
       proKlasse: zustand.proKlasse,
-      kaeufe: zustand.kaeufe,
-      spielzeit: zustand.spielzeit,
-      gesamtzeit: zustand.gesamtzeit,
-      runde: zustand.runde,
-      haufen: szene ? szene.haufen : null,
-      zuletztGesehen: Date.now()
+      stufenG: zustand.stufenG,
+      stufenP: zustand.stufenP,
+      zauber: zustand.zauber,
+      ritual: zustand.ritual,
+      ritualAn: zustand.ritualAn,
+      spielzeit: zustand.spielzeit
     }));
     return true;
-  } catch {
-    return false; // privater Modus, volle Ablage — kein Grund abzustürzen
+  } catch (e) {
+    return false;
   }
-}
-
-export function laden() {
-  const neu = lies(SPEICHER_SCHLUESSEL);
-  if (neu) return uebernehmen(neu);
-  for (const schluessel of ALTE_SCHLUESSEL) {
-    const alt = lies(schluessel);
-    if (!alt) continue;
-    return schluessel === 'burgtor.scene.v1' ? ausErsterFassung(alt) : uebernehmen(alt);
-  }
-  return null;
-}
-
-function lies(schluessel) {
-  try {
-    const roh = localStorage.getItem(schluessel);
-    if (!roh) return null;
-    const daten = JSON.parse(roh);
-    return daten && typeof daten === 'object' ? daten : null;
-  } catch {
-    return null;
-  }
-}
-
-function uebernehmen(d) {
-  const zustand = neuerZustand();
-  zustand.blut = zahl(d.blut);
-  zustand.knochen = zahl(d.knochen);
-  zustand.schrott = zahl(d.schrott);
-  zustand.schaedel = zahl(d.schaedel);
-  zustand.erledigte = zahl(d.erledigte);
-  zustand.kaeufe = zahl(d.kaeufe);
-  zustand.spielzeit = zahl(d.spielzeit);
-  zustand.gesamtzeit = zahl(d.gesamtzeit) || zahl(d.spielzeit);
-  zustand.runde = Math.max(1, zahl(d.runde) || 1);
-
-  // Fehlende oder unsinnige Werte werden zu 0 — ein halb gelesener Stand
-  // darf nie zu `undefined` in einer Rechnung führen.
-  for (const id of Object.keys(STUFEN_LEER)) zustand.stufen[id] = zahl(d.stufen?.[id]);
-  for (const id of Object.keys(DAUERHAFT_LEER)) zustand.dauerhaft[id] = zahl(d.dauerhaft?.[id]);
-  for (const id of Object.keys(zustand.proKlasse)) zustand.proKlasse[id] = zahl(d.proKlasse?.[id]);
-
-  const haufen = d.haufen && typeof d.haufen === 'object'
-    ? { stueck: zahl(d.haufen.stueck), knochen: zahl(d.haufen.knochen), schrott: zahl(d.haufen.schrott) }
-    : null;
-
-  return { zustand, haufen, zuletztGesehen: zahl(d.zuletztGesehen) || null };
 }
 
 /**
- * Die allererste Fassung hieß anders und war englisch benannt.
- * Sie kannte weder Schädel noch Tageslauf; ihre Ausbaustufen waren zudem
- * geschenkt und nicht bezahlt — deshalb werden sie bewusst **nicht**
- * übernommen, sonst startete man mit einem unverdienten Vorsprung.
+ * Laden mit Auffüllen.
+ *
+ * Jedes Feld wird gegen einen Vorgabewert geprüft. Ein Stand aus einer
+ * Fassung mit weniger Waren oder Zaubern lässt sich dadurch weiter
+ * benutzen — es fehlt nichts, es steht nur auf null.
  */
-function ausErsterFassung(d) {
-  if (!(d.kills >= 0)) return null;
-  return uebernehmen({
-    blut: d.blood,
-    knochen: d.bones,
-    schrott: d.scrap,
-    erledigte: d.kills,
-    spielzeit: d.t,
-    proKlasse: d.byCls,
-    stufen: null,
-    dauerhaft: null
-  });
+export function laden() {
+  let roh;
+  try {
+    roh = localStorage.getItem(SCHLUESSEL);
+  } catch (e) {
+    return null;
+  }
+  if (!roh) return null;
+
+  let d;
+  try {
+    d = JSON.parse(roh);
+  } catch (e) {
+    return null;
+  }
+  if (!d || typeof d !== 'object' || !(d.welle >= 1)) return null;
+
+  const zauber = zauberStufenLeer();
+  for (const k in zauber) {
+    if (d.zauber && d.zauber[k]) Object.assign(zauber[k], d.zauber[k]);
+  }
+
+  return {
+    blut: zahlOder(d.blut, 0),
+    gold: zahlOder(d.gold, 0),
+    schrott: zahlOder(d.schrott, 0),
+    welle: Math.max(1, Math.floor(zahlOder(d.welle, 1))),
+    phase: 'nacht',
+    erledigte: zahlOder(d.erledigte, 0),
+    proKlasse: { ...proKlasseLeer(), ...(d.proKlasse || {}) },
+    stufenG: { ...STUFEN_GROMMSCH_LEER, ...(d.stufenG || {}) },
+    stufenP: { ...STUFEN_PIPS_LEER, ...(d.stufenP || {}) },
+    zauber,
+    ritual: d.ritual >= 1 ? 1 : 0,
+    ritualAn: d.ritualAn !== false,
+    spielzeit: zahlOder(d.spielzeit, 0)
+  };
 }
 
-function zahl(v) {
-  return typeof v === 'number' && isFinite(v) && v > 0 ? v : 0;
+export function loeschen() {
+  try {
+    localStorage.removeItem(SCHLUESSEL);
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+function zahlOder(wert, ersatz) {
+  return typeof wert === 'number' && isFinite(wert) && wert >= 0 ? wert : ersatz;
 }

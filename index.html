@@ -2,218 +2,126 @@
 <html lang="de">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Slay'Em All!</title>
-<meta name="description" content="Idle-Szene am Burgtor. Die Recken gehen hinein. Was herauskommt, kommt einzeln.">
+<meta name="description" content="Wellen-Idle am Burgtor. Die Recken gehen hinein. Was herauskommt, kommt einzeln.">
+<meta name="color-scheme" content="dark">
 <link rel="stylesheet" href="stil.css">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%23161826'/><path d='M11 24V13a5 5 0 0 1 10 0v11z' fill='%23ff7a2a'/></svg>">
 </head>
 <body>
 
-<div class="buehne">
-  <div class="spalte">
+<div class="wurzel" data-wurzel>
 
-    <header class="kopf">
-      <div class="kopf-titel">
-        <div class="vorspann">Idle-Szene am Burgtor · Das Böse gewinnt, ausnahmslos</div>
-        <h1>Slay'Em All!</h1>
-        <p class="untertitel">Von links kommen die Recken. Sie gehen hinein. Was herauskommt, kommt einzeln.</p>
+  <header class="kopf">
+    <div class="kopf-titel">
+      <div class="vorspann">Wellen-Idle am Burgtor &middot; Das B&ouml;se verteidigt sich</div>
+      <h1>Slay'Em All!</h1>
+      <p class="untertitel">Tags&uuml;ber rennen Recken ins Tor. Nachts z&auml;hlt der Hof die M&uuml;nzen.
+        Wird die Burg &uuml;berrannt, geht es f&uuml;nf Wellen zur&uuml;ck.</p>
+    </div>
+    <div class="beutel">
+      <div class="wellenmarke" data-feld="welle">Welle 1</div>
+      <div class="beute">
+        <div class="beute-name">Blut</div>
+        <div class="beute-wert wert-blut" data-feld="blut">0</div>
       </div>
-      <div class="beutel">
-        <div class="beute beute-blut">
-          <div class="beute-name">Blut</div>
-          <div class="beute-wert wert-blut"><span data-feld="blut">0</span> <span class="einheit">L</span></div>
-          <div class="beute-vergleich" data-feld="blutVergleich"></div>
-        </div>
-        <div class="beute">
-          <div class="beute-name">Knochen</div>
-          <div class="beute-wert wert-knochen" data-feld="knochen">0</div>
-          <div class="beute-vergleich" data-feld="knochenHinweis"></div>
-        </div>
-        <div class="beute">
-          <div class="beute-name">Schrott</div>
-          <div class="beute-wert wert-schrott" data-feld="schrott">0</div>
-          <div class="beute-vergleich" data-feld="schrottHinweis"></div>
-        </div>
+      <div class="beute">
+        <div class="beute-name">Gold</div>
+        <div class="beute-wert wert-gold" data-feld="gold">0</div>
       </div>
-    </header>
-
-    <nav class="reiter-leiste" role="tablist" aria-label="Ansicht wählen">
-      <button type="button" class="reiter reiter-aktiv" role="tab" data-zu-ansicht="tor" aria-selected="true">Das Tor</button>
-      <button type="button" class="reiter" role="tab" data-zu-ansicht="schatzkammer" aria-selected="false">Schatzkammer</button>
-      <span class="wisch-hinweis">wischen oder Pfeiltasten</span>
-    </nav>
-
-    <!-- ═══════════════ Ansicht 1: das Tor ═══════════════ -->
-    <section data-ansicht="tor" class="ansicht">
-
-      <div class="rahmen">
-        <canvas data-szene="burgtor" width="480" height="200" aria-label="Die Zugbrücke zum Burgtor"></canvas>
-        <div class="laufband">
-          <div class="laufband-schild">
-            <span class="puls"></span>
-            <span class="laufband-name">Marktschreier</span>
-          </div>
-          <div class="laufband-bahn" data-laufband>
-            <span data-bahn><span>Hereinspaziert, ihr Recken! Das Tor steht offen, der Hausherr hat Hunger!</span><span class="trenner">✦</span></span>
-            <span data-bahn><span>Ruhm, Gold und ewige Ehre — hinten links, einfach reingehen!</span><span class="trenner">✦</span></span>
-            <span data-bahn><span>Kein Anstehen nötig, es geht immer noch einer rein!</span><span class="trenner">✦</span></span>
-            <div class="verlauf-rechts"></div>
-          </div>
-        </div>
+      <div class="beute">
+        <div class="beute-name">Schrott</div>
+        <div class="beute-wert wert-schrott" data-feld="schrott">0</div>
       </div>
+      <button type="button" class="knopf-neustart" data-knopf="neustart">Neustart</button>
+    </div>
+  </header>
 
-      <div class="tagesleiste" data-phase="tag">
-        <div class="tagesleiste-kopf">
-          <span class="tag-zahl" data-feld="tagZahl">Tag 1</span>
-          <span class="tag-phase" data-feld="phase">Tag — die Wellen kommen</span>
-          <span class="tag-rest" data-feld="phaseRest">noch 100 s</span>
+  <div class="seiten" data-seiten>
+
+    <section class="seite seite-schlacht" aria-label="Schlachtfeld">
+      <div class="buehne">
+        <canvas data-szene width="480" height="200" aria-label="Die Szene am Burgtor"></canvas>
+
+        <div class="steuerung">
+          <div class="lage">
+            <div class="phase" data-feld="phase">Nacht &mdash; Lager</div>
+            <div class="lagezeile" data-feld="lage">Bereit: 5 Recken &middot; Burg fasst 3</div>
+          </div>
+
+          <div class="aktionsleiste" data-liste="zauber"></div>
+          <p class="zauberhinweis" data-feld="zauberHinweis">Zauber und Pranke lernt man im Hexenturm.</p>
+
+          <button type="button" class="knopf-welle" data-knopf="welle">Welle 1 starten</button>
         </div>
-        <div class="balken"><div class="balken-fuellung" data-balken="phase"></div></div>
-        <div class="tagesleiste-fuss">
-          <span data-feld="haufenStand">Beutehaufen: 0 / 70</span>
-          <span data-feld="haufenWarnung"></span>
+
+        <div class="marktschreier" data-marktschreier>
+          <div class="marktschreier-marke"><span class="punkt"></span>Marktschreier</div>
+          <div class="marktschreier-band" data-band>
+            <span class="bandfeld" data-bandfeld><span>Wellenkampf! Tags&uuml;ber wird gest&uuml;rmt, nachts wird kassiert!</span><span class="stern">&#10022;</span></span>
+            <span class="bandfeld" data-bandfeld><span>Die Pranke ist geladen &mdash; ein Griff in die Aktionsleiste, und es matscht!</span><span class="stern">&#10022;</span></span>
+            <span class="bandfeld" data-bandfeld><span>Gold liegt auf der Br&uuml;cke &mdash; aufsammeln, bevor die Raben es tun!</span><span class="stern">&#10022;</span></span>
+            <div class="bandblende"></div>
+          </div>
         </div>
-      </div>
-
-      <div class="karten karten-zwei">
-
-        <section class="karte">
-          <div class="karte-kopf">Torbetrieb</div>
-          <div class="kennzahlen">
-            <div>
-              <div class="kennzahl-name">Recken / Min.</div>
-              <div class="kennzahl-wert" data-feld="reckenProMinute">0</div>
-            </div>
-            <div>
-              <div class="kennzahl-name">Liter / Sek.</div>
-              <div class="kennzahl-wert wert-blut" data-feld="blutProSekunde">0</div>
-            </div>
-            <div>
-              <div class="kennzahl-name">Verweildauer im Tor</div>
-              <div class="kennzahl-wert" data-feld="verweildauer">0 s</div>
-            </div>
-            <div>
-              <div class="kennzahl-name">Erledigt</div>
-              <div class="kennzahl-wert" data-feld="erledigte">0</div>
-            </div>
-          </div>
-          <div class="fussleiste">
-            <div>
-              <div class="kennzahl-name">Im Tor</div>
-              <div class="kennzahl-wert klein" data-feld="imTor">0 / 1</div>
-            </div>
-            <div>
-              <div class="kennzahl-name">Auf der Brücke</div>
-              <div class="kennzahl-wert klein" data-feld="aufBruecke">0</div>
-            </div>
-          </div>
-          <p class="hinweis" data-feld="engpass">Der Engpass wird berechnet.</p>
-
-          <div class="abschnitt">
-            <div class="karte-kopf">Was das Haus selbst bezahlt</div>
-            <div class="hinweis" data-feld="kaufHinweis">Das Haus handelt nur bei Dunkelheit.</div>
-          </div>
-          <div class="ausbauliste" data-liste="blut-ausbauten"></div>
-          <div class="letzter-kauf" data-feld="letzterKauf">Das Haus wartet auf eine Entscheidung.</div>
-        </section>
-
-        <section class="karte karte-breit">
-          <div class="karte-kopf">Bestiarium</div>
-          <table>
-            <thead>
-              <tr>
-                <th>Recke</th>
-                <th class="zelle-zahl">Erledigt</th>
-                <th class="zelle-zahl">Liter/Stk.</th>
-              </tr>
-            </thead>
-            <tbody data-liste="bestiarium"></tbody>
-          </table>
-        </section>
-
       </div>
     </section>
 
-    <!-- ═══════════════ Ansicht 2: die Schatzkammer ═══════════════ -->
-    <section data-ansicht="schatzkammer" class="ansicht" hidden>
+    <section class="seite seite-haendler" aria-label="H&auml;ndler">
+      <div class="haendlergitter">
 
-      <div class="kammer">
-        <div class="portraet-rahmen">
-          <canvas data-portraet="grutz" width="120" height="150" aria-label="Grutz, der Kobold in der Schatzkammer"></canvas>
-          <div class="portraet-name">Grutz</div>
-        </div>
-        <div class="kammer-text">
-          <div class="karte-kopf">Die Schatzkammer</div>
-          <p class="grutz-rede" data-feld="grutzRede">
-            „Runter die Treppe, Vorsicht, Kopf. Was der Hausherr auswringt, sortiere ich.
-            Eisen bleibt Eisen. Sag an, was du brauchst."
-          </p>
-          <div class="kammer-zahlen">
+        <article class="haendler">
+          <header class="haendlerkopf">
+            <canvas class="portraet" data-portraet="grommsch" width="28" height="32" aria-hidden="true"></canvas>
             <div>
-              <div class="kennzahl-name">Schrott im Lager</div>
-              <div class="kennzahl-wert wert-schrott" data-feld="schrottKammer">0</div>
+              <div class="vorspann">Waffenkammer &middot; Schrott</div>
+              <h2>Grommsch, Zeugmeister</h2>
+              <p class="haendlerspruch">&raquo;Gute Ware, kaum benutzt. Der Vorbesitzer braucht sie nimmer.&laquo;</p>
             </div>
-            <div>
-              <div class="kennzahl-name">Knochen gesammelt</div>
-              <div class="kennzahl-wert wert-knochen" data-feld="knochenKammer">0</div>
-            </div>
-            <div>
-              <div class="kennzahl-name">Schädel im Keller</div>
-              <div class="kennzahl-wert" data-feld="schaedel">0</div>
-            </div>
-          </div>
-        </div>
-      </div>
+          </header>
+          <ul class="waren" data-liste="grommsch"></ul>
+          <p class="haendlerfuss" data-feld="spruchGrommsch">&raquo;Schrott her, dann reden wir.&laquo;</p>
+        </article>
 
-      <div class="karten karten-zwei">
-
-        <section class="karte">
-          <div>
-            <div class="karte-kopf">Grutz’ Waren · gegen Schrott</div>
-            <div class="hinweis" data-feld="schrottHinweisKammer">Er handelt nur bei Dunkelheit.</div>
-          </div>
-          <div class="ausbauliste" data-liste="schrott-ausbauten"></div>
-        </section>
-
-        <section class="karte">
-          <div class="neuanfang-kopf">
+        <article class="haendler">
+          <header class="haendlerkopf">
+            <canvas class="portraet" data-portraet="pips" width="28" height="32" aria-hidden="true"></canvas>
             <div>
-              <div class="karte-kopf">Den Haufen abtragen</div>
-              <p class="hinweis neuanfang-text" data-feld="neuanfangText">
-                Der Knochenhaufen wächst. Irgendwann trägt die Burg ihn ab und baut daraus
-                etwas, das bleibt.
-              </p>
+              <div class="vorspann">Goldhort &middot; Gold</div>
+              <h2>Pips, Hortdrachling</h2>
+              <p class="haendlerspruch">&raquo;Mehr Helden, mehr Glitzer. Einfache Rechnung!&laquo;</p>
             </div>
-            <button type="button" class="knopf knopf-gross" data-tat="neuanfang" disabled>
-              Abtragen — <span data-feld="neuanfangSchaedel">0</span> Schädel
-            </button>
-          </div>
-          <div class="schaedel-zeile">
-            <span class="karte-kopf">Was bleibt · gegen Schädel</span>
-          </div>
-          <div class="dauerhaftliste" data-liste="dauerhaft"></div>
-        </section>
+          </header>
+          <ul class="waren" data-liste="pips"></ul>
+          <p class="haendlerfuss" data-feld="spruchPips">&raquo;Wirf mit Gold, ich fange es auf!&laquo;</p>
+        </article>
+
+        <article class="haendler">
+          <header class="haendlerkopf">
+            <canvas class="portraet" data-portraet="malvina" width="28" height="32" aria-hidden="true"></canvas>
+            <div>
+              <div class="vorspann">Hexenturm &middot; Blut</div>
+              <h2>Malvina, Hexenmeisterin</h2>
+              <p class="haendlerspruch">&raquo;F&uuml;r frisches Blut zeig ich dir Wunder, Sch&auml;tzchen.&laquo;</p>
+            </div>
+          </header>
+          <ul class="waren warenzauber" data-liste="malvina"></ul>
+          <p class="haendlerfuss" data-feld="spruchMalvina">&raquo;Blut f&uuml;r Wunder. Faires Gesch&auml;ft.&laquo;</p>
+        </article>
 
       </div>
     </section>
 
   </div>
+
+  <nav class="reiter" data-reiter>
+    <button type="button" data-reiterknopf="0" class="aktiv">Schlachtfeld</button>
+    <button type="button" data-reiterknopf="1">H&auml;ndler</button>
+  </nav>
+
 </div>
 
-<script type="module">
-  import { spielStarten } from './spiel/spiel.js';
-
-  const laufbandRahmen = document.querySelector('[data-laufband]');
-  window.slayEmAll = spielStarten({
-    leinwand: document.querySelector('canvas[data-szene]'),
-    portraet: document.querySelector('canvas[data-portraet]'),
-    laufband: {
-      rahmen: laufbandRahmen,
-      felder: [...laufbandRahmen.querySelectorAll('[data-bahn]')]
-    }
-  });
-</script>
-
+<script type="module" src="spiel/spiel.js"></script>
 </body>
 </html>

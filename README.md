@@ -1,10 +1,10 @@
 # Slay'Em All!
 
-Ein Idle-Spiel aus der Seitenansicht: Zugbrücke links, Burgtor rechts, dazwischen ein
-stetiger Strom tapferer Recken. Sie gehen hinein. Was herauskommt, kommt einzeln.
+Ein Wellen-Idle aus der Seitenansicht: Zugbrücke links, Burgtor rechts,
+dazwischen ein Strom tapferer Recken. Sie gehen hinein. Was herauskommt,
+kommt einzeln.
 
-Es gibt keine Niederlage. Das Böse in der Burg gewinnt grundsätzlich — die einzige Frage
-ist, wie schnell und wie viele.
+**Du bist die Burg.** Du kämpfst nie selbst — du siehst zu und entscheidest.
 
 ## Spielen
 
@@ -24,107 +24,103 @@ Festplatte geöffnete Seite weitere Dateien nachlädt. Über einen kleinen lokal
 Server geht es. Der steckt mit im Projekt, es muss nichts installiert werden
 außer [Node.js](https://nodejs.org).
 
-Im Netz läuft es ohne diesen Umweg, weil dort ein echter Server steht.
+## Wie es läuft
+
+**Tagsüber** kommen die Recken in Wellen über die Zugbrücke ins glühende Tor.
+Was drinnen passiert, sieht man nicht — nur was herauskommt: Arme, Beine,
+rollende Helme, Schädel im Burggraben. **Nachts** kommt keiner: Dann wird
+eingekauft, und der Sammel-Drachling holt liegengebliebenes Gold.
+
+**Verlieren geht nur auf eine Art.** Nicht durch Schaden, sondern durch Stau:
+Passen mehr Recken gleichzeitig ins Tor, als die Burg fasst, ist das Monster
+überfordert — und es geht **fünf Wellen zurück**. Die Beute bleibt. Deshalb ist
+„Tiefere Hallen" bei Grommsch der eigentliche Verteidigungskauf.
+
+### Drei Währungen, drei Aufgaben
+
+| | fällt an | kauft |
+| --- | --- | --- |
+| **Blut** | bei jedem Tod, sofort | die vier Zauber bei Malvina |
+| **Gold** | als Münze auf der Brücke — **muss aufgesammelt werden** | Zulauf und Bequemlichkeit bei Pips |
+| **Schrott** | anteilig bei jedem Tod | den Ausbau der Burg bei Grommsch |
+
+Besondere Tode — Pfeil, Blitz, Pranke, Feuer — werfen mehr Gold ab als das
+bloße Verdauen. Das ist der Grund, überhaupt einzugreifen.
+
+### Vier Fähigkeiten, Tasten 1 bis 4
+
+**Drachenpranke** stößt aus dem Tor und zermalmt die Brücke ·
+**Donnerschlag** bewaffnet den Mauszeiger, Blitz auf Klick ·
+**Flammenstoß** verbrennt zu Asche ·
+**Meteoritenschauer** sechs Sekunden Steinregen.
+
+Jede hat drei Ausbauachsen bei Malvina: Schaden, Abklingzeit, Wirkbereich.
+
+### Die fünf Ränge
+
+Bauer → Söldner → Ritter → Paladin → Großmeister, ab den Wellen 1, 3, 7, 12
+und 18. Der „Edle Köder" holt sie früher. Lebenspunkte sind zugleich
+Verdauzeit: Ein Großmeister blockiert 16 Sekunden lang einen Platz.
 
 ## Aufbau
 
 ```
-index.html              die Seite: Kopfzeile, Bild, Laufband, drei Karten
-stil.css                Gestaltung
-schriften/              Inter, nur der lateinische Teil (48 KB)
-
+index.html                  das Gerüst der Seite
+stil.css                    Gestaltung
 spiel/
-  spiel.js              Taktgeber — hält die Uhr, ruft alles andere auf
-  welt.js               der gesamte veränderliche Zustand
-  masse.js              feste Maße der Szene (wo Brücke, Tor und Mauer liegen)
-  simulation.js         was passiert, wenn Zeit vergeht
-  szene.js              das Bild: Himmel, Schlucht, Burg, Tor, Brücke
-  figuren.js            Recken, Trümmer, Raben, Klaue, Fackeln
-  marktschreier.js      das Laufband unter dem Bild
-  anzeige.js            schreibt Zahlen und Listen in die Seite, nimmt Klicks an
-  ansichten.js          Wischen und Reiter zwischen Tor und Schatzkammer
-  goblin.js             Grutz — das Portraet, von Hand gesetzt
-  tageslauf.js          Tag, Nacht und die Wellen
-  speicher.js           Spielstand sichern und laden
-  daten/
-    recken.js           die fünf Reckenklassen
-    ausbauten.js        die fünf Ausbauten und die Kaufsprüche
-    texte.js            Namen, Beinamen, Reime
-    paletten.js         die drei Farbwelten
-
+  spiel.js                  Taktgeber: Uhr, Aufrufe, Sicherung
+  welt.js                   der gesamte veränderliche Zustand
+  simulation.js             ein Zeitschritt der Welt
+  wellen.js                 Tag, Nacht, Niederlage
+  kampf.js                  Tode, Beute, Blut
+  zauber.js                 die vier Fähigkeiten
+  handel.js                 Einkaufen bei den Händlern
+  szene.js                  das Bild
+  figuren.js                Recken, Trümmer, Münzen, Tiere
+  effekte.js                Zauberwirkungen und Einblendungen
+  portraets.js              die bewegten Händlerporträts
+  anzeige.js                Brücke zwischen Zustand und Oberfläche
+  eingabe.js                Maus, Finger, Tastatur
+  marktschreier.js          das Laufband
+  masse.js                  die feste Bühne (480 × 200)
+  speicher.js               Spielstand
+  daten/                    Recken, Texte, Paletten, Porträtbilder
 werkzeuge/
-  wirtschaft.mjs        die gesamte Rechnerei — ohne Browser, in Node prüfbar
-  pruefe-wirtschaft.mjs 101 Prüfungen
-  balance.mjs           spielt Tage durch und bewertet die Kurve
-  bild-erzeugen.mjs     malt Bilder ohne Browser und schreibt PNG
-  vorschau-server.mjs   der lokale Server
+  wirtschaft.mjs            alle Regeln und Preise, ohne Browser
+  pruefe-wirtschaft.mjs     1.592 Prüfungen
+  balance.mjs               spielt Wellen durch und misst
+  vorschau-server.mjs       örtlicher Server
 ```
 
-**Die wichtigste Trennung:** `werkzeuge/wirtschaft.mjs` enthält alle Formeln und
-kennt weder Bildschirm noch Browser. Dadurch kann Node sie durchrechnen, ohne
-dass jemand zusehen muss. Wer an der Balance schrauben will, tut es dort.
+Kein Baukasten, keine Abhängigkeiten, keine fremden Skripte zur Laufzeit.
 
-## Balance prüfen
+## Prüfen
 
 ```bash
 node werkzeuge/pruefe-wirtschaft.mjs
-node werkzeuge/balance.mjs 25
 ```
 
-Das erste prüft in einer Sekunde 101 feste Erwartungen. Das zweite spielt
-25 Tage durch und bewertet sechs Kennzahlen: Käufe je Nacht, wann der erste
-Schädel kommt, wann die letzte Reckenklasse auftaucht, wie oft der Haufen
-überläuft, wie stark das Blut wächst und ob die Zahlen lesbar bleiben.
+```bash
+node werkzeuge/balance.mjs 60
+```
 
-## Wie es läuft
+Der Balance-Rechner spielt das Spiel ohne Browser durch — dieselben Module,
+derselbe Zeitschritt — und urteilt über neun Kennzahlen.
 
-Ein Tag dauert 100 Sekunden, die Nacht 50.
+## Bekannte offene Punkte
 
-**Tagsüber** kommen die Recken in Wellen über die Zugbrücke und verschwinden im
-glühenden Torbogen. Der Kampf bleibt unsichtbar. Sichtbar sind Arme, Beine,
-Rümpfe, rollende Helme, Schädel, die in den Burggraben plumpsen, und Blutlachen,
-die auf den Planken liegen bleiben und in die Tiefe tropfen. **Blut** fließt
-sofort ins Haus. **Knochen und Schrott** bleiben als Haufen an der Mauer liegen.
+- **Ab Welle 20 wird es leichter statt schwerer.** Die Wellengröße stößt bei
+  80 Recken an ihren Deckel, der Spieler wächst aber weiter. Gemessen über
+  60 Wellen: Die Dauer sinkt von 129 s auf 75 s, die Käufe versiegen, und Gold
+  häuft sich ungenutzt an (137 k bei Welle 60). Es gibt nichts mehr zu kaufen.
+- **Kein Ton.** Weder Matsch noch Donner noch Münzklimpern.
+- **Der Spielstand hält nur eine Welle fest, keine laufende.** Wer mitten in
+  einer Welle neu lädt, steht wieder im Nachtlager derselben Welle.
 
-**Nachts** kommt niemand mehr. Die Kobolde tragen den Haufen ab — erst jetzt
-werden Knochen und Schrott gutgeschrieben. Und nur jetzt wird eingekauft:
-Das Haus handelt nicht bei Tageslicht.
+## Der Spielstand
 
-Ist der Haufen voll, fällt neue Beute in die Schlucht. Deshalb lohnen sich
-Kobolde: Sie ernten schneller und stapeln höher.
-
-## Die zwei Ansichten
-
-Gewischt wird zwischen **dem Tor** und **der Schatzkammer** (oder geklickt,
-oder Pfeiltasten). Am Tor bezahlt der Hausherr mit Blut. In der Kammer sitzt
-**Grutz**, der Kobold, und handelt mit Schrott und Schädeln.
-
-## Die drei Währungen
-
-| Währung | Woher | Wofür |
-| --- | --- | --- |
-| **Blut** (Liter) | fließt sofort beim Sterben | Lockrufe, breiteres Tor |
-| **Schrott** | nachts geerntet | Klingen, Presse, Kobolde |
-| **Knochen** | nachts geerntet | wird nie ausgegeben — daraus werden beim Neuanfang Schädel |
-
-Blut wird in Litern gerechnet; ein Bauer trägt fünf davon. Unter der Zahl steht,
-was sie bedeutet: *etwa 1,8 Schwimmbecken*, *etwa 3 Bodenseen*.
-
-## Neuanfang
-
-Der Knochenhaufen an der Mauer wächst sichtbar. Irgendwann trägt die Burg ihn ab:
-Blut, Schrott und alle Ausbauten gehen zurück auf null, dafür gibt es **Schädel**.
-Die kaufen Dauerhaftes — Blutzoll, Ruf im Tal, Erbe des Hauses und den
-**Verwalter**, der wieder von selbst einkauft.
-
-Wer lange spielt, bekommt nicht linear mehr Schädel, sondern nach der Wurzel.
-Eine Runde ewig auszudehnen lohnt sich also nicht.
-
-## Bestiarium
-
-Mit steigender Zahl an Erledigten kommen stärkere Klassen dazu:
-Bauer → Söldner → Ritter → Paladin → Großmeister. Der Letzte taucht nach
-etwa einer halben Stunde auf.
+Liegt im Browser unter `slayemall.wellen.v1`. Der Knopf **Neustart** fragt
+einmal nach und löscht ihn dann.
 
 ## Lizenz
 

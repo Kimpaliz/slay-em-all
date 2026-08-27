@@ -1,65 +1,82 @@
-// Das ganze Bild in einem Durchgang, von hinten nach vorne:
-// Himmel, Sterne, Mond, Fledermäuse, Hügel, Schlucht, Klippe, Burgmauer,
-// Tor, Ketten, Brücke, Knochen, Blut, Figuren, Fackeln, Randabdunklung.
+// Das Bild. Ein Aufruf zeichnet die Leinwand einmal komplett neu.
 //
-// Nichts hier verändert die Welt — hier wird nur angeschaut und gemalt.
+// Die Reihenfolge ist die Tiefenstaffelung, von hinten nach vorn:
+// Himmel, Hügel, Abgrund, Klippe, Mauer, Tor, Planken, Liegendes,
+// Lebendes, Wirkungen, Licht. Wer etwas verschiebt, verschiebt es vor
+// oder hinter andere Dinge — es gibt keine Ebenenverwaltung, die
+// Reihenfolge *ist* die Ebene.
+//
+// Nichts hier verändert den Spielzustand. Das Zeichnen darf jederzeit
+// ausfallen, ohne dass das Spiel etwas davon merkt.
 
-import { MASSE } from './masse.js';
-import { paletteFuer, PALETTE_STANDARD, SONNE } from './daten/paletten.js';
-import { tagesStand } from './tageslauf.js';
+import { MASSE, bogenHoehe, streu } from './masse.js';
+import { NACHT_PALETTEN, TAG_PALETTE } from './daten/paletten.js';
 import {
-  streu, reckeZeichnen, truemmerZeichnen, rabeZeichnen, klaueZeichnen,
-  fackelZeichnen, knochenhaufenZeichnen, ketteZeichnen
+  reckeZeichnen, brennendenZeichnen, truemmerZeichnen, restZeichnen,
+  muenzeZeichnen, rabeZeichnen, schuetzeZeichnen, drachlingZeichnen,
+  fackelZeichnen, ketteZeichnen
 } from './figuren.js';
+import {
+  prankeZeichnen, flammeZeichnen, meteorZeichnen, explosionZeichnen,
+  blitzZeichnen, belegungZeichnen, spruchbandZeichnen, zahlZeichnen
+} from './effekte.js';
 
+/** Oberkante der Burgmauer. */
 const MAUER_OBEN = 30;
 
-/** Höhe des Torbogens an einer bestimmten Stelle. */
-export function bogenHoehe(x) {
-  const d = x - MASSE.torMitteX;
-  const rest = MASSE.torRadius * MASSE.torRadius - d * d;
-  return rest <= 0 ? MASSE.planke : MASSE.torMitteY - Math.floor(Math.sqrt(rest));
-}
-
 export function zeichnen(ctx, welt, einstellungen = {}) {
-  const { szene } = welt;
-  const stand = tagesStand(szene.zeit);
-  const P = paletteFuer(einstellungen.palette || PALETTE_STANDARD, stand.helligkeit);
-  const B = MASSE.breite;
-  const H = MASSE.hoehe;
-  const PL = MASSE.planke;
+  if (!ctx) return;
+  const { zustand, szene } = welt;
+  const P = szene.sichtbarTag
+    ? TAG_PALETTE
+    : (NACHT_PALETTEN[einstellungen.palette] || NACHT_PALETTEN.Nacht);
+  const W = MASSE.BREITE;
+  const H = MASSE.HOEHE;
+  const DECK = MASSE.DECK;
+  const zeit = szene.zeit;
 
   ctx.imageSmoothingEnabled = false;
   ctx.setTransform(1, 0, 0, 1, 0, 0);
-  ctx.clearRect(0, 0, B, H);
+  ctx.clearRect(0, 0, W, H);
 
-  // Erschütterung nach einem Treffer
-  const staerke = szene.beben > 0.05 ? szene.beben : 0;
-  const vx = staerke ? Math.round((Math.random() * 2 - 1) * staerke) : 0;
-  const vy = staerke ? Math.round((Math.random() * 2 - 1) * staerke * 0.6) : 0;
+  // Erschütterung — das ganze Bild wackelt, nicht einzelne Teile
+  const staerke = szene.ruettelt > 0.05 ? szene.ruettelt : 0;
   ctx.save();
-  ctx.translate(vx, vy);
+  ctx.translate(
+    staerke ? Math.round((Math.random() * 2 - 1) * staerke) : 0,
+    staerke ? Math.round((Math.random() * 2 - 1) * staerke * 0.6) : 0
+  );
 
-  himmel(ctx, P, szene, B, PL, stand);
-  huegel(ctx, P, B, PL);
-  schlucht(ctx, P, szene, B, H, PL);
-  klippeLinks(ctx, P, H, PL);
-  burgmauer(ctx, P, B, H, PL);
-  tor(ctx, P, szene, PL);
-  ketten(ctx, P, PL);
-  bruecke(ctx, PL);
+  himmelZeichnen(ctx, P, szene, zeit, W, DECK);
+  huegelZeichnen(ctx, P, W, DECK);
+  abgrundZeichnen(ctx, P, szene, zeit, W, H, DECK);
+  klippeZeichnen(ctx, P, H, DECK);
+  mauerZeichnen(ctx, P, zustand, szene, W, H, DECK, zeit);
+  torZeichnen(ctx, P, zustand, szene, DECK, zeit);
+  plankenZeichnen(ctx, DECK);
+  bodenZeichnen(ctx, szene, DECK);
 
-  knochenhaufenZeichnen(ctx, szene.knochenhaufen);
-  blutlachen(ctx, szene, PL);
-  liegendes(ctx, szene, PL);
-
+  for (const m of szene.muenzen) muenzeZeichnen(ctx, m, zeit);
   for (const rabe of szene.raben) rabeZeichnen(ctx, rabe);
-  for (const recke of szene.recken) reckeZeichnen(ctx, recke, szene.zeit);
-  if (szene.klaue) klaueZeichnen(ctx, szene.klaue);
+  for (const r of szene.recken) reckeZeichnen(ctx, r, zeit);
+  for (const b of szene.brennende) brennendenZeichnen(ctx, b);
+
+  if (szene.pranke) prankeZeichnen(ctx, szene.pranke);
+  if (szene.flamme) flammeZeichnen(ctx, szene.flamme);
+  for (const m of szene.meteore) meteorZeichnen(ctx, m);
+  for (const e of szene.explosionen) explosionZeichnen(ctx, e);
+
+  for (const p of szene.pfeile) {
+    ctx.fillStyle = '#6b5238';
+    ctx.fillRect(Math.round(p.x), Math.round(p.y), 2, 1);
+    ctx.fillStyle = '#d8d2b8';
+    ctx.fillRect(Math.round(p.x - p.vx * 0.012), Math.round(p.y - p.vy * 0.012), 1, 1);
+  }
+  for (const b of szene.blitze) blitzZeichnen(ctx, b);
   for (const t of szene.truemmer) truemmerZeichnen(ctx, t);
   for (const s of szene.spritzer) {
     ctx.fillStyle = s.farbe;
-    ctx.fillRect(Math.round(s.x), Math.round(s.y), 1 + (s.lebensdauer > 1.2 ? 1 : 0), 1);
+    ctx.fillRect(Math.round(s.x), Math.round(s.y), 1 + (s.lebt > 1.2 ? 1 : 0), 1);
   }
   for (const t of szene.tropfen) {
     ctx.globalAlpha = Math.max(0, t.deckkraft);
@@ -67,52 +84,84 @@ export function zeichnen(ctx, welt, einstellungen = {}) {
     ctx.fillRect(Math.round(t.x), Math.round(t.y), 1, 2);
     ctx.globalAlpha = 1;
   }
+  if (szene.phase === 'nacht' && zustand.stufenP.sammler > 0) {
+    drachlingZeichnen(ctx, szene.drachling, zeit);
+  }
 
-  // Bei Tageslicht fällt der Feuerschein kaum auf.
-  const schein = 1 - stand.helligkeit * 0.7;
-  fackelZeichnen(ctx, 356, 104, szene.zeit, schein);
-  fackelZeichnen(ctx, 402, 96, szene.zeit + 1.3, schein);
-  fackelZeichnen(ctx, 448, 104, szene.zeit + 2.6, schein);
+  fackelnZeichnen(ctx, szene, zeit);
+  torlichtZeichnen(ctx, szene, DECK);
+  for (const z of szene.zahlen) zahlZeichnen(ctx, z);
 
-  torblitz(ctx, szene, PL);
   ctx.restore();
-  randAbdunkeln(ctx, B, H);
+
+  // Dämmerung und Randabdunklung liegen über allem und wackeln nicht mit
+  if (szene.daemmerung > 0) {
+    ctx.globalAlpha = Math.sin(Math.PI * Math.max(0, Math.min(1, szene.daemmerung / 1.1))) * 0.72;
+    ctx.fillStyle = '#05060a';
+    ctx.fillRect(0, 0, W, H);
+    ctx.globalAlpha = 1;
+  }
+  if (szene.spruchband) spruchbandZeichnen(ctx, szene.spruchband);
+
+  const rand = ctx.createRadialGradient(W * 0.5, H * 0.52, H * 0.34, W * 0.5, H * 0.52, H * 1.05);
+  rand.addColorStop(0, 'rgba(0,0,0,0)');
+  rand.addColorStop(1, 'rgba(0,0,0,0.55)');
+  ctx.fillStyle = rand;
+  ctx.fillRect(0, 0, W, H);
 }
 
 /* ---------------- Hintergrund ---------------- */
 
-function himmel(ctx, P, szene, B, PL, stand) {
-  const verlauf = ctx.createLinearGradient(0, 0, 0, PL);
-  verlauf.addColorStop(0, P.himmelOben);
-  verlauf.addColorStop(1, P.himmelUnten);
-  ctx.fillStyle = verlauf;
-  ctx.fillRect(-6, -6, B + 12, PL + 6);
+function himmelZeichnen(ctx, P, szene, zeit, W, DECK) {
+  const himmel = ctx.createLinearGradient(0, 0, 0, DECK);
+  himmel.addColorStop(0, P.himmelOben);
+  himmel.addColorStop(1, P.himmelUnten);
+  ctx.fillStyle = himmel;
+  ctx.fillRect(-6, -6, W + 12, DECK + 6);
 
-  const nachtAnteil = 1 - stand.helligkeit;
+  if (P.sonne) {
+    const schein = ctx.createRadialGradient(86, 30, 2, 86, 30, 34);
+    schein.addColorStop(0, 'rgba(232,226,200,0.5)');
+    schein.addColorStop(1, 'rgba(232,226,200,0)');
+    ctx.fillStyle = schein;
+    ctx.fillRect(50, -6, 80, 76);
+    ctx.fillStyle = '#e8e2c8';
+    ctx.fillRect(83, 26, 6, 8);
+    ctx.fillRect(82, 27, 8, 6);
+    ctx.fillRect(84, 25, 4, 10);
+  }
 
-  // Sterne verschwinden, sobald es hell wird
-  if (P.stern && nachtAnteil > 0.02) {
+  if (P.stern) {
     for (const s of szene.sterne) {
-      const funkeln = 0.55 + 0.45 * Math.sin(szene.zeit * 1.6 + s.phase);
-      ctx.globalAlpha = s.helligkeit * funkeln * nachtAnteil;
+      ctx.globalAlpha = s.helligkeit * (0.55 + 0.45 * Math.sin(zeit * 1.6 + s.phase));
       ctx.fillStyle = P.stern;
       ctx.fillRect(s.x, s.y, 1, 1);
     }
     ctx.globalAlpha = 1;
   }
 
-  // Sonne am Tag, Mond in der Nacht — beide wandern von links nach rechts.
-  if (stand.helligkeit > 0.05) {
-    gestirn(ctx, bahn(stand.fortschritt), SONNE.scheibe, SONNE.hof, stand.helligkeit, true);
-  }
-  if (P.mond && nachtAnteil > 0.05) {
-    // Nachts von vorn, tagsüber steht er schon halb am Himmel und verblasst.
-    const lauf = stand.istTag ? 0.5 + stand.fortschritt * 0.5 : stand.fortschritt;
-    gestirn(ctx, bahn(lauf), P.mond, P.licht, nachtAnteil, false);
+  // Der Mond braucht 260 Sekunden für einen Bogen über den Himmel
+  if (P.mond) {
+    const umlauf = 260;
+    const anteil = (zeit % umlauf) / umlauf;
+    const mx = Math.round(40 + anteil * 380);
+    const my = Math.round(46 - Math.sin(anteil * Math.PI) * 28);
+    const schein = ctx.createRadialGradient(mx + 4, my + 4, 1, mx + 4, my + 4, 26);
+    schein.addColorStop(0, 'rgba(' + P.licht + ',0.30)');
+    schein.addColorStop(1, 'rgba(' + P.licht + ',0)');
+    ctx.fillStyle = schein;
+    ctx.fillRect(mx - 24, my - 24, 60, 60);
+    ctx.fillStyle = P.mond;
+    ctx.fillRect(mx + 2, my, 4, 8);
+    ctx.fillRect(mx + 1, my + 1, 6, 6);
+    ctx.fillRect(mx, my + 2, 8, 4);
+    ctx.fillStyle = 'rgba(0,0,0,0.18)';
+    ctx.fillRect(mx + 4, my + 2, 2, 2);
+    ctx.fillRect(mx + 2, my + 5, 1, 1);
   }
 
   if (szene.fledermaeuse) {
-    ctx.fillStyle = P.himmelOben === '#101219' ? '#0b0c11' : '#0a0910';
+    ctx.fillStyle = '#0a0910';
     for (const f of szene.fledermaeuse.liste) {
       const x = Math.round(f.x);
       const y = Math.round(f.y);
@@ -124,71 +173,36 @@ function himmel(ctx, P, szene, B, PL, stand) {
   }
 }
 
-/** Wo ein Gestirn bei diesem Phasenfortschritt steht. */
-function bahn(anteil) {
-  return {
-    x: Math.round(40 + anteil * 380),
-    y: Math.round(46 - Math.sin(anteil * Math.PI) * 28)
-  };
-}
-
-/** Sonne und Mond werden gleich gebaut — nur Farbe und Gesicht unterscheiden sich. */
-function gestirn(ctx, pos, scheibe, hofFarbe, deckkraft, istSonne) {
-  const { x, y } = pos;
-  ctx.globalAlpha = Math.max(0, Math.min(1, deckkraft));
-
-  const hof = ctx.createRadialGradient(x + 4, y + 4, 1, x + 4, y + 4, istSonne ? 34 : 26);
-  hof.addColorStop(0, 'rgba(' + hofFarbe + ',' + (istSonne ? 0.26 : 0.3) + ')');
-  hof.addColorStop(1, 'rgba(' + hofFarbe + ',0)');
-  ctx.fillStyle = hof;
-  ctx.fillRect(x - 30, y - 30, 72, 72);
-
-  ctx.fillStyle = scheibe;
-  if (istSonne) {
-    // Etwas größer und rund, ohne Krater
-    ctx.fillRect(x + 1, y - 1, 6, 10);
-    ctx.fillRect(x, y, 8, 8);
-    ctx.fillRect(x - 1, y + 1, 10, 6);
-  } else {
-    ctx.fillRect(x + 2, y, 4, 8);
-    ctx.fillRect(x + 1, y + 1, 6, 6);
-    ctx.fillRect(x, y + 2, 8, 4);
-    ctx.fillStyle = 'rgba(0,0,0,0.18)';
-    ctx.fillRect(x + 4, y + 2, 2, 2);
-    ctx.fillRect(x + 2, y + 5, 1, 1);
-  }
-  ctx.globalAlpha = 1;
-}
-
-function huegel(ctx, P, B, PL) {
+/** Zwei Hügelketten aus überlagerten Sinuswellen. */
+function huegelZeichnen(ctx, P, W, DECK) {
   ctx.fillStyle = P.huegelFern;
-  for (let x = 0; x < B; x++) {
+  for (let x = 0; x < W; x++) {
     const y = 104 + Math.round(Math.sin(x * 0.021) * 7 + Math.sin(x * 0.007 + 2) * 5);
-    ctx.fillRect(x, y, 1, PL - y);
+    ctx.fillRect(x, y, 1, DECK - y);
   }
   ctx.fillStyle = P.huegelNah;
-  for (let x = 0; x < B; x++) {
+  for (let x = 0; x < W; x++) {
     const y = 116 + Math.round(Math.sin(x * 0.031 + 1.4) * 5 + Math.sin(x * 0.011) * 4);
-    ctx.fillRect(x, y, 1, PL - y);
+    ctx.fillRect(x, y, 1, DECK - y);
   }
 }
 
-function schlucht(ctx, P, szene, B, H, PL) {
-  const breite = MASSE.mauer - MASSE.klippe + 6;
-  ctx.fillStyle = P.schlucht;
-  ctx.fillRect(MASSE.klippe - 2, PL - 2, breite, H - PL + 4);
+function abgrundZeichnen(ctx, P, szene, zeit, W, H, DECK) {
+  const breite = MASSE.MAUER - MASSE.KLIPPE + 6;
+  ctx.fillStyle = P.abgrund;
+  ctx.fillRect(MASSE.KLIPPE - 2, DECK - 2, breite, H - DECK + 4);
 
-  const tiefe = ctx.createLinearGradient(0, PL, 0, H);
+  const tiefe = ctx.createLinearGradient(0, DECK, 0, H);
   tiefe.addColorStop(0, 'rgba(0,0,0,0.35)');
   tiefe.addColorStop(1, 'rgba(0,0,0,0.85)');
   ctx.fillStyle = tiefe;
-  ctx.fillRect(MASSE.klippe - 2, PL, breite, H - PL);
+  ctx.fillRect(MASSE.KLIPPE - 2, DECK, breite, H - DECK);
 
-  // Nebelbänder, die langsam durchziehen
+  // Sechs Nebelbänder, jedes mit eigenem Tempo
   for (let i = 0; i < 6; i++) {
     const y = 158 + i * 7;
     const w = 60 + i * 14;
-    const x = ((szene.zeit * (5 + i * 2) + i * 90) % (B + w)) - w;
+    const x = ((zeit * (5 + i * 2) + i * 90) % (W + w)) - w;
     ctx.fillStyle = 'rgba(' + P.dunst + ',' + (0.10 + i * 0.02).toFixed(2) + ')';
     ctx.fillRect(Math.round(x), y, w, 2 + (i % 2));
   }
@@ -201,198 +215,198 @@ function schlucht(ctx, P, szene, B, H, PL) {
   }
 }
 
-function klippeLinks(ctx, P, H, PL) {
-  ctx.fillStyle = P.stein[0];
-  ctx.fillRect(0, PL, MASSE.klippe, H - PL);
-  ctx.fillStyle = P.stein[1];
-  ctx.fillRect(0, PL, MASSE.klippe, 3);
+function klippeZeichnen(ctx, P, H, DECK) {
+  const K = MASSE.KLIPPE;
+  ctx.fillStyle = P.stein[0]; ctx.fillRect(0, DECK, K, H - DECK);
+  ctx.fillStyle = P.stein[1]; ctx.fillRect(0, DECK, K, 3);
   for (let i = 0; i < 26; i++) {
-    const x = Math.floor(streu(i) * MASSE.klippe);
-    const y = PL + 4 + Math.floor(streu(i + 40) * (H - PL - 6));
-    ctx.fillStyle = streu(i + 9) > 0.5 ? P.stein[2] : P.schlucht;
-    ctx.fillRect(x, y, 2 + Math.floor(streu(i + 3) * 4), 1);
+    const hx = Math.floor(streu(i) * K);
+    const hy = DECK + 4 + Math.floor(streu(i + 40) * (H - DECK - 6));
+    ctx.fillStyle = streu(i + 9) > 0.5 ? P.stein[2] : P.abgrund;
+    ctx.fillRect(hx, hy, 2 + Math.floor(streu(i + 3) * 4), 1);
   }
   ctx.fillStyle = P.huegelFern;
-  for (let x = 0; x < MASSE.klippe; x++) {
-    const y = PL - 1 - Math.round(Math.max(0, Math.sin(x * 0.06) * 2 + (x > 100 ? (x - 100) * 0.05 : 0)));
-    ctx.fillRect(x, y, 1, PL - y);
+  for (let x = 0; x < K; x++) {
+    const y = DECK - 1 - Math.round(Math.max(0, Math.sin(x * 0.06) * 2 + (x > 100 ? (x - 100) * 0.05 : 0)));
+    ctx.fillRect(x, y, 1, DECK - y);
   }
 }
 
-function burgmauer(ctx, P, B, H, PL) {
-  const breite = B - MASSE.mauer;
-  ctx.fillStyle = P.stein[0];
-  ctx.fillRect(MASSE.mauer, PL, breite, H - PL);
-  ctx.fillStyle = 'rgba(0,0,0,0.35)';
-  ctx.fillRect(MASSE.mauer, PL + 10, breite, H - PL - 10);
-  ctx.fillStyle = P.stein[1];
-  ctx.fillRect(MASSE.mauer, MAUER_OBEN, breite, PL - MAUER_OBEN);
+function mauerZeichnen(ctx, P, zustand, szene, W, H, DECK, zeit) {
+  const M = MASSE.MAUER;
+  ctx.fillStyle = P.stein[0]; ctx.fillRect(M, DECK, W - M, H - DECK);
+  ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fillRect(M, DECK + 10, W - M, H - DECK - 10);
+  ctx.fillStyle = P.stein[1]; ctx.fillRect(M, MAUER_OBEN, W - M, DECK - MAUER_OBEN);
 
-  // Steinlagen
-  for (let y = MAUER_OBEN + 4; y < PL; y += 5) {
+  // Fugen
+  for (let y = MAUER_OBEN + 4; y < DECK; y += 5) {
     ctx.fillStyle = 'rgba(0,0,0,0.22)';
-    ctx.fillRect(MASSE.mauer, y, breite, 1);
-    for (let x = MASSE.mauer + (y % 10 === 0 ? 5 : 11); x < B; x += 13) {
+    ctx.fillRect(M, y, W - M, 1);
+    for (let x = M + ((y % 10 === 0) ? 5 : 11); x < W; x += 13) {
       ctx.fillStyle = 'rgba(0,0,0,0.16)';
       ctx.fillRect(x, y - 4, 1, 4);
     }
   }
+  // Einzelne hellere und dunklere Steine
   for (let i = 0; i < 40; i++) {
-    const x = MASSE.mauer + Math.floor(streu(i + 70) * breite);
-    const y = MAUER_OBEN + Math.floor(streu(i + 120) * (PL - MAUER_OBEN));
+    const bx = M + Math.floor(streu(i + 70) * (W - M));
+    const by = MAUER_OBEN + Math.floor(streu(i + 120) * (DECK - MAUER_OBEN));
     ctx.fillStyle = streu(i + 200) > 0.55 ? P.stein[2] : 'rgba(0,0,0,0.18)';
-    ctx.fillRect(x, y, 3 + Math.floor(streu(i + 5) * 5), 2);
+    ctx.fillRect(bx, by, 3 + Math.floor(streu(i + 5) * 5), 2);
   }
+  // Zinnen
+  ctx.fillStyle = P.stein[2];
+  for (let x = M; x < W; x += 9) ctx.fillRect(x, MAUER_OBEN - 6, 6, 6);
+  ctx.fillRect(M, MAUER_OBEN - 1, W - M, 2);
+  // Turm
+  ctx.fillStyle = P.stein[1]; ctx.fillRect(M + 2, 12, 16, 18);
+  ctx.fillStyle = P.stein[2]; ctx.fillRect(M, 8, 20, 4);
+  ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fillRect(M + 6, 16, 5, 7);
+  ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.fillRect(M - 1, MAUER_OBEN - 6, 1, DECK - MAUER_OBEN + 6);
 
-  // Zinnen und Windenturm
-  ctx.fillStyle = P.stein[2];
-  for (let x = MASSE.mauer; x < B; x += 9) ctx.fillRect(x, MAUER_OBEN - 6, 6, 6);
-  ctx.fillRect(MASSE.mauer, MAUER_OBEN - 1, breite, 2);
-  ctx.fillStyle = P.stein[1];
-  ctx.fillRect(MASSE.mauer + 2, 12, 16, 18);
-  ctx.fillStyle = P.stein[2];
-  ctx.fillRect(MASSE.mauer, 8, 20, 4);
-  ctx.fillStyle = 'rgba(0,0,0,0.3)';
-  ctx.fillRect(MASSE.mauer + 6, 16, 5, 7);
-  ctx.fillStyle = 'rgba(0,0,0,0.4)';
-  ctx.fillRect(MASSE.mauer - 1, MAUER_OBEN - 6, 1, PL - MAUER_OBEN + 6);
+  for (let a = 0; a < zustand.stufenG.schuetze; a++) {
+    schuetzeZeichnen(ctx, 306 + a * 24, MAUER_OBEN, a, zeit);
+  }
+  void szene;
 }
 
-function tor(ctx, P, szene, PL) {
-  const puls = 0.82 + 0.18 * Math.sin(szene.zeit * 1.9) + szene.aufblitzen * 0.5;
+/**
+ * Das glühende Tor.
+ *
+ * Der Puls schlägt schneller, wenn die Burg voll ist — das ist die
+ * zweite Warnung neben der Belegungsanzeige, und sie fällt auch dann
+ * auf, wenn man nicht auf die Zahlen schaut.
+ */
+function torZeichnen(ctx, P, zustand, szene, DECK, zeit) {
+  const kapazitaet = 3 + zustand.stufenG.hallen;
+  const drin = szene.imTor.length;
+  const fastVoll = drin >= kapazitaet;
+  const puls = 0.82 + 0.18 * Math.sin(zeit * (fastVoll ? 5 : 1.9)) + szene.blitzlicht * 0.5;
 
-  for (let x = MASSE.torLinks; x <= MASSE.torRechts; x++) {
+  for (let x = MASSE.TOR_LINKS; x <= MASSE.TOR_RECHTS; x++) {
     const oben = bogenHoehe(x);
-    const glut = ctx.createLinearGradient(0, oben, 0, PL);
+    const glut = ctx.createLinearGradient(0, oben, 0, DECK);
     glut.addColorStop(0, 'rgba(20,6,4,0.98)');
-    glut.addColorStop(0.45, 'rgba(' + Math.round(120 * puls) + ',' + Math.round(40 * puls) + ',12,1)');
-    glut.addColorStop(1, 'rgba(' + Math.round(255 * puls) + ',' + Math.round(126 * puls) + ',30,1)');
+    glut.addColorStop(0.45, 'rgba(' + Math.round((fastVoll ? 160 : 120) * puls) + ',' + Math.round(40 * puls) + ',12,1)');
+    glut.addColorStop(1, 'rgba(' + Math.round(255 * puls) + ',' + Math.round((fastVoll ? 80 : 126) * puls) + ',30,1)');
     ctx.fillStyle = glut;
-    ctx.fillRect(x, oben, 1, PL - oben);
+    ctx.fillRect(x, oben, 1, DECK - oben);
   }
 
-  // Dunkelheit, die den linken Teil des Mauls verschluckt
-  const maul = ctx.createLinearGradient(MASSE.torLinks, 0, MASSE.torLinks + 12, 0);
+  const maul = ctx.createLinearGradient(MASSE.TOR_LINKS, 0, MASSE.TOR_LINKS + 12, 0);
   maul.addColorStop(0, 'rgba(8,4,4,0.92)');
   maul.addColorStop(1, 'rgba(8,4,4,0)');
   ctx.fillStyle = maul;
-  const obenLinks = bogenHoehe(MASSE.torLinks + 2);
-  ctx.fillRect(MASSE.torLinks, obenLinks, 12, PL - obenLinks);
+  const maulOben = bogenHoehe(MASSE.TOR_LINKS + 2);
+  ctx.fillRect(MASSE.TOR_LINKS, maulOben, 12, DECK - maulOben);
 
-  // Bogensteine
   ctx.fillStyle = P.stein[2];
-  for (let x = MASSE.torLinks - 2; x <= MASSE.torRechts + 2; x++) {
-    const oben = bogenHoehe(Math.max(MASSE.torLinks, Math.min(MASSE.torRechts, x)));
+  for (let x = MASSE.TOR_LINKS - 2; x <= MASSE.TOR_RECHTS + 2; x++) {
+    const oben = bogenHoehe(Math.max(MASSE.TOR_LINKS, Math.min(MASSE.TOR_RECHTS, x)));
     ctx.fillRect(x, oben - 3, 1, 3);
   }
-  const kante = bogenHoehe(MASSE.torLinks + 1);
-  ctx.fillRect(MASSE.torLinks - 2, kante, 2, PL - kante);
+  const kanteOben = bogenHoehe(MASSE.TOR_LINKS + 1);
+  ctx.fillRect(MASSE.TOR_LINKS - 2, kanteOben, 2, DECK - kanteOben);
 
-  // Lichtschein auf die Planken
-  const schein = ctx.createRadialGradient(MASSE.torLinks + 2, PL - 8, 2, MASSE.torLinks + 2, PL - 8, 74);
-  schein.addColorStop(0, 'rgba(255,120,36,' + (0.30 * puls).toFixed(3) + ')');
-  schein.addColorStop(0.5, 'rgba(255,110,40,' + (0.10 * puls).toFixed(3) + ')');
-  schein.addColorStop(1, 'rgba(255,110,40,0)');
-  ctx.fillStyle = schein;
-  ctx.fillRect(MASSE.torLinks - 80, PL - 70, 160, 80);
-}
+  const ausstrahlung = ctx.createRadialGradient(
+    MASSE.TOR_LINKS + 2, DECK - 8, 2, MASSE.TOR_LINKS + 2, DECK - 8, 74
+  );
+  ausstrahlung.addColorStop(0, 'rgba(255,120,36,' + (0.30 * puls).toFixed(3) + ')');
+  ausstrahlung.addColorStop(0.5, 'rgba(255,110,40,' + (0.10 * puls).toFixed(3) + ')');
+  ausstrahlung.addColorStop(1, 'rgba(255,110,40,0)');
+  ctx.fillStyle = ausstrahlung;
+  ctx.fillRect(MASSE.TOR_LINKS - 80, DECK - 70, 160, 80);
 
-function ketten(ctx, P, PL) {
+  belegungZeichnen(ctx, drin, kapazitaet, zeit);
+
+  // Aufhängung der Zugbrücke
   ctx.fillStyle = P.stein[2];
-  ctx.fillRect(MASSE.torLinks - 4, 74, 8, 3);
-  ketteZeichnen(ctx, MASSE.torLinks - 2, 77, MASSE.klippe + 4, PL - 3, P.stein[2]);
-  ketteZeichnen(ctx, MASSE.torLinks + 2, 78, MASSE.klippe + 16, PL - 3, P.stein[1]);
+  ctx.fillRect(MASSE.TOR_LINKS - 4, 74, 8, 3);
+  ketteZeichnen(ctx, MASSE.TOR_LINKS - 2, 77, MASSE.KLIPPE + 4, DECK - 3, P.stein[2]);
+  ketteZeichnen(ctx, MASSE.TOR_LINKS + 2, 78, MASSE.KLIPPE + 16, DECK - 3, P.stein[1]);
 }
 
-function bruecke(ctx, PL) {
-  const breite = MASSE.torRechts - MASSE.klippe + 4;
-  ctx.fillStyle = '#4a3a26'; ctx.fillRect(MASSE.klippe - 4, PL, breite, 5);
-  ctx.fillStyle = '#3b2e1e'; ctx.fillRect(MASSE.klippe - 4, PL + 5, breite, 2);
-  ctx.fillStyle = '#5b4830'; ctx.fillRect(MASSE.klippe - 4, PL, breite, 1);
-  for (let x = MASSE.klippe - 2; x < MASSE.torRechts; x += 7) {
+function plankenZeichnen(ctx, DECK) {
+  const von = MASSE.KLIPPE - 4;
+  const breite = MASSE.TOR_RECHTS - MASSE.KLIPPE + 4;
+
+  ctx.fillStyle = '#4a3a26'; ctx.fillRect(von, DECK, breite, 5);
+  ctx.fillStyle = '#3b2e1e'; ctx.fillRect(von, DECK + 5, breite, 2);
+  ctx.fillStyle = '#5b4830'; ctx.fillRect(von, DECK, breite, 1);
+  for (let x = MASSE.KLIPPE - 2; x < MASSE.TOR_RECHTS; x += 7) {
     ctx.fillStyle = 'rgba(0,0,0,0.32)';
-    ctx.fillRect(x, PL, 1, 5);
+    ctx.fillRect(x, DECK, 1, 5);
   }
   for (let i = 0; i < 12; i++) {
-    const x = MASSE.klippe + Math.floor(streu(i + 300) * breite);
+    const x = MASSE.KLIPPE + Math.floor(streu(i + 300) * breite);
     ctx.fillStyle = 'rgba(0,0,0,0.22)';
-    ctx.fillRect(x, PL + 1, 2, 1);
+    ctx.fillRect(x, DECK + 1, 2, 1);
   }
-  // Streben von unten
+  // Stützbalken unter der Brücke
   ctx.fillStyle = '#2d2317';
-  for (let x = MASSE.klippe + 6; x < MASSE.mauer; x += 18) {
-    ctx.fillRect(x, PL + 7, 2, 5);
-    ctx.fillRect(x - 4, PL + 7, 10, 1);
+  for (let x = MASSE.KLIPPE + 6; x < MASSE.MAUER; x += 18) {
+    ctx.fillRect(x, DECK + 7, 2, 5);
+    ctx.fillRect(x - 4, DECK + 7, 10, 1);
   }
   ctx.fillStyle = 'rgba(0,0,0,0.4)';
-  ctx.fillRect(MASSE.klippe - 4, PL, 2, 6);
-  ctx.fillRect(MASSE.mauer - 4, PL, 2, 6);
+  ctx.fillRect(MASSE.KLIPPE - 4, DECK, 2, 6);
+  ctx.fillRect(MASSE.MAUER - 4, DECK, 2, 6);
 }
 
-function blutlachen(ctx, szene, PL) {
+/** Brandflecken, Blutlachen, liegende Reste und steckende Pfeile. */
+function bodenZeichnen(ctx, szene, DECK) {
+  for (const f of szene.brandflecken) {
+    ctx.fillStyle = 'rgba(16,14,12,0.8)';
+    ctx.fillRect(Math.round(f.x - f.breite / 2), DECK, Math.round(f.breite), 2);
+    ctx.fillStyle = 'rgba(40,34,26,0.6)';
+    ctx.fillRect(Math.round(f.x - f.breite / 2) + 1, DECK, Math.round(f.breite) - 2, 1);
+  }
+  // Drei Schichten je Lache: außen hell, innen dunkel
   for (const l of szene.lachen) {
     const x = Math.round(l.x - l.breite / 2);
     const w = Math.round(l.breite);
     ctx.globalAlpha = Math.min(0.95, l.deckkraft);
-    ctx.fillStyle = '#8d1f26';
-    ctx.fillRect(x, PL, w, 1);
+    ctx.fillStyle = '#8d1f26'; ctx.fillRect(x, DECK, w, 1);
     ctx.globalAlpha = Math.min(0.85, l.deckkraft);
-    ctx.fillStyle = '#5c1218';
-    ctx.fillRect(x + 1, PL + 1, Math.max(1, w - 2), 1);
+    ctx.fillStyle = '#5c1218'; ctx.fillRect(x + 1, DECK + 1, Math.max(1, w - 2), 1);
     ctx.globalAlpha = Math.min(0.5, l.deckkraft * 0.8);
-    ctx.fillStyle = '#3a0d11';
-    ctx.fillRect(x + 2, PL + 2, Math.max(1, w - 4), 1);
+    ctx.fillStyle = '#3a0d11'; ctx.fillRect(x + 2, DECK + 2, Math.max(1, w - 4), 1);
+    ctx.globalAlpha = 1;
+  }
+  for (const rest of szene.reste) restZeichnen(ctx, rest);
+  for (const p of szene.steckende) {
+    ctx.globalAlpha = Math.min(1, p.zeit);
+    ctx.fillStyle = '#6b5238'; ctx.fillRect(Math.round(p.x), DECK - 4, 1, 4);
+    ctx.fillStyle = '#d8d2b8'; ctx.fillRect(Math.round(p.x), DECK - 5, 1, 1);
     ctx.globalAlpha = 1;
   }
 }
 
-function liegendes(ctx, szene, PL) {
-  for (const p of szene.liegendes) {
-    const x = Math.round(p.x);
-    if (p.art === 'helm') {
-      ctx.fillStyle = p.farbe || '#949aaa'; ctx.fillRect(x, PL - 3, 5, 3);
-      ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.fillRect(x + (p.verbeult ? 1 : 3), PL - 3, 1, 1);
-      ctx.fillStyle = '#5b1216'; ctx.fillRect(x + 1, PL - 1, 3, 1);
-    } else if (p.art === 'schild') {
-      ctx.fillStyle = p.farbe || '#4d4380'; ctx.fillRect(x, PL - 6, 4, 6);
-      ctx.fillStyle = 'rgba(255,255,255,0.14)'; ctx.fillRect(x, PL - 6, 4, 1);
-      ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fillRect(x + 2, PL - 4, 1, 3);
-    } else if (p.art === 'schaedel') {
-      ctx.fillStyle = '#cfcbb6'; ctx.fillRect(x, PL - 3, 4, 3);
-      ctx.fillStyle = '#2c2a26'; ctx.fillRect(x, PL - 2, 1, 1); ctx.fillRect(x + 3, PL - 2, 1, 1);
-    } else if (p.art === 'kopf') {
-      ctx.fillStyle = p.haut || '#c39066'; ctx.fillRect(x, PL - 3, 3, 3);
-      ctx.fillStyle = '#2a1f1a'; ctx.fillRect(x, PL - 3, 3, 1);
-      ctx.fillStyle = '#7c1a20'; ctx.fillRect(x, PL - 1, 3, 1);
-    } else if (p.art === 'rumpf') {
-      ctx.fillStyle = p.farbe; ctx.fillRect(x, PL - 3, 5, 3);
-      ctx.fillStyle = '#8e1f28'; ctx.fillRect(x, PL - 1, 5, 1); ctx.fillRect(x, PL - 3, 1, 3);
-    } else {
-      ctx.fillStyle = p.farbe;
-      ctx.fillRect(x, PL - 2, p.art === 'bein' ? 5 : 4, 2);
-      ctx.fillStyle = '#8e1f28'; ctx.fillRect(x, PL - 2, 1, 2);
-      ctx.fillStyle = p.haut || '#c39066';
-      ctx.fillRect(x + (p.art === 'bein' ? 4 : 3), PL - 2, 1, 2);
-    }
+/** Tagsüber brennen die Fackeln nicht — es bleiben die Halterungen. */
+function fackelnZeichnen(ctx, szene, zeit) {
+  if (!szene.sichtbarTag) {
+    fackelZeichnen(ctx, 356, 104, zeit);
+    fackelZeichnen(ctx, 402, 96, zeit + 1.3);
+    fackelZeichnen(ctx, 448, 104, zeit + 2.6);
+  } else {
+    ctx.fillStyle = '#3a2c1c';
+    ctx.fillRect(356, 106, 2, 5);
+    ctx.fillRect(402, 98, 2, 5);
+    ctx.fillRect(448, 106, 2, 5);
   }
 }
 
-function torblitz(ctx, szene, PL) {
-  if (szene.aufblitzen <= 0.02) return;
-  ctx.globalAlpha = Math.min(0.4, szene.aufblitzen * 0.38);
-  const blitz = ctx.createRadialGradient(MASSE.torLinks + 2, PL - 10, 2, MASSE.torLinks + 2, PL - 10, 60);
-  blitz.addColorStop(0, '#ffd9a0');
-  blitz.addColorStop(0.4, 'rgba(255,110,40,0.5)');
-  blitz.addColorStop(1, 'rgba(255,80,20,0)');
-  ctx.fillStyle = blitz;
-  ctx.fillRect(MASSE.torLinks - 60, PL - 70, 122, 80);
+/** Kurzes Aufleuchten aus dem Tor, wenn drinnen jemand gefressen wurde. */
+function torlichtZeichnen(ctx, szene, DECK) {
+  if (szene.blitzlicht <= 0.02) return;
+  ctx.globalAlpha = Math.min(0.4, szene.blitzlicht * 0.38);
+  const licht = ctx.createRadialGradient(
+    MASSE.TOR_LINKS + 2, DECK - 10, 2, MASSE.TOR_LINKS + 2, DECK - 10, 60
+  );
+  licht.addColorStop(0, '#ffd9a0');
+  licht.addColorStop(0.4, 'rgba(255,110,40,0.5)');
+  licht.addColorStop(1, 'rgba(255,80,20,0)');
+  ctx.fillStyle = licht;
+  ctx.fillRect(MASSE.TOR_LINKS - 60, DECK - 70, 122, 80);
   ctx.globalAlpha = 1;
-}
-
-function randAbdunkeln(ctx, B, H) {
-  const rand = ctx.createRadialGradient(B * 0.5, H * 0.52, H * 0.34, B * 0.5, H * 0.52, H * 1.05);
-  rand.addColorStop(0, 'rgba(0,0,0,0)');
-  rand.addColorStop(1, 'rgba(0,0,0,0.55)');
-  ctx.fillStyle = rand;
-  ctx.fillRect(0, 0, B, H);
 }

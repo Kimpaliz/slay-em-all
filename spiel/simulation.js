@@ -1,500 +1,534 @@
-// Was in der Welt passiert, wenn Zeit vergeht. Kein Zeichnen, kein DOM.
+// Ein Zeitschritt der Welt.
 //
-// `schritt(welt, dt, einstellungen)` rückt alles um `dt` Sekunden vor.
-// Alles darin ist absichtlich kleinteilig: Zulauf, Gang über die Brücke,
-// Tor, Kobolde, Physik der Trümmer, Tiere. Jeder Block steht für sich.
+// `schritt()` wird von `spiel.js` mit einer festen Schrittweite von 1/60
+// Sekunde aufgerufen — nie mit dem, was der Browser gerade liefert. Das
+// ist wichtig: Bei schwankender Schrittweite fliegen Trümmer je nach
+// Bildrate unterschiedlich weit, und Abklingzeiten laufen ungleich ab.
+//
+// Die Reihenfolge im Schritt ist nicht beliebig. Erst die Phase (kann die
+// Welle enden?), dann die Recken (kann die Burg überlaufen?), dann die
+// Zauber, dann alles Fliegende, zuletzt die Kulisse. Wer diese Ordnung
+// ändert, kann Tode um einen Bildschritt verschieben.
 
-import { MASSE } from './masse.js';
-import { VORNAMEN, BEINAMEN, REIME } from './daten/texte.js';
-import { KAUFSPRUCH } from './daten/ausbauten.js';
+import { MASSE, festerBoden, ausklang } from './masse.js';
+import { reckeAnlegen } from './welt.js';
+import { melden } from './marktschreier.js';
 import {
-  raten, klasseWaehlen, kaufen, bestesAngebot, verwalterTakt
+  schaden, torTod, zermalmen, lacheSetzen, muenzenFallen, muenzeAufsammeln
+} from './kampf.js';
+import { welleGewonnen, welleVerloren, niederlageBeenden, welleStarten, RITUAL_WARTEZEIT } from './wellen.js';
+import { RECKEN } from './daten/recken.js';
+import { NACHTS, ausListe, reckenName } from './daten/texte.js';
+import {
+  werte as werteAus, spawnAbstand, verfuegbareKlassen, klassenGewichte
 } from '../werkzeuge/wirtschaft.mjs';
-import { tagesStand, zulaufFaktor } from './tageslauf.js';
 
-const STANDARD = { blutigkeit: 9, beben: true };
-
-/** Wie viele Recken höchstens gleichzeitig gezeichnet werden. Reine Optik. */
-const MAX_AUF_BRUECKE = 18;
-/**
- * Wie viel mehr losgeschickt wird, als das Tor schafft.
- *
- * Mehr wäre sinnlos: Wer nicht bedient werden kann, staut sich nur. Ein
- * kleiner Überschuss sorgt dafür, dass das Tor nie leerläuft. Ohne diese
- * Deckelung stünden bei hohem Zulauf zehntausende Recken gleichzeitig
- * unterwegs im Speicher.
- */
-const UEBERSCHUSS = 1.15;
-/**
- * Wie lang die Schlange im Dunkeln höchstens wird.
- *
- * Doppelt so viele, wie gleichzeitig bedient werden, plus etwas Puffer:
- * genug, dass das Tor nie leerläuft, und wenig genug, dass sich der kleine
- * Überschuss nicht über Stunden zu Zehntausenden aufstaut. Wer keinen
- * Platz mehr findet, dreht am Torbogen wieder um.
- */
-function maxSchlange(torplaetze) {
-  return Math.ceil(torplaetze * 2) + 60;
-}
-
-export function reckenName(zufall = Math.random) {
-  const vorname = VORNAMEN[(zufall() * VORNAMEN.length) | 0];
-  if (zufall() < 0.4) return vorname + ' ' + BEINAMEN[(zufall() * BEINAMEN.length) | 0];
-  return vorname;
-}
+/** Wie blutig es zugeht: 1 bis 10. */
+const BLUTMENGE = 9;
 
 export function schritt(welt, dt, einstellungen = {}) {
-  const opt = { ...STANDARD, ...einstellungen };
   const { zustand, szene } = welt;
-  const r = raten(zustand.stufen, zustand.dauerhaft);
+  const werte = werteAus(zustand.stufenG, zustand.stufenP);
+  const blutmenge = einstellungen.blutmenge != null ? einstellungen.blutmenge : BLUTMENGE;
+  const ruetteln = einstellungen.ruetteln !== false;
+
   szene.zeit += dt;
-  zustand.spielzeit = szene.zeit;
-  zustand.gesamtzeit += dt;
+  zustand.spielzeit += dt;
 
-  const stand = tagesStand(szene.zeit);
-  phasenWechsel(welt, stand);
+  daemmerungFuehren(szene, dt);
+  phaseFuehren(welt, dt, werte);
+  reckenFuehren(welt, dt, werte);
+  abklingzeitenFuehren(szene, dt);
 
-  hausKauftEin(welt, dt, stand);
-  zulauf(welt, dt, r);
-  gangUeberDieBruecke(welt, dt);
-  klaue(welt, dt, opt);
-  torVerarbeitet(welt, dt, r, opt);
-  ernte(welt, dt, r, stand);
-  kobolde(welt, dt, r);
-  truemmerPhysik(welt, dt);
-  spritzerPhysik(welt, dt);
-  tropfenUndRinge(welt, dt);
-  tiere(welt, dt);
+  prankeFuehren(welt, dt, werte);
+  schuetzenFuehren(welt, dt, werte);
+  pfeileFuehren(welt, dt, werte);
+  blitzeFuehren(szene, dt);
+  flammeFuehren(welt, dt, werte);
+  meteoreFuehren(welt, dt, werte);
+  brennendeFuehren(welt, dt, werte);
 
-  if (szene.beben > 0) szene.beben = Math.max(0, szene.beben - dt * 9);
-  if (szene.aufblitzen > 0) szene.aufblitzen = Math.max(0, szene.aufblitzen - dt * 3.2);
+  muenzenFuehren(welt, dt, werte);
+  drachlingFuehren(welt, dt);
+  truemmerFuehren(szene, dt, blutmenge);
+  spritzerFuehren(szene, dt);
+  lachenFuehren(szene, dt);
+  kleinkramFuehren(szene, dt);
+  tiereFuehren(szene, dt);
+
+  if (szene.ruettelt > 0) szene.ruettelt = Math.max(0, szene.ruettelt - dt * 9);
+  if (szene.blitzlicht > 0) szene.blitzlicht = Math.max(0, szene.blitzlicht - dt * 3.2);
+  if (szene.spruchband) {
+    szene.spruchband.zeit += dt;
+    if (szene.spruchband.zeit > szene.spruchband.dauer) szene.spruchband = null;
+  }
+  void ruetteln;
 }
 
-/* ---------------- Tag wird Nacht ---------------- */
+/* ---------------- Phasen ---------------- */
 
-function phasenWechsel(welt, stand) {
-  const { szene } = welt;
-  if (stand.phase === szene.letztePhase) return;
-  szene.letztePhase = stand.phase;
+/**
+ * Der Farbwechsel hinkt der Phase absichtlich hinterher.
+ *
+ * Erst wenn die Dämmerung halb vorbei ist, springt das Bild von Nacht
+ * auf Tag. Dadurch wirkt der Übergang wie ein Überblenden statt wie ein
+ * Lichtschalter.
+ */
+function daemmerungFuehren(szene, dt) {
+  if (szene.daemmerung > 0) szene.daemmerung -= dt;
+  const sollTag = szene.phase === 'tag' || szene.phase === 'niederlage';
+  if (szene.daemmerung <= 0.55 && szene.sichtbarTag !== sollTag) szene.sichtbarTag = sollTag;
+}
 
-  if (stand.phase === 'nacht') {
-    const verloren = Math.round(szene.verlorenHeute);
-    szene.spruchSchlange.unshift(verloren > 0
-      ? `Es wird dunkel. ${verloren} Stück sind in den Graben gefallen — der Haufen war voll!`
-      : 'Es wird dunkel. Die Kobolde treten an, der Haufen wird abgetragen.');
-  } else {
-    const g = szene.geerntetHeute;
-    szene.spruchSchlange.unshift(
-      `Ein neuer Tag. Eingebracht: ${Math.round(g.knochen)} Knochen und ${Math.round(g.schrott)} Schrott.`);
-    szene.verlorenHeute = 0;
-    szene.geerntetHeute = { knochen: 0, schrott: 0 };
+function phaseFuehren(welt, dt, werte) {
+  const { zustand, szene } = welt;
+
+  if (szene.phase === 'tag') {
+    if (szene.erschienen < szene.wellenGroesse) {
+      szene.naechsterRecke -= dt;
+      if (szene.naechsterRecke <= 0) {
+        const abstand = spawnAbstand(zustand.welle);
+        szene.naechsterRecke = abstand * (0.7 + Math.random() * 0.6);
+        szene.erschienen++;
+        szene.recken.push(reckeAnlegen(szene, klasseWaehlen(zustand), reckenName(), werte.tempoFaktor));
+      }
+    }
+
+    // Verdauung: Das Monster frisst mit `angriff` Lebenspunkten je Sekunde.
+    for (let i = szene.imTor.length - 1; i >= 0; i--) {
+      szene.imTor[i].lp -= werte.angriff * dt;
+      if (szene.imTor[i].lp <= 0) {
+        const opfer = szene.imTor[i];
+        szene.imTor.splice(i, 1);
+        torTod(welt, opfer, 9, true, werte);
+      }
+    }
+
+    const fertig = szene.erschienen >= szene.wellenGroesse
+      && szene.recken.length === 0
+      && szene.imTor.length === 0
+      && szene.brennende.length === 0
+      && !szene.pranke;
+    if (fertig) welleGewonnen(welt);
+  }
+
+  if (szene.phase === 'nacht') {
+    szene.nachtzeit += dt;
+    if (zustand.ritual >= 1 && zustand.ritualAn && szene.nachtzeit >= RITUAL_WARTEZEIT) {
+      welleStarten(welt);
+    }
+    if (Math.random() < dt * 0.02) melden(szene, ausListe(NACHTS));
+  }
+
+  if (szene.phase === 'niederlage') {
+    szene.niederlageZeit += dt;
+    const vorbei = (szene.niederlageZeit > 3 && szene.recken.length === 0) || szene.niederlageZeit > 7;
+    if (vorbei) niederlageBeenden(welt);
   }
 }
 
-/* ---------------- der Verwalter kauft für einen ein ---------------- */
-
-// Erst wenn der Spieler dauerhaft einen Verwalter angestellt hat, kauft das
-// Haus wieder von selbst — und dann bezahlt es auch, und nur nachts. In der
-// ersten Fassung kaufte es umsonst und immerzu; daran ist die Schleife
-// gescheitert.
-
-function hausKauftEin(welt, dt, stand) {
-  const { zustand, szene } = welt;
-  if (stand.istTag) return;
-  const proNacht = verwalterTakt(zustand.dauerhaft);
-  if (proNacht <= 0) return;
-
-  szene.kaufRest += dt;
-  const abstand = 50 / proNacht; // eine Nacht dauert 50 Sekunden
-  if (szene.kaufRest < abstand) return;
-  szene.kaufRest = 0;
-
-  const id = bestesAngebot(zustand, true);
-  if (!id) return;
-  kaufVerbuchen(welt, id, 'Der Verwalter hat entschieden: ');
-}
-
-/* ---------------- nachts wird der Haufen abgetragen ---------------- */
-
-function ernte(welt, dt, r, stand) {
-  const { zustand, szene } = welt;
-  if (stand.istTag) return;
-  const haufen = szene.haufen;
-  if (haufen.stueck <= 0) return;
-
-  szene.ernteRest += r.ernteTempo * dt;
-  if (szene.ernteRest < 0.001) return;
-
-  const stueck = Math.min(haufen.stueck, szene.ernteRest);
-  szene.ernteRest -= stueck;
-
-  // Jedes Stück nimmt seinen Anteil am Haufen mit.
-  const anteil = stueck / haufen.stueck;
-  const knochen = haufen.knochen * anteil;
-  const schrott = haufen.schrott * anteil;
-
-  haufen.stueck -= stueck;
-  haufen.knochen -= knochen;
-  haufen.schrott -= schrott;
-
-  zustand.knochen += knochen;
-  zustand.schrott += schrott;
-  szene.geerntetHeute.knochen += knochen;
-  szene.geerntetHeute.schrott += schrott;
-  szene.knochenhaufen = Math.min(150, Math.round(haufen.stueck));
-}
-
-/** Bucht einen Kauf und lässt den Marktschreier davon reden. */
-export function kaufVerbuchen(welt, id, vorspann = '') {
-  const { zustand } = welt;
-  if (!kaufen(zustand, id)) return false;
-  zustand.kaeufe += 1;
-  const sprueche = KAUFSPRUCH[id];
-  const spruch = sprueche[(Math.random() * sprueche.length) | 0];
-  zustand.letzterKauf = vorspann + spruch + ' (Stufe ' + zustand.stufen[id] + ')';
-  return true;
-}
-
-/* ---------------- Recken kommen ins Tal ---------------- */
-
-function zulauf(welt, dt, r) {
-  const { zustand, szene } = welt;
-  // Es wird nie mehr losgeschickt, als das Tor verarbeiten kann.
-  const torLeistung = r.torplaetze / r.verweildauer;
-  const kommen = Math.min(r.zulauf * zulaufFaktor(szene.zeit), torLeistung * UEBERSCHUSS);
-
-  // Nachts ist der Faktor null — dann kommt niemand mehr.
-  szene.zulaufRest += dt * kommen;
-  const grenze = maxSchlange(r.torplaetze);
-
-  while (szene.zulaufRest >= 1) {
-    szene.zulaufRest -= 1;
-    if (szene.imTor.length >= grenze) {
-      szene.zulaufRest = 0; // voll ist voll — nicht weiter aufstauen
-      break;
-    }
-    const klasse = klasseWaehlen(zustand.erledigte);
-
-    if (szene.recken.length < MAX_AUF_BRUECKE) {
-      // Mit jedem Ausbau gehen sie zügiger — gedeckelt, sonst rennen sie.
-      const eile = Math.min(3.2, 1.35 + zustand.kaeufe * 0.055);
-      szene.recken.push({
-        nr: szene.laufendeNummer++,
-        klasse,
-        tempo: klasse.tempo * (0.85 + Math.random() * 0.3) * eile,
-        name: reckenName(),
-        x: -8 - Math.random() * 26,
-        phase: Math.random() * 6.28,
-        zweifelt: Math.random() < 0.1,
-        zweifelZeit: 0,
-        hatGezweifelt: false,
-        sichtbarkeit: 1
-      });
-    } else {
-      // Kein Platz im Bild. Er reiht sich trotzdem ein — den Weg über die
-      // Brücke muss nur nachspielen, wer dabei zu sehen ist. Einen Namen
-      // bekommt er erst, wenn der Marktschreier ihn braucht.
-      verschlucken(szene, klasse, null, r);
-    }
+/** Welche Klasse als Nächstes kommt — späte Wellen bringen höhere Ränge. */
+function klasseWaehlen(zustand) {
+  const moeglich = verfuegbareKlassen(RECKEN, zustand.welle, zustand.stufenP.koeder);
+  const gewichte = klassenGewichte(moeglich, zustand.welle);
+  const summe = gewichte.reduce((a, b) => a + b, 0);
+  let wurf = Math.random() * summe;
+  for (let i = 0; i < moeglich.length; i++) {
+    wurf -= gewichte[i];
+    if (wurf <= 0) return moeglich[i];
   }
+  return moeglich[moeglich.length - 1];
 }
 
-function gangUeberDieBruecke(welt, dt) {
+/* ---------------- Recken ---------------- */
+
+function reckenFuehren(welt, dt, werte) {
   const { szene } = welt;
-  const r = raten(welt.zustand.stufen, welt.zustand.dauerhaft);
+  const prankeVorderkante = szene.pranke ? MASSE.TOR_LINKS - szene.pranke.stand : Infinity;
+
   for (let i = szene.recken.length - 1; i >= 0; i--) {
-    const recke = szene.recken[i];
+    const r = szene.recken[i];
+    if (r.getroffen > 0) r.getroffen -= dt;
 
-    // Kurz vor dem Tor überlegt es sich mancher. Hilft ihm nichts.
-    if (recke.zweifelt && !recke.hatGezweifelt && recke.x > 210) {
-      recke.zweifelZeit += dt;
-      if (recke.zweifelZeit > 1.5) { recke.hatGezweifelt = true; recke.zweifelt = false; }
+    if (r.zustand === 'flieht') {
+      r.x -= r.tempo * 1.5 * dt;
+      if (r.x < -12) szene.recken.splice(i, 1);
       continue;
     }
 
-    recke.x += recke.tempo * dt;
-    if (recke.x > MASSE.mauer + 2) {
-      recke.sichtbarkeit = Math.max(0, 1 - (recke.x - MASSE.mauer - 2) / 9);
+    // Vor der ausgefahrenen Pranke bleibt man stehen.
+    r.wartet = false;
+    if (szene.pranke && r.x > prankeVorderkante - 9 && r.x < MASSE.TOR_LINKS) {
+      r.wartet = true;
+      continue;
     }
-    if (recke.x >= MASSE.eintritt) {
+
+    r.x += r.tempo * dt;
+    if (r.x >= MASSE.TOR_EINTRITT) {
       szene.recken.splice(i, 1);
-      verschlucken(szene, recke.klasse, recke.name, r);
-    }
-  }
-}
-
-function verschlucken(szene, klasse, name, r) {
-  szene.imTor.push({
-    klasse, name,
-    rest: r.verweildauer * (0.8 + Math.random() * 0.4),
-    dran: false
-  });
-}
-
-/* ---------------- die Klaue holt sich einen Nachzügler ---------------- */
-
-function klaue(welt, dt, opt) {
-  const { szene } = welt;
-  szene.naechsteKlaue -= dt;
-
-  if (szene.klaue) {
-    szene.klaue.zeit += dt;
-    if (szene.klaue.zeit > 0.28 && !szene.klaue.zugepackt) {
-      szene.klaue.zugepackt = true;
-      const i = szene.recken.findIndex((h) => h.x > 258 && h.x < MASSE.mauer + 2);
-      if (i >= 0) {
-        const recke = szene.recken[i];
-        spritzerWerfen(welt, recke.x, MASSE.planke - recke.klasse.hoehe * 0.5, 8, opt);
-        szene.recken.splice(i, 1);
-        szene.imTor.push({ klasse: recke.klasse, name: recke.name, rest: 0.25, dran: false });
-        szene.beben = Math.min(4, szene.beben + 2.5);
+      szene.imTor.push({ klasse: r.klasse, name: r.name, lp: r.lp });
+      if (szene.imTor.length > werte.kapazitaet) {
+        welleVerloren(welt);
+        break;
       }
     }
-    if (szene.klaue.zeit > 0.9) szene.klaue = null;
-    return;
-  }
-
-  if (szene.naechsteKlaue <= 0) {
-    szene.naechsteKlaue = 22 + Math.random() * 26;
-    if (szene.recken.some((h) => h.x > 258 && h.x < MASSE.mauer + 2)) {
-      szene.klaue = { zeit: 0, zugepackt: false };
-    }
   }
 }
 
-/* ---------------- das Tor arbeitet ---------------- */
-
-function torVerarbeitet(welt, dt, r, opt) {
-  const { szene } = welt;
-  // Nur so viele, wie Plätze da sind. Der Rest wartet im Dunkeln.
-  let plaetze = r.torplaetze;
-  for (let i = 0; i < szene.imTor.length && plaetze > 0; i++, plaetze--) szene.imTor[i].dran = true;
-
-  for (let i = szene.imTor.length - 1; i >= 0; i--) {
-    if (!szene.imTor[i].dran) continue;
-    szene.imTor[i].rest -= dt;
-    if (szene.imTor[i].rest <= 0) {
-      const opfer = szene.imTor[i];
-      szene.imTor.splice(i, 1);
-      erledigen(welt, opfer, opt);
-    }
+function abklingzeitenFuehren(szene, dt) {
+  for (const k in szene.abklingzeit) {
+    if (szene.abklingzeit[k] > 0) szene.abklingzeit[k] = Math.max(0, szene.abklingzeit[k] - dt);
   }
 }
 
-/** Ein Recke ist fertig. Beute buchen, Teile werfen, Reim in die Schlange. */
-export function erledigen(welt, opfer, opt = STANDARD) {
-  const { zustand, szene } = welt;
-  const r = raten(zustand.stufen, zustand.dauerhaft);
-  const k = opfer.klasse;
-  const maulX = MASSE.torLinks + 4;
-  const maulY = MASSE.planke - 10;
+/* ---------------- Zauber ---------------- */
 
-  szene.aufblitzen = 1;
-  szene.beben = Math.min(5, szene.beben + (opt.beben === false ? 0 : 1.6 + k.hoehe / 12));
-  spritzerWerfen(welt, maulX, maulY, 9 + Math.round(k.hoehe / 3), opt);
+/**
+ * Die Pranke in vier Abschnitten: ausfahren, zuschlagen, einziehen, weg.
+ * Beim Einziehen schleift sie die Reste über die Planken und hinterlässt
+ * eine Spur.
+ */
+function prankeFuehren(welt, dt, werte) {
+  const szene = welt.szene;
+  const p = szene.pranke;
+  if (!p) return;
 
-  teileWerfen(welt, k, maulX, maulY, opt);
-
-  for (const rabe of szene.raben) {
-    if (rabe.flugRest <= 0 && Math.random() < 0.45) {
-      rabe.flugRest = 1.6 + Math.random();
-      rabe.vx = -(20 + Math.random() * 40);
-      rabe.vy = -(26 + Math.random() * 20);
-      rabe.y = 0;
+  p.zeit += dt;
+  if (p.zeit < 0.3) {
+    p.stand = p.reichweite * ausklang(p.zeit / 0.3);
+  } else if (p.zeit < 0.55) {
+    p.stand = p.reichweite + Math.sin(p.zeit * 60) * 1.2;
+    if (!p.zugeschlagen) {
+      p.zugeschlagen = true;
+      zermalmen(welt, werte);
     }
-  }
-
-  // Blut fließt sofort ins Haus. Knochen und Schrott bleiben liegen und
-  // werden erst nachts eingesammelt — wenn denn noch Platz auf dem Haufen ist.
-  zustand.blut += k.blut * r.beute;
-  zustand.erledigte += 1;
-  zustand.proKlasse[k.id] = (zustand.proKlasse[k.id] || 0) + 1;
-
-  if (szene.haufen.stueck < r.lagerplatz) {
-    szene.haufen.stueck += 1;
-    szene.haufen.knochen += k.knochen;
-    szene.haufen.schrott += k.schrott * r.beute;
+  } else if (p.zeit < 2.0) {
+    const k = (p.zeit - 0.55) / 1.45;
+    p.stand = p.reichweite * (1 - k);
+    if (p.opfer.length && Math.random() < dt * 14) {
+      lacheSetzen(szene, MASSE.TOR_LINKS - p.stand + Math.random() * Math.min(20, p.stand), 3);
+    }
   } else {
-    szene.verlorenHeute += 1;
+    szene.pranke = null;
   }
-  szene.knochenhaufen = Math.min(150, Math.round(szene.haufen.stueck));
-
-  reimEinreihen(welt, opfer.name);
 }
 
-function reimEinreihen(welt, gefallenerName) {
-  const { szene } = welt;
-  const darf = szene.zeit - szene.letzterSpruch > 0.9 && szene.spruchSchlange.length < 14;
-  if (!darf) return;
-  szene.letzterSpruch = szene.zeit;
-  // Ungesehene tragen keinen Namen mit sich herum — jetzt bekommen sie einen.
-  const name = gefallenerName || reckenName();
-  let i = (Math.random() * REIME.length) | 0;
-  if (i === szene.letzterReim) i = (i + 1 + ((Math.random() * 3) | 0)) % REIME.length;
-  szene.letzterReim = i;
-  szene.spruchSchlange.push(REIME[i].split('{n}').join(name));
-}
+function schuetzenFuehren(welt, dt, werte) {
+  const szene = welt.szene;
+  if (werte.schuetzen <= 0 || szene.phase !== 'tag') return;
 
-function teileWerfen(welt, k, x, y, opt) {
-  const { szene } = welt;
-  const teile = [];
-  const anzahl = 2 + Math.round(blutigkeit(opt) / 3.5) + (k.hoehe > 14 ? 1 : 0);
-  const folge = ['arm', 'bein', 'rumpf', 'arm', 'bein'];
-  for (let i = 0; i < anzahl; i++) teile.push(folge[i % folge.length]);
-  if (Math.random() < 0.5) teile.push('kopf');
-  if (k.helm && Math.random() < 0.6) teile.push('helm');
-  if (k.schild && Math.random() < 0.4) teile.push('schild');
-  if (Math.random() < 0.3) teile.push('schaedel');
+  while (szene.schuetzenTakt.length < werte.schuetzen) {
+    szene.schuetzenTakt.push(1 + Math.random() * 2);
+  }
 
-  for (const art of teile) {
-    const weite = art === 'schild' ? 1.7 : art === 'helm' ? 1.35 : 1;
-    szene.truemmer.push({
-      art,
-      x, y: y - Math.random() * 6,
-      vx: -(30 + Math.random() * 70) * weite,
-      vy: -(45 + Math.random() * 62),
-      drehung: 0, drehTempo: Math.random() * 8 - 4,
-      lebensdauer: 14,
-      farbe: k.koerper, metall: k.metall, haut: k.haut, schild: k.schild || k.metall,
-      rollt: false, faellt: false, geplatscht: false
+  for (let a = 0; a < werte.schuetzen; a++) {
+    szene.schuetzenTakt[a] -= dt;
+    if (szene.schuetzenTakt[a] > 0) continue;
+    szene.schuetzenTakt[a] = 2.2 + Math.random() * 1.1;
+
+    const ziele = szene.recken.filter(
+      (r) => r.zustand === 'laeuft' && r.x > MASSE.KLIPPE - 10 && r.x < MASSE.MAUER - 14
+    );
+    if (!ziele.length) continue;
+
+    // Vorhalten: Es wird dorthin geschossen, wo das Ziel gleich sein wird.
+    const ziel = ziele[(Math.random() * ziele.length) | 0];
+    const ax = 306 + a * 24;
+    const ay = 22;
+    const flugzeit = Math.max(0.45, Math.min(1.1, (ax - ziel.x) / 150));
+    szene.pfeile.push({
+      x: ax, y: ay,
+      vx: ((ziel.x + ziel.tempo * flugzeit + 3) - ax) / flugzeit,
+      vy: ((MASSE.DECK - 7) - ay - 0.5 * 150 * flugzeit * flugzeit) / flugzeit
     });
   }
-  if (szene.truemmer.length > 130) szene.truemmer.splice(0, szene.truemmer.length - 130);
 }
 
-function blutigkeit(opt) {
-  return Math.max(1, Math.min(10, opt.blutigkeit != null ? opt.blutigkeit : 9));
-}
+function pfeileFuehren(welt, dt, werte) {
+  const szene = welt.szene;
+  for (let i = szene.pfeile.length - 1; i >= 0; i--) {
+    const p = szene.pfeile[i];
+    p.vy += 150 * dt;
+    p.x += p.vx * dt;
+    p.y += p.vy * dt;
 
-export function spritzerWerfen(welt, x, y, anzahl, opt = STANDARD) {
-  const { szene } = welt;
-  const menge = Math.round(anzahl * (0.4 + blutigkeit(opt) / 10));
-  for (let i = 0; i < menge; i++) {
-    szene.spritzer.push({
-      x, y,
-      vx: -(18 + Math.random() * 70),
-      vy: -(20 + Math.random() * 70),
-      lebensdauer: 1.6,
-      farbe: Math.random() < 0.25 ? '#7e1a22' : '#a82430'
-    });
+    if (p.y >= MASSE.DECK - 11 && p.y < MASSE.DECK) {
+      const treffer = szene.recken.find(
+        (r) => r.zustand === 'laeuft' && Math.abs(r.x + 3 - p.x) < 4.5
+      );
+      if (treffer) {
+        szene.pfeile.splice(i, 1);
+        szene.spritzer.push({ x: p.x, y: p.y, vx: -20, vy: -30, lebt: 0.7, farbe: '#a82430' });
+        schaden(welt, treffer, werte.pfeilSchaden, 'pfeil', false, werte);
+        continue;
+      }
+    }
+    if (p.y >= MASSE.DECK - 1) {
+      szene.pfeile.splice(i, 1);
+      if (p.x > MASSE.KLIPPE - 4 && p.x < MASSE.TOR_RECHTS) szene.steckende.push({ x: p.x, zeit: 5 });
+      continue;
+    }
+    if (p.x < -8 || p.x > MASSE.BREITE + 8 || p.y > MASSE.HOEHE) szene.pfeile.splice(i, 1);
   }
-  if (szene.spritzer.length > 190) szene.spritzer.splice(0, szene.spritzer.length - 190);
-}
 
-export function lacheSetzen(welt, x, breite) {
-  const { szene } = welt;
-  if (x < MASSE.klippe - 6 || x > MASSE.torRechts) return;
-  const nah = szene.lachen.find((l) => Math.abs(l.x - x) < 3);
-  if (nah) {
-    nah.breite = Math.min(11, nah.breite + 1);
-    nah.deckkraft = Math.min(0.95, nah.deckkraft + 0.12);
-    return;
+  for (let i = szene.steckende.length - 1; i >= 0; i--) {
+    szene.steckende[i].zeit -= dt;
+    if (szene.steckende[i].zeit <= 0) szene.steckende.splice(i, 1);
   }
-  szene.lachen.push({
-    x, breite: breite + ((Math.random() * 3) | 0),
-    deckkraft: 0.45 + Math.random() * 0.3,
-    tropfRest: 1 + Math.random() * 3
-  });
-  if (szene.lachen.length > 46) szene.lachen.shift();
 }
 
-/* ---------------- Kobolde wischen die Planken ---------------- */
+function blitzeFuehren(szene, dt) {
+  for (let i = szene.blitze.length - 1; i >= 0; i--) {
+    szene.blitze[i].zeit += dt;
+    if (szene.blitze[i].zeit > 0.4) szene.blitze.splice(i, 1);
+  }
+}
 
-// Reine Optik: die herumliegenden Einzelteile und ein Teil der Blutlachen
-// verschwinden nach und nach. Der Ertrag steckt im Beutehaufen, nicht hier.
+/**
+ * Die Flamme fährt aus und zündet jeden einmal an.
+ * `versengt` verhindert, dass derselbe Recke in mehreren Bildschritten
+ * mehrfach Schaden nimmt.
+ */
+function flammeFuehren(welt, dt, werte) {
+  const szene = welt.szene;
+  const f = szene.flamme;
+  if (!f) return;
 
-function kobolde(welt, dt, r) {
-  const { szene } = welt;
-  if (!szene.liegendes.length) return;
+  f.zeit += dt;
+  f.reichweite = f.zeit < 0.5 ? ausklang(f.zeit / 0.5) * f.wirkbereich : f.wirkbereich;
 
-  szene.wischRest += dt * r.ernteTempo * 0.35;
-  while (szene.wischRest >= 1 && szene.liegendes.length) {
-    szene.wischRest -= 1;
-    szene.liegendes.shift();
-    if (szene.lachen.length > 6) szene.lachen.shift();
+  if (f.zeit < 1.1) {
+    for (let i = szene.recken.length - 1; i >= 0; i--) {
+      const r = szene.recken[i];
+      if (r.zustand !== 'laeuft' || r.versengt) continue;
+      if (r.x + 6 > MASSE.TOR_LINKS - f.reichweite && r.x < MASSE.TOR_LINKS) {
+        r.versengt = true;
+        schaden(welt, r, f.schaden, 'flamme', true, werte);
+      }
+    }
+  }
+  if (f.zeit > 1.5) szene.flamme = null;
+}
+
+function meteoreFuehren(welt, dt, werte) {
+  const szene = welt.szene;
+
+  if (szene.meteorZeit > 0) {
+    szene.meteorZeit -= dt;
+    szene.meteorTakt -= dt;
+    if (szene.meteorTakt <= 0) {
+      szene.meteorTakt = 0.38;
+      szene.meteore.push({
+        x: MASSE.KLIPPE + 10 + Math.random() * (MASSE.TOR_RECHTS - MASSE.KLIPPE - 14) + 26,
+        y: -10, vx: -26, vy: 100
+      });
+    }
+  }
+
+  for (let i = szene.meteore.length - 1; i >= 0; i--) {
+    const m = szene.meteore[i];
+    m.vy += 60 * dt;
+    m.x += m.vx * dt;
+    m.y += m.vy * dt;
+    if (m.y < MASSE.DECK - 3) continue;
+
+    szene.meteore.splice(i, 1);
+    szene.explosionen.push({ x: m.x, zeit: 0 });
+    szene.ruettelt = Math.min(5, szene.ruettelt + 1.5);
+    if (m.x > MASSE.KLIPPE - 4 && m.x < MASSE.TOR_RECHTS) {
+      szene.brandflecken.push({ x: m.x, breite: 5 + Math.random() * 4 });
+      if (szene.brandflecken.length > 30) szene.brandflecken.shift();
+    }
+    for (let j = szene.recken.length - 1; j >= 0; j--) {
+      const r = szene.recken[j];
+      if (r.zustand === 'laeuft' && Math.abs(r.x + 3 - m.x) < szene.meteorWirkung) {
+        schaden(welt, r, szene.meteorSchaden, 'meteor', true, werte);
+      }
+    }
+  }
+
+  for (let i = szene.explosionen.length - 1; i >= 0; i--) {
+    szene.explosionen[i].zeit += dt;
+    if (szene.explosionen[i].zeit > 0.5) szene.explosionen.splice(i, 1);
+  }
+}
+
+/** Verbrennende Recken — die Münzen fallen erst, wenn nur noch Asche da ist. */
+function brennendeFuehren(welt, dt, werte) {
+  const szene = welt.szene;
+  for (let i = szene.brennende.length - 1; i >= 0; i--) {
+    const b = szene.brennende[i];
+    b.zeit += dt;
+    if (Math.random() < dt * 20) {
+      szene.spritzer.push({
+        x: b.x + Math.random() * 6,
+        y: MASSE.DECK - 4 - Math.random() * b.klasse.hoehe,
+        vx: Math.random() * 10 - 5, vy: -(10 + Math.random() * 20),
+        lebt: 0.6, farbe: Math.random() < 0.5 ? '#ff9a3a' : '#5a5650'
+      });
+    }
+    if (b.zeit < 1.15) continue;
+
+    szene.brennende.splice(i, 1);
+    szene.reste.push({ art: 'asche', x: b.x + 1 });
+    if (szene.reste.length > 16) szene.reste.shift();
+    muenzenFallen(szene, b.x + 3, b.klasse, true, werte.ernteFaktor);
+  }
+}
+
+/* ---------------- Beute ---------------- */
+
+function muenzenFuehren(welt, dt, werte) {
+  const szene = welt.szene;
+  for (let i = szene.muenzen.length - 1; i >= 0; i--) {
+    const m = szene.muenzen[i];
+
+    // Vom Drachling angezogen: fliegt zu ihm und wird dort eingesammelt.
+    if (m.magnetisch) {
+      const d = szene.drachling;
+      const dx = d.x - m.x;
+      const dy = d.y - m.y;
+      const weg = Math.max(0.001, Math.hypot(dx, dy));
+      if (weg < 5) { muenzeAufsammeln(welt, m, false, werte.stolzFaktor); continue; }
+      m.x += (dx / weg) * 95 * dt;
+      m.y += (dy / weg) * 95 * dt;
+      continue;
+    }
+    if (m.liegt) continue;
+
+    m.vy += 200 * dt;
+    m.x += m.vx * dt;
+    m.y += m.vy * dt;
+
+    const boden = festerBoden(m.x);
+    if (m.y >= MASSE.DECK - 2 && boden) {
+      m.y = MASSE.DECK - 2;
+      if (m.vy > 30) {
+        m.vy *= -0.4;
+        m.vx *= 0.6;
+      } else {
+        m.liegt = true;
+        m.vx = 0;
+        m.vy = 0;
+        if (!szene.muenzHinweisGezeigt) {
+          szene.muenzHinweisGezeigt = true;
+          szene.zahlen.push({ x: m.x, y: m.y - 10, text: 'Klick: Gold aufsammeln!', farbe: '#e0b64f', zeit: -0.5 });
+        }
+      }
+    } else if (!boden && m.y > MASSE.DECK + 26) {
+      szene.ringe.push({ x: m.x, y: MASSE.HOEHE - 16 - Math.random() * 8, radius: 0, deckkraft: 1 });
+      szene.muenzen.splice(i, 1);
+      continue;
+    }
+    if (m.y > MASSE.HOEHE + 6) szene.muenzen.splice(i, 1);
+  }
+}
+
+/** Der Sammel-Drachling zieht nachts über die Brücke und magnetisiert Gold. */
+function drachlingFuehren(welt, dt) {
+  const { zustand, szene } = welt;
+  const stufe = zustand.stufenP.sammler;
+  if (szene.phase !== 'nacht' || stufe <= 0) return;
+
+  const d = szene.drachling;
+  d.phase += dt;
+  d.x += d.richtung * (28 + 13 * stufe) * dt;
+  if (d.x > MASSE.MAUER - 8) d.richtung = -1;
+  if (d.x < MASSE.KLIPPE - 70) d.richtung = 1;
+  d.y = MASSE.DECK - 26 + Math.sin(d.phase * 2.1) * 6;
+
+  const reichweite = 17 + 7 * stufe;
+  for (const m of szene.muenzen) {
+    if (m.liegt && !m.magnetisch
+      && Math.abs(m.x - d.x) < reichweite
+      && Math.abs(m.y - d.y) < reichweite + 14) {
+      m.magnetisch = true;
+    }
   }
 }
 
 /* ---------------- Physik ---------------- */
 
-function truemmerPhysik(welt, dt) {
-  const { szene } = welt;
+function truemmerFuehren(szene, dt, blutmenge) {
+  void blutmenge;
   for (let i = szene.truemmer.length - 1; i >= 0; i--) {
     const t = szene.truemmer[i];
     t.vy += 190 * dt;
     t.x += t.vx * dt;
     t.y += t.vy * dt;
-    t.drehung += t.drehTempo * dt;
-    t.lebensdauer -= dt;
+    t.dreh += t.drehTempo * dt;
+    t.lebt -= dt;
 
-    const ueberPlanke = t.x > MASSE.klippe - 4 && t.x < MASSE.torRechts;
-    if (t.y >= MASSE.planke - 1) {
-      if (ueberPlanke) {
-        t.y = MASSE.planke - 1;
+    if (t.y >= MASSE.DECK - 1) {
+      if (festerBoden(t.x)) {
+        t.y = MASSE.DECK - 1;
         if (t.vy > 40) {
-          lacheSetzen(welt, t.x, 4);
+          lacheSetzen(szene, t.x, 4);
           t.vy *= -0.32;
           t.vx *= 0.55;
-          if (t.art === 'schaedel' || t.art === 'helm') { t.rollt = true; t.vx = -(14 + Math.random() * 22); }
+          if (t.art === 'schaedel' || t.art === 'helm') {
+            t.rollt = true;
+            t.vx = -(14 + Math.random() * 22);
+          }
         } else {
           t.vy = 0;
           t.vx *= t.rollt ? 0.995 : 0.8;
           if (Math.abs(t.vx) < 3) {
-            szene.liegendes.push({
+            szene.reste.push({
               art: t.art, x: t.x,
               farbe: t.art === 'schild' ? t.schild : t.art === 'helm' ? t.metall : t.farbe,
-              haut: t.haut,
-              verbeult: Math.random() < 0.6
+              haut: t.haut, verbeult: Math.random() < 0.6
             });
-            if (szene.liegendes.length > 16) szene.liegendes.shift();
-            lacheSetzen(welt, t.x, 3);
+            if (szene.reste.length > 16) szene.reste.shift();
+            lacheSetzen(szene, t.x, 3);
             szene.truemmer.splice(i, 1);
             continue;
           }
         }
-        // Manchmal rollt ein Schädel über die Kante.
-        if (t.rollt && t.art === 'schaedel' && Math.random() < 0.02) {
-          t.faellt = true; t.vy = 20; t.rollt = false;
+        // Ein rollender Schädel kann über die Kante gehen.
+        if (t.rollt && t.art === 'schaedel' && Math.random() < 0.015) {
+          t.faellt = true;
+          t.vy = 20;
+          t.rollt = false;
         }
       } else {
         t.faellt = true;
       }
     }
 
-    if (t.faellt && !t.geplatscht && t.y > MASSE.planke + 8 && t.y < MASSE.planke + 30) {
+    if (t.faellt && t.y > MASSE.DECK + 8 && !t.geplatscht && t.y < MASSE.DECK + 30) {
       t.geplatscht = true;
-      szene.ringe.push({ x: t.x, y: MASSE.hoehe - 16 - Math.random() * 8, radius: 0, deckkraft: 1 });
+      szene.ringe.push({ x: t.x, y: MASSE.HOEHE - 16 - Math.random() * 8, radius: 0, deckkraft: 1 });
     }
-    if (t.y > MASSE.hoehe + 14 || t.lebensdauer <= 0) szene.truemmer.splice(i, 1);
+    if (t.y > MASSE.HOEHE + 14 || t.lebt <= 0) szene.truemmer.splice(i, 1);
   }
 }
 
-function spritzerPhysik(welt, dt) {
-  const { szene } = welt;
+function spritzerFuehren(szene, dt) {
   for (let i = szene.spritzer.length - 1; i >= 0; i--) {
-    const s = szene.spritzer[i];
-    s.vy += 210 * dt;
-    s.x += s.vx * dt;
-    s.y += s.vy * dt;
-    s.lebensdauer -= dt;
-    if (s.y >= MASSE.planke - 1 && s.x > MASSE.klippe - 4 && s.x < MASSE.torRechts) {
-      lacheSetzen(welt, s.x, 2);
+    const p = szene.spritzer[i];
+    p.vy += 210 * dt;
+    p.x += p.vx * dt;
+    p.y += p.vy * dt;
+    p.lebt -= dt;
+    if (p.y >= MASSE.DECK - 1 && festerBoden(p.x)) {
+      lacheSetzen(szene, p.x, 2);
       szene.spritzer.splice(i, 1);
       continue;
     }
-    if (s.y > MASSE.hoehe + 6 || s.lebensdauer <= 0) szene.spritzer.splice(i, 1);
+    if (p.y > MASSE.HOEHE + 6 || p.lebt <= 0) szene.spritzer.splice(i, 1);
   }
 }
 
-function tropfenUndRinge(welt, dt) {
-  const { szene } = welt;
+/** Aus jeder Lache tropft es irgendwann in den Abgrund. */
+function lachenFuehren(szene, dt) {
   for (const lache of szene.lachen) {
-    lache.tropfRest -= dt;
-    if (lache.tropfRest <= 0 && szene.tropfen.length < 70) {
-      lache.tropfRest = 1.6 + Math.random() * 4.5;
+    lache.tropft -= dt;
+    if (lache.tropft <= 0 && szene.tropfen.length < 70) {
+      lache.tropft = 1.6 + Math.random() * 4.5;
       szene.tropfen.push({
         x: lache.x + (Math.random() * 4 - 2),
-        y: MASSE.planke + 6,
+        y: MASSE.DECK + 6,
         tempo: 12 + Math.random() * 14,
         deckkraft: 0.85
       });
@@ -505,47 +539,60 @@ function tropfenUndRinge(welt, dt) {
     t.tempo += 130 * dt;
     t.y += t.tempo * dt;
     if (t.y > 176) t.deckkraft -= dt * 1.6;
-    if (t.deckkraft <= 0 || t.y > MASSE.hoehe) szene.tropfen.splice(i, 1);
-  }
-  for (let i = szene.ringe.length - 1; i >= 0; i--) {
-    const ring = szene.ringe[i];
-    ring.radius += 16 * dt;
-    ring.deckkraft -= dt * 0.9;
-    if (ring.deckkraft <= 0) szene.ringe.splice(i, 1);
+    if (t.deckkraft <= 0 || t.y > MASSE.HOEHE) szene.tropfen.splice(i, 1);
   }
 }
 
-/* ---------------- Raben und Fledermäuse ---------------- */
+function kleinkramFuehren(szene, dt) {
+  for (let i = szene.ringe.length - 1; i >= 0; i--) {
+    const r = szene.ringe[i];
+    r.radius += 16 * dt;
+    r.deckkraft -= dt * 0.9;
+    if (r.deckkraft <= 0) szene.ringe.splice(i, 1);
+  }
+  for (let i = szene.zahlen.length - 1; i >= 0; i--) {
+    const z = szene.zahlen[i];
+    z.zeit += dt;
+    z.y -= 9 * dt;
+    if (z.zeit > 1.6) szene.zahlen.splice(i, 1);
+  }
+}
 
-function tiere(welt, dt) {
-  const { szene } = welt;
+/* ---------------- Kulisse ---------------- */
 
+function tiereFuehren(szene, dt) {
   for (const rabe of szene.raben) {
-    if (rabe.flugRest > 0) {
-      rabe.flugRest -= dt;
+    if (rabe.fliegt > 0) {
+      rabe.fliegt -= dt;
       rabe.x += rabe.vx * dt;
       rabe.y += rabe.vy * dt;
       rabe.vy += 24 * dt;
-      rabe.schlag += dt * 14;
-      if (rabe.flugRest <= 0) { rabe.y = 0; rabe.x = 132 + Math.random() * 150; }
+      rabe.fluegel += dt * 14;
+      if (rabe.fliegt <= 0) {
+        rabe.y = 0;
+        rabe.x = 132 + Math.random() * 150;
+      }
     } else {
-      rabe.huepfRest -= dt;
-      if (rabe.huepfRest <= 0) {
-        rabe.huepfRest = 2 + Math.random() * 6;
+      rabe.huepft -= dt;
+      if (rabe.huepft <= 0) {
+        rabe.huepft = 2 + Math.random() * 6;
         rabe.x = Math.max(126, Math.min(286, rabe.x + (Math.random() * 12 - 6)));
       }
     }
   }
 
-  szene.naechsteFledermaus -= dt;
-  if (!szene.fledermaeuse && szene.naechsteFledermaus <= 0) {
-    szene.naechsteFledermaus = 26 + Math.random() * 30;
+  // Fledermäuse gibt es nur nachts.
+  if (szene.sichtbarTag) { szene.fledermaeuse = null; return; }
+
+  szene.fledermausTakt -= dt;
+  if (!szene.fledermaeuse && szene.fledermausTakt <= 0) {
+    szene.fledermausTakt = 26 + Math.random() * 30;
     const anzahl = 5 + ((Math.random() * 5) | 0);
     const richtung = Math.random() < 0.5 ? 1 : -1;
     szene.fledermaeuse = { richtung, liste: [] };
     for (let i = 0; i < anzahl; i++) {
       szene.fledermaeuse.liste.push({
-        x: richtung > 0 ? -10 - i * 9 : MASSE.breite + 10 + i * 9,
+        x: richtung > 0 ? -10 - i * 9 : 490 + i * 9,
         y: 22 + Math.random() * 46,
         phase: Math.random() * 6.28,
         tempo: 44 + Math.random() * 20
@@ -553,13 +600,13 @@ function tiere(welt, dt) {
     }
   }
   if (szene.fledermaeuse) {
-    let nochDa = false;
+    let sichtbar = false;
     for (const f of szene.fledermaeuse.liste) {
       f.x += szene.fledermaeuse.richtung * f.tempo * dt;
       f.phase += dt * 11;
       f.y += Math.sin(f.phase * 0.4) * 7 * dt;
-      if (f.x > -20 && f.x < MASSE.breite + 20) nochDa = true;
+      if (f.x > -20 && f.x < 500) sichtbar = true;
     }
-    if (!nochDa) szene.fledermaeuse = null;
+    if (!sichtbar) szene.fledermaeuse = null;
   }
 }

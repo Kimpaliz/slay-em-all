@@ -1,48 +1,61 @@
-// Die fünf Reckenklassen. `ab` ist die Zahl der Erledigten, ab der die Klasse
-// im Tal auftaucht. `blut`/`knochen`/`schrott` ist die Beute pro Stück, vor
-// allen Ausbauten. Die Farbfelder gehören zum Aussehen, nicht zur Rechnung.
+// Die fünf Reckenklassen.
 //
-// **Blut wird in Litern gerechnet.** Ein Mensch trägt rund fünf davon mit
-// sich — daher der Bauer. Dass ein Großmeister das Sechsunddreißigfache
-// hergibt, liegt nicht an seinem Kreislauf, sondern an der Gründlichkeit
-// des Hauses.
+// `abWelle` ist die Welle, ab der eine Klasse überhaupt erscheinen kann —
+// der „Edle Köder" beim Hortdrachling zieht diese Grenze nach vorn.
+//
+// `lp` sind Lebenspunkte und zugleich die Verdauzeit: Das Monster frisst
+// mit einer Grundgeschwindigkeit von 1 LP je Sekunde. Ein Großmeister
+// blockiert also 16 Sekunden lang einen Platz in der Burg — das ist der
+// eigentliche Grund, warum Kapazität so wertvoll ist.
+//
+// Die Farbfelder beschreiben die Pixelfigur: Rumpf, Arme, Stiefel, Haut,
+// Kopf (ohne Helm), Metall (Waffe und Helm), dazu Schild und Umhang für
+// die höheren Ränge.
 
 export const RECKEN = [
   {
-    id: 'bauer', name: 'Bauer', ab: 0,
-    hoehe: 11, tempo: 20,
-    blut: 5, knochen: 1, schrott: 0,
-    koerper: '#5e5138', arm: '#6d5f42', stiefel: '#33291f', haut: '#c39066',
-    kopf: '#a9873f', metall: '#8a8f9f', farbe: '#6d5f42', helm: false
+    id: 'bauer', name: 'Bauer', abWelle: 1,
+    hoehe: 11, tempo: 20, lp: 2,
+    blut: 3, gold: 1, schrott: 0.4,
+    rumpf: '#5e5138', arm: '#6d5f42', stiefel: '#33291f',
+    haut: '#c39066', kopf: '#a9873f', metall: '#8a8f9f', helm: false
   },
   {
-    id: 'soeldner', name: 'Söldner', ab: 30,
-    hoehe: 12, tempo: 24,
-    blut: 8, knochen: 1, schrott: 1,
-    koerper: '#523f2d', arm: '#634c37', stiefel: '#2d241b', haut: '#b07f57',
-    kopf: '#2f2a24', metall: '#949aab', farbe: '#634c37', helm: false
+    id: 'soeldner', name: 'Söldner', abWelle: 3,
+    hoehe: 12, tempo: 24, lp: 4,
+    blut: 8, gold: 2, schrott: 1,
+    rumpf: '#523f2d', arm: '#634c37', stiefel: '#2d241b',
+    haut: '#b07f57', kopf: '#2f2a24', metall: '#949aab', helm: false
   },
   {
-    id: 'ritter', name: 'Ritter', ab: 400,
-    hoehe: 14, tempo: 17,
-    blut: 24, knochen: 2, schrott: 4,
-    koerper: '#5f6474', arm: '#787d8e', stiefel: '#3d404c', haut: '#c39066',
-    metall: '#949aaa', farbe: '#8b90a2', helm: true, schild: '#4d4380'
+    id: 'ritter', name: 'Ritter', abWelle: 7,
+    hoehe: 14, tempo: 17, lp: 7,
+    blut: 22, gold: 5, schrott: 3,
+    rumpf: '#5f6474', arm: '#787d8e', stiefel: '#3d404c',
+    haut: '#c39066', kopf: null, metall: '#949aaa', helm: true,
+    schild: '#4d4380'
   },
   {
-    id: 'paladin', name: 'Paladin', ab: 5000,
-    hoehe: 16, tempo: 14,
-    blut: 68, knochen: 3, schrott: 9,
-    koerper: '#7d8394', arm: '#969cad', stiefel: '#4c5060', haut: '#c39066',
-    metall: '#b0b6c6', farbe: '#aab0c0', helm: true, schild: '#6558ab', umhang: '#584c96'
+    id: 'paladin', name: 'Paladin', abWelle: 12,
+    hoehe: 16, tempo: 14, lp: 11,
+    blut: 55, gold: 9, schrott: 7,
+    rumpf: '#7d8394', arm: '#969cad', stiefel: '#4c5060',
+    haut: '#c39066', kopf: null, metall: '#b0b6c6', helm: true,
+    schild: '#6558ab', umhang: '#584c96'
   },
   {
-    id: 'meister', name: 'Großmeister', ab: 50000,
-    hoehe: 18, tempo: 12,
-    blut: 180, knochen: 4, schrott: 18,
-    koerper: '#9aa0b0', arm: '#b4bac9', stiefel: '#5b5f6e', haut: '#c39066',
-    metall: '#ccd2e0', farbe: '#c6ccda', helm: true, schild: '#8f81d6', umhang: '#7264bb'
+    id: 'meister', name: 'Großmeister', abWelle: 18,
+    hoehe: 18, tempo: 12, lp: 16,
+    blut: 140, gold: 16, schrott: 14,
+    rumpf: '#9aa0b0', arm: '#b4bac9', stiefel: '#5b5f6e',
+    haut: '#c39066', kopf: null, metall: '#ccd2e0', helm: true,
+    schild: '#8f81d6', umhang: '#7264bb'
   }
 ];
 
-export const RECKEN_NACH_ID = Object.fromEntries(RECKEN.map((r) => [r.id, r]));
+/** Leerer Zähler je Klasse — an mehreren Stellen gebraucht. */
+export function proKlasseLeer() {
+  const o = {};
+  for (const r of RECKEN) o[r.id] = 0;
+  return o;
+}

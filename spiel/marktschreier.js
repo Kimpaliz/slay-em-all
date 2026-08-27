@@ -1,54 +1,77 @@
-// Das Laufband unter dem Bild. Drei Textfelder wandern nach links; sobald
-// eines links hinausgeschoben ist, bekommt es den nächsten Spruch und setzt
-// sich rechts wieder an. Dadurch reichen drei Elemente für endlosen Text.
+// Das Laufband unter der Szene.
+//
+// Drei Textfelder wandern von rechts nach links. Ist eines links aus dem
+// Bild gelaufen, bekommt es die nächste Zeile und wird hinter dem
+// derzeit rechtesten wieder eingesetzt. So entsteht ein endloses Band
+// aus drei Elementen, ohne dass ständig neue erzeugt werden.
+//
+// Warum nicht mit CSS-Animation: Die Zeilen sind unterschiedlich lang,
+// und es soll kein Loch und keine Überlappung geben. Das lässt sich nur
+// rechnen, wenn man die tatsächliche Breite jedes Textes kennt — und die
+// steht erst fest, nachdem er im Dokument steht.
 
-import { FUELLSPRUECHE } from './daten/texte.js';
+import { FUELLER, ausListe } from './daten/texte.js';
 
-const ABSTAND = 70;
+/** Abstand zwischen zwei Zeilen, in Bildpunkten. */
+const LUECKE = 70;
+
+/**
+ * Eine Zeile für das Laufband vormerken.
+ *
+ * Gedrosselt: höchstens alle 0,8 Sekunden eine, und nie mehr als 14 in
+ * der Warteschlange. Bei einer großen Welle sterben sonst so viele
+ * Recken gleichzeitig, dass das Band die Kommentare nie aufholen könnte
+ * und Minuten hinterherliefe.
+ */
+export function melden(szene, zeile) {
+  if (szene.zeit - szene.letzterSpruch <= 0.8) return;
+  if (szene.spruchQueue.length >= 14) return;
+  szene.letzterSpruch = szene.zeit;
+  szene.spruchQueue.push(zeile);
+}
+
+/** Nächste Zeile — aus der Warteschlange, sonst ein Füller. */
+function naechsteZeile(szene) {
+  return szene.spruchQueue.length ? szene.spruchQueue.shift() : ausListe(FUELLER);
+}
 
 export function marktschreierAnlegen(rahmen, felder) {
-  let bahnen = null;
+  if (!rahmen || !felder || felder.some((f) => !f)) return null;
+  let plaetze = null;
 
-  function naechsterSpruch(szene) {
-    if (szene.spruchSchlange.length) return szene.spruchSchlange.shift();
-    return FUELLSPRUECHE[(Math.random() * FUELLSPRUECHE.length) | 0];
-  }
-
-  function schritt(welt, dt) {
-    if (!rahmen || felder.some((f) => !f)) return;
-
-    if (!bahnen) {
-      let x = rahmen.offsetWidth;
-      bahnen = felder.map((el) => {
-        const breite = el.offsetWidth;
-        const bahn = { el, x, breite };
-        x += breite + ABSTAND;
-        return bahn;
-      });
-    }
-
-    // Je weiter das Haus ist, desto hektischer der Ausrufer.
-    const tempo = Math.min(104, 46 + welt.zustand.kaeufe * 1.8);
-    for (const bahn of bahnen) bahn.x -= tempo * dt;
-
-    let rechtester = -1e9;
-    for (const bahn of bahnen) {
-      if (bahn.x + bahn.breite >= -30) rechtester = Math.max(rechtester, bahn.x + bahn.breite);
-    }
-
-    for (const bahn of bahnen) {
-      if (bahn.x + bahn.breite < -30) {
-        bahn.el.firstElementChild.textContent = naechsterSpruch(welt.szene);
-        bahn.breite = bahn.el.offsetWidth;
-        bahn.x = Math.max(rechtester + ABSTAND, rahmen.offsetWidth * 0.35);
-        rechtester = bahn.x + bahn.breite;
+  return {
+    /** Ein Bildschritt. `welle` bestimmt das Tempo. */
+    schritt(szene, dt, welle) {
+      if (!rahmen.isConnected) { plaetze = null; return; }
+      if (!plaetze) {
+        let x = rahmen.offsetWidth;
+        plaetze = felder.map((el) => {
+          const breite = el.offsetWidth;
+          const platz = { el, x, breite };
+          x += breite + LUECKE;
+          return platz;
+        });
       }
-      bahn.el.style.transform = 'translate(' + Math.round(bahn.x) + 'px,-50%)';
-    }
-  }
 
-  /** Nach einer Größenänderung neu einmessen. */
-  function neuEinmessen() { bahnen = null; }
+      const tempo = Math.min(104, 46 + welle * 2);
+      for (const p of plaetze) p.x -= tempo * dt;
 
-  return { schritt, neuEinmessen };
+      let rechtester = -1e9;
+      for (const p of plaetze) {
+        if (p.x + p.breite >= -30) rechtester = Math.max(rechtester, p.x + p.breite);
+      }
+      for (const p of plaetze) {
+        if (p.x + p.breite < -30) {
+          p.el.firstElementChild.textContent = naechsteZeile(szene);
+          p.breite = p.el.offsetWidth;
+          p.x = Math.max(rechtester + LUECKE, rahmen.offsetWidth * 0.35);
+          rechtester = p.x + p.breite;
+        }
+        p.el.style.transform = 'translate(' + Math.round(p.x) + 'px,-50%)';
+      }
+    },
+
+    /** Nach einem Wechsel der Bildschirmbreite neu ausmessen. */
+    neuAusmessen() { plaetze = null; }
+  };
 }

@@ -1,296 +1,392 @@
-// Schreibt den Weltzustand in die Seite und nimmt Klicks entgegen.
+// Die Brücke zwischen Spielzustand und Bedienoberfläche.
 //
-// Die Seite markiert ihre Stellen mit `data-feld="..."`. Diese Datei kennt
-// keine Rechnung und keine Simulation; sie liest ab, schreibt hin und
-// meldet Klicks nach oben weiter.
+// Zwei getrennte Aufgaben, mit Absicht getrennt gehalten:
+//
+//   `aufbauen()`  erzeugt die Knöpfe einmal aus den Datentabellen. Wer
+//                 eine Ware ergänzt, ergänzt sie in `wirtschaft.mjs` —
+//                 im HTML steht nur die leere Liste.
+//   `auffrischen()` schreibt Zahlen und Zustände in die vorhandenen
+//                 Elemente. Es erzeugt nichts und wirft nichts weg,
+//                 sonst verlöre ein gerade gedrückter Knopf den Fokus.
+//
+// Geschrieben wird nur, was sich geändert hat. Bei 60 Bildern je Sekunde
+// wäre blindes Setzen von `textContent` messbar teuer — und der Browser
+// würde jedes Mal neu umbrechen.
 
-import { RECKEN } from './daten/recken.js';
-import { AUSBAUTEN, DAUERHAFT } from './daten/ausbauten.js';
-import { tagesStand } from './tageslauf.js';
 import {
-  raten, torLeistung, einnahmen, engpass, preis, dauerhaftPreis,
-  kannKaufen, kannDauerhaftKaufen, schaedelFuer, knochenBisSchaedel,
-  darfNeuAnfangen, zahl, dauer, blutVergleich
+  WAREN_GROMMSCH, WAREN_PIPS, ZAUBER, RITUAL_PREIS,
+  werte as werteAus, wellenStaerke, zauberWerte, ausbauPreis, zahl
 } from '../werkzeuge/wirtschaft.mjs';
+import { ACHSEN, wareZustand } from './handel.js';
+import { symbolZeichnen } from './portraets.js';
+import { RITUAL_WARTEZEIT } from './wellen.js';
 
-const WAEHRUNGSNAME = { blut: 'L', schrott: 'Schrott', knochen: 'Knochen' };
+/** Ab dieser Breite gilt die Seite als schmal. */
+const SCHMAL_BREITE = 820;
+const SCHMAL_HOEHE = 640;
 
-export function anzeigeAnlegen(wurzel = document, taten = {}) {
-  const felder = new Map();
-  for (const el of wurzel.querySelectorAll('[data-feld]')) felder.set(el.dataset.feld, el);
+export function anzeigeAnlegen(wurzel, rueckrufe) {
+  const feld = {};
+  for (const el of wurzel.querySelectorAll('[data-feld]')) feld[el.dataset.feld] = el;
 
-  const bestiarZeilen = zeilenAnlegen(wurzel.querySelector('[data-liste="bestiarium"]'));
-  // Blut kauft man am Tor, Schrott in der Schatzkammer — zwei Listen,
-  // aber dieselben Zeilen, damit das Aktualisieren einfach bleibt.
-  const ausbauZeilen = [
-    ...ausbautenAnlegen(wurzel.querySelector('[data-liste="blut-ausbauten"]'), taten.kaufen, 'blut'),
-    ...ausbautenAnlegen(wurzel.querySelector('[data-liste="schrott-ausbauten"]'), taten.kaufen, 'schrott')
-  ];
-  const dauerZeilen = dauerhaftAnlegen(wurzel.querySelector('[data-liste="dauerhaft"]'), taten.dauerhaftKaufen);
+  const listen = {};
+  for (const el of wurzel.querySelectorAll('[data-liste]')) listen[el.dataset.liste] = el;
 
-  const tagesleiste = wurzel.querySelector('.tagesleiste');
-  const phasenBalken = wurzel.querySelector('[data-balken="phase"]');
-  const neuanfangKnopf = wurzel.querySelector('[data-tat="neuanfang"]');
-  if (neuanfangKnopf && taten.neuanfang) {
-    neuanfangKnopf.addEventListener('click', () => taten.neuanfang());
-  }
+  const knoepfe = {};
+  for (const el of wurzel.querySelectorAll('[data-knopf]')) knoepfe[el.dataset.knopf] = el;
 
-  /** Setzt Text nur, wenn er sich geändert hat — spart Layoutarbeit. */
-  function setze(name, text) {
-    const el = felder.get(name);
-    if (el && el.textContent !== text) el.textContent = text;
-  }
+  const seiten = wurzel.querySelector('[data-seiten]');
+  const reiterKnoepfe = [...wurzel.querySelectorAll('[data-reiterknopf]')];
 
-  function zeichnen(welt) {
-    const z = welt.zustand;
-    const r = raten(z.stufen, z.dauerhaft);
-    const stand = tagesStand(welt.szene.zeit);
-    const proSekunde = einnahmen(z.erledigte, z.stufen, z.dauerhaft, stand.tag);
+  const letzte = {};
+  let zauberLeisteStand = '';
+  let neustartScharf = false;
+  let neustartUhr = null;
 
-    waehrungen(z, proSekunde);
-    tagUndNacht(welt, stand, r);
-    torbetrieb(welt, z, r, stand, proSekunde);
-    bestiarium(z, r);
-    ausbauten(z, stand);
-    neuanfang(z);
-  }
+  /* ---------- Aufbau ---------- */
 
-  /* ---------------- Kopfzeile ---------------- */
+  const warenZeilen = { grommsch: [], pips: [] };
 
-  function waehrungen(z, proSekunde) {
-    setze('blut', zahl(z.blut));
-    setze('blutVergleich', blutVergleich(z.blut));
-    setze('knochen', zahl(z.knochen));
-    setze('schrott', zahl(z.schrott));
-    setze('schrottKammer', zahl(z.schrott));
-    setze('knochenKammer', zahl(z.knochen));
+  function warenAufbauen(name, waren, kaufen) {
+    const liste = listen[name];
+    if (!liste) return;
+    liste.textContent = '';
+    for (const ware of waren) {
+      const li = document.createElement('li');
+      li.className = 'ware';
 
-    const bis = knochenBisSchaedel(z.knochen);
-    setze('knochenHinweis', `noch ${zahl(bis)} bis zum nächsten Schädel`);
-    setze('schrottHinweis', proSekunde.schrott > 0
-      ? `${zahl(proSekunde.schrott)} je Sekunde im Mittel`
-      : 'kommt von Söldnern aufwärts');
-  }
+      const text = document.createElement('div');
+      text.className = 'ware-text';
+      const titel = document.createElement('div');
+      titel.className = 'ware-name';
+      titel.textContent = ware.name;
+      const unter = document.createElement('div');
+      unter.className = 'ware-beschreibung';
+      unter.textContent = ware.text;
+      text.append(titel, unter);
 
-  /* ---------------- Tagesleiste ---------------- */
+      const knopf = document.createElement('button');
+      knopf.type = 'button';
+      knopf.className = 'ware-knopf';
+      knopf.addEventListener('click', () => kaufen(ware.k));
 
-  function tagUndNacht(welt, stand, r) {
-    setze('tagZahl', 'Tag ' + stand.tag);
-    setze('phase', stand.istTag
-      ? 'Tag — die Wellen kommen'
-      : 'Nacht — abtragen und einkaufen');
-    setze('phaseRest', 'noch ' + dauer(stand.restSekunden));
-    if (tagesleiste) tagesleiste.dataset.phase = stand.phase;
-    if (phasenBalken) phasenBalken.style.width = (stand.fortschritt * 100).toFixed(1) + '%';
-
-    const haufen = welt.szene.haufen;
-    setze('haufenStand', `Beutehaufen: ${zahl(haufen.stueck)} / ${zahl(r.lagerplatz)} Stück`);
-
-    const verloren = Math.round(welt.szene.verlorenHeute);
-    setze('haufenWarnung', verloren > 0
-      ? `${zahl(verloren)} in den Graben gefallen — mehr Kobolde!`
-      : (stand.istTag ? '' : `wird abgetragen: ${zahl(r.ernteTempo)} Stück je Sekunde`));
-  }
-
-  /* ---------------- Torbetrieb ---------------- */
-
-  function torbetrieb(welt, z, r, stand, proSekunde) {
-    setze('reckenProMinute', zahl(proSekunde.erledigte * 60));
-    setze('blutProSekunde', zahl(proSekunde.blut));
-    setze('verweildauer', (Math.round(r.verweildauer * 100) / 100).toFixed(2).replace('.', ',') + ' s');
-    setze('erledigte', zahl(z.erledigte));
-    setze('imTor', welt.szene.imTor.length + ' / ' + r.torplaetze);
-    setze('aufBruecke', String(welt.szene.recken.length));
-
-    const eng = engpass(z.stufen, z.dauerhaft);
-    setze('engpass', eng === 'tor'
-      ? `Das Tor bremst: es schafft ${zahl(torLeistung(z.stufen, z.dauerhaft))} Recken je Sekunde. Mehr Plätze oder schärfere Klingen helfen.`
-      : 'Es kommen zu wenige. Lockrufe helfen.');
-  }
-
-  /* ---------------- Bestiarium ---------------- */
-
-  function bestiarium(z, r) {
-    for (const zeile of bestiarZeilen) {
-      const frei = z.erledigte >= zeile.klasse.ab;
-      zeile.wurzel.style.opacity = frei ? '1' : '0.45';
-      zeile.name.textContent = frei ? zeile.klasse.name : '???';
-      zeile.punkt.style.background = frei ? zeile.klasse.farbe : '#2b2d38';
-      zeile.erledigt.textContent = frei ? zahl(z.proKlasse[zeile.klasse.id] || 0) : '—';
-      zeile.blut.textContent = frei ? zahl(zeile.klasse.blut * r.beute) : '—';
+      li.append(text, knopf);
+      liste.append(li);
+      warenZeilen[name].push({ ware, titel, knopf });
     }
   }
 
-  /* ---------------- Ausbauten ---------------- */
+  const zauberZeilen = [];
 
-  function ausbauten(z, stand) {
-    const offen = !stand.istTag;
-    const zu = 'Das Haus handelt nur bei Dunkelheit. Noch ' + dauer(stand.restSekunden) + '.';
-    setze('kaufHinweis', offen ? 'Es ist Nacht. Das Haus handelt.' : zu);
-    setze('schrottHinweisKammer', offen
-      ? 'Grutz ist wach und handelt.'
-      : 'Grutz schläft bei Tageslicht. Noch ' + dauer(stand.restSekunden) + '.');
-    setze('grutzRede', grutzSagt(z, offen));
-    setze('letzterKauf', z.letzterKauf);
+  function zauberAufbauen() {
+    const liste = listen.malvina;
+    if (!liste) return;
+    liste.textContent = '';
 
-    for (const zeile of ausbauZeilen) {
-      const stufe = z.stufen[zeile.ausbau.id] || 0;
-      const kosten = preis(zeile.ausbau.id, stufe);
-      const bezahlbar = kannKaufen(z, zeile.ausbau.id);
+    for (const z of ZAUBER) {
+      const li = document.createElement('li');
+      li.className = 'ware ware-zauber';
 
-      zeile.stufe.textContent = 'Stufe ' + stufe;
-      zeile.preis.textContent = zahl(kosten) + ' ' + WAEHRUNGSNAME[zeile.ausbau.waehrung];
-      zeile.knopf.disabled = !offen || !bezahlbar;
-      zeile.knopf.classList.toggle('bezahlbar', offen && bezahlbar);
+      const kopf = document.createElement('div');
+      kopf.className = 'ware-kopf';
+      const text = document.createElement('div');
+      text.className = 'ware-text';
+      const titel = document.createElement('div');
+      titel.className = 'ware-name';
+      titel.textContent = z.name;
+      const unter = document.createElement('div');
+      unter.className = 'ware-beschreibung';
+      text.append(titel, unter);
+
+      const knopf = document.createElement('button');
+      knopf.type = 'button';
+      knopf.className = 'ware-knopf';
+      knopf.addEventListener('click', () => rueckrufe.zauberLernen(z.k));
+      kopf.append(text, knopf);
+
+      const achsen = document.createElement('div');
+      achsen.className = 'achsen';
+      const achsKnoepfe = ACHSEN.map((a) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'achse';
+        b.addEventListener('click', () => rueckrufe.zauberVerbessern(z.k, a.k));
+        achsen.append(b);
+        return { achse: a, knopf: b };
+      });
+
+      li.append(kopf, achsen);
+      liste.append(li);
+      zauberZeilen.push({ zauber: z, unter, knopf, achsen, achsKnoepfe });
     }
-  }
 
-  /* ---------------- Neuanfang ---------------- */
-
-  function neuanfang(z) {
-    const gewinn = schaedelFuer(z.knochen);
-    const moeglich = darfNeuAnfangen(z);
-    setze('neuanfangSchaedel', zahl(gewinn));
-    setze('schaedel', zahl(z.schaedel));
-    setze('neuanfangText', moeglich
-      ? `Der Haufen gibt ${zahl(gewinn)} Schädel her. Abtragen setzt Blut, Schrott und alle Ausbauten zurück — Schädel und alles darunter Gekaufte bleiben.`
-      : `Noch ${zahl(knochenBisSchaedel(z.knochen))} Knochen bis zum ersten Schädel dieser Runde.`);
-    if (neuanfangKnopf) {
-      neuanfangKnopf.disabled = !moeglich;
-      neuanfangKnopf.classList.toggle('bezahlbar', moeglich);
-    }
-
-    for (const zeile of dauerZeilen) {
-      const stufe = z.dauerhaft[zeile.eintrag.id] || 0;
-      const kosten = dauerhaftPreis(zeile.eintrag.id, stufe);
-      const voll = !isFinite(kosten);
-      zeile.stufe.textContent = 'Stufe ' + stufe;
-      zeile.preis.textContent = voll ? 'ausgebaut' : zahl(kosten) + ' Schädel';
-      zeile.knopf.disabled = voll || !kannDauerhaftKaufen(z, zeile.eintrag.id);
-      zeile.knopf.classList.toggle('bezahlbar', !zeile.knopf.disabled);
-    }
-  }
-
-  return { zeichnen };
-}
-
-/**
- * Was Grutz gerade zu sagen hat.
- * Er kommentiert die Lage, statt immer dasselbe zu sagen — das ist der
- * billigste Weg, einer stehenden Figur Leben einzuhauchen.
- */
-function grutzSagt(z, offen) {
-  if (!offen) {
-    return '„Bei Tageslicht wird nicht gehandelt. Komm wieder, wenn die ' +
-      'Fackeln brennen — dann sortiere ich, was oben heruntergefallen ist."';
-  }
-  if (z.schrott < 8) {
-    return '„Nichts da. Gar nichts. Bauern tragen kein Eisen, und Zähne ' +
-      'nehme ich nicht in Zahlung. Warte auf die mit den Rüstungen."';
-  }
-  if (z.schaedel > 0) {
-    return `„${Math.round(z.schaedel)} Schädel im Keller, und du stehst hier ` +
-      'herum. Die werden nicht mehr wert, weißt du."';
-  }
-  if (z.knochen > 60) {
-    return '„Der Haufen an der Mauer wird hoch. Irgendwann trägt der ' +
-      'Hausherr ihn ab, und dann bleibt etwas davon übrig. Etwas Dauerhaftes."';
-  }
-  return '„Runter die Treppe, Vorsicht, Kopf. Was der Hausherr auswringt, ' +
-    'sortiere ich. Eisen bleibt Eisen. Sag an, was du brauchst."';
-}
-
-/* ---------------- Listen einmalig aufbauen ---------------- */
-
-function zeilenAnlegen(koerper) {
-  if (!koerper) return [];
-  koerper.textContent = '';
-  return RECKEN.map((klasse) => {
-    const tr = document.createElement('tr');
-
-    const tdName = document.createElement('td');
-    const huelle = document.createElement('span');
-    huelle.className = 'zelle-name';
-    const punkt = document.createElement('span');
-    punkt.className = 'klassenpunkt';
-    const name = document.createElement('span');
-    huelle.append(punkt, name);
-    tdName.append(huelle);
-
-    const tdErledigt = document.createElement('td');
-    tdErledigt.className = 'zelle-zahl';
-    const tdBlut = document.createElement('td');
-    tdBlut.className = 'zelle-zahl zelle-blut';
-
-    tr.append(tdName, tdErledigt, tdBlut);
-    koerper.append(tr);
-    return { klasse, wurzel: tr, punkt, name, erledigt: tdErledigt, blut: tdBlut };
-  });
-}
-
-function ausbautenAnlegen(liste, beiKauf, waehrung) {
-  if (!liste) return [];
-  liste.textContent = '';
-  return AUSBAUTEN.filter((a) => !waehrung || a.waehrung === waehrung).map((ausbau) => {
+    // Das Morgenritual steht bei Malvina, ist aber kein Zauber mit Achsen.
+    const li = document.createElement('li');
+    li.className = 'ware';
+    const text = document.createElement('div');
+    text.className = 'ware-text';
+    const titel = document.createElement('div');
+    titel.className = 'ware-name';
+    titel.textContent = 'Morgenritual';
+    const unter = document.createElement('div');
+    unter.className = 'ware-beschreibung';
+    text.append(titel, unter);
     const knopf = document.createElement('button');
     knopf.type = 'button';
-    knopf.className = 'knopf ausbau';
-    knopf.dataset.waehrung = ausbau.waehrung;
+    knopf.className = 'ware-knopf';
+    knopf.addEventListener('click', () => rueckrufe.ritual());
+    li.append(text, knopf);
+    listen.malvina.append(li);
+    zauberZeilen.ritual = { unter, knopf };
+  }
 
-    const text = document.createElement('span');
-    text.className = 'ausbau-text';
-    const name = document.createElement('span');
-    name.className = 'ausbau-name';
-    name.textContent = ausbau.name;
-    const beschreibung = document.createElement('span');
-    beschreibung.className = 'ausbau-wirkung';
-    beschreibung.textContent = ausbau.beschreibung;
-    text.append(name, beschreibung);
+  warenAufbauen('grommsch', WAREN_GROMMSCH, (k) => rueckrufe.kaufGrommsch(k));
+  warenAufbauen('pips', WAREN_PIPS, (k) => rueckrufe.kaufPips(k));
+  zauberAufbauen();
 
-    const rechts = document.createElement('span');
-    rechts.className = 'ausbau-rechts';
-    const preisEl = document.createElement('span');
-    preisEl.className = 'ausbau-preis';
-    const stufe = document.createElement('span');
-    stufe.className = 'ausbau-stufe';
-    rechts.append(preisEl, stufe);
+  /* ---------- Knöpfe ---------- */
 
-    knopf.append(text, rechts);
-    if (beiKauf) knopf.addEventListener('click', () => beiKauf(ausbau.id));
-    liste.append(knopf);
-    return { ausbau, knopf, preis: preisEl, stufe };
+  if (knoepfe.welle) knoepfe.welle.addEventListener('click', () => rueckrufe.welleStarten());
+  if (knoepfe.neustart) {
+    knoepfe.neustart.addEventListener('click', () => {
+      if (neustartScharf) {
+        clearTimeout(neustartUhr);
+        neustartScharf = false;
+        knoepfe.neustart.textContent = 'Neustart';
+        knoepfe.neustart.classList.remove('scharf');
+        rueckrufe.neustart();
+        return;
+      }
+      // Zweistufig, weil ein versehentlicher Klick alles kostet.
+      neustartScharf = true;
+      knoepfe.neustart.textContent = 'Wirklich?';
+      knoepfe.neustart.classList.add('scharf');
+      neustartUhr = setTimeout(() => {
+        neustartScharf = false;
+        knoepfe.neustart.textContent = 'Neustart';
+        knoepfe.neustart.classList.remove('scharf');
+      }, 3000);
+    });
+  }
+
+  reiterKnoepfe.forEach((b) => {
+    b.addEventListener('click', () => seiteZeigen(Number(b.dataset.reiterknopf)));
   });
-}
 
-function dauerhaftAnlegen(liste, beiKauf) {
-  if (!liste) return [];
-  liste.textContent = '';
-  return DAUERHAFT.map((eintrag) => {
-    const knopf = document.createElement('button');
-    knopf.type = 'button';
-    knopf.className = 'knopf ausbau ausbau-dauerhaft';
+  function seiteZeigen(i) {
+    if (!seiten) return;
+    seiten.scrollTo({ left: i * seiten.clientWidth, behavior: 'smooth' });
+    reiterKnoepfe.forEach((b, j) => b.classList.toggle('aktiv', i === j));
+  }
 
-    const text = document.createElement('span');
-    text.className = 'ausbau-text';
-    const name = document.createElement('span');
-    name.className = 'ausbau-name';
-    name.textContent = eintrag.name;
-    const beschreibung = document.createElement('span');
-    beschreibung.className = 'ausbau-wirkung';
-    beschreibung.textContent = eintrag.beschreibung;
-    text.append(name, beschreibung);
+  if (seiten) {
+    seiten.addEventListener('scroll', () => {
+      const i = seiten.scrollLeft > seiten.clientWidth * 0.4 ? 1 : 0;
+      reiterKnoepfe.forEach((b, j) => b.classList.toggle('aktiv', i === j));
+    }, { passive: true });
+  }
 
-    const rechts = document.createElement('span');
-    rechts.className = 'ausbau-rechts';
-    const preisEl = document.createElement('span');
-    preisEl.className = 'ausbau-preis';
-    const stufe = document.createElement('span');
-    stufe.className = 'ausbau-stufe';
-    rechts.append(preisEl, stufe);
+  /* ---------- Auffrischen ---------- */
 
-    knopf.append(text, rechts);
-    if (beiKauf) knopf.addEventListener('click', () => beiKauf(eintrag.id));
-    liste.append(knopf);
-    return { eintrag, knopf, preis: preisEl, stufe };
-  });
+  function setzen(name, wert) {
+    if (letzte[name] === wert) return;
+    letzte[name] = wert;
+    if (feld[name]) feld[name].textContent = wert;
+  }
+
+  function zauberLeisteAufbauen(zustand) {
+    const leiste = listen.zauber;
+    if (!leiste) return;
+    leiste.textContent = '';
+    for (const z of ZAUBER) {
+      if (zustand.zauber[z.k].gelernt < 1) continue;
+      const knopf = document.createElement('button');
+      knopf.type = 'button';
+      knopf.className = 'zauberknopf';
+      knopf.dataset.zauber = z.k;
+      knopf.title = z.name + ' (Taste ' + z.taste + ') — ' + z.lang;
+
+      const symbol = document.createElement('canvas');
+      symbol.width = 16;
+      symbol.height = 16;
+      symbol.className = 'zaubersymbol';
+      symbolZeichnen(symbol, z.k);
+
+      const decke = document.createElement('span');
+      decke.className = 'zauberdecke';
+      const taste = document.createElement('span');
+      taste.className = 'zaubertaste';
+      taste.textContent = z.taste;
+
+      knopf.append(symbol, decke, taste);
+      knopf.addEventListener('click', () => rueckrufe.zauberAusloesen(z.k));
+      leiste.append(knopf);
+    }
+  }
+
+  return {
+    /** Wird jeden Bildschritt aufgerufen, schreibt aber nur Geändertes. */
+    auffrischen(welt) {
+      const { zustand, szene } = welt;
+      const w = werteAus(zustand.stufenG, zustand.stufenP);
+
+      setzen('blut', zahl(zustand.blut));
+      setzen('gold', zahl(zustand.gold));
+      setzen('schrott', zahl(zustand.schrott));
+      setzen('welle', 'Welle ' + zustand.welle);
+
+      // Phase und Lagebericht
+      let phase;
+      let lage;
+      let wellenText;
+      let wellenAus = true;
+      const uebrig = Math.max(0, szene.wellenGroesse - szene.erschienen)
+        + szene.recken.filter((r) => r.zustand !== 'flieht').length;
+
+      if (szene.phase === 'tag') {
+        phase = 'Tag — Welle ' + zustand.welle;
+        lage = 'Noch ' + uebrig + ' Recken · Burg ' + szene.imTor.length + '/' + w.kapazitaet;
+        wellenText = 'Welle läuft…';
+      } else if (szene.phase === 'niederlage') {
+        phase = 'Die Burg fällt';
+        lage = 'Rückzug der Recken …';
+        wellenText = 'Welle läuft…';
+      } else {
+        phase = 'Nacht — Lager';
+        lage = 'Bereit: ' + wellenStaerke(zustand.welle, zustand.stufenP.lockruf)
+          + ' Recken · Burg fasst ' + w.kapazitaet;
+        const ritualLaeuft = zustand.ritual >= 1 && zustand.ritualAn;
+        const rest = Math.max(0, Math.ceil(RITUAL_WARTEZEIT - szene.nachtzeit));
+        wellenText = 'Welle ' + zustand.welle + ' starten' + (ritualLaeuft ? ' (' + rest + ' s)' : '');
+        wellenAus = false;
+      }
+      setzen('phase', phase);
+      setzen('lage', lage);
+      setzen('wellenknopf', wellenText);
+      if (knoepfe.welle) {
+        if (knoepfe.welle.textContent !== wellenText) knoepfe.welle.textContent = wellenText;
+        knoepfe.welle.disabled = wellenAus;
+      }
+
+      setzen('spruchGrommsch', '»' + welt.sprueche.grommsch + '«');
+      setzen('spruchPips', '»' + welt.sprueche.pips + '«');
+      setzen('spruchMalvina', '»' + welt.sprueche.malvina + '«');
+
+      warenAuffrischen('grommsch', zustand.stufenG, zustand.schrott);
+      warenAuffrischen('pips', zustand.stufenP, zustand.gold);
+      zauberAuffrischen(zustand);
+
+      // Die Aktionsleiste wird nur neu gebaut, wenn ein Zauber dazukommt.
+      const stand = ZAUBER.map((z) => zustand.zauber[z.k].gelernt).join('');
+      if (stand !== zauberLeisteStand) {
+        zauberLeisteStand = stand;
+        zauberLeisteAufbauen(zustand);
+      }
+      zauberLeisteAuffrischen(welt, w);
+
+      if (feld.zauberHinweis) {
+        const zeigen = zauberLeisteStand.indexOf('1') < 0;
+        feld.zauberHinweis.hidden = !zeigen;
+      }
+    },
+
+    /** Schmale Bildschirme bekommen zwei Wischseiten. */
+    breiteMessen() {
+      const breite = window.innerWidth || 1200;
+      const hoehe = window.innerHeight || 800;
+      const schmal = breite < SCHMAL_BREITE || (hoehe < SCHMAL_HOEHE && breite < 1180);
+      wurzel.classList.toggle('schmal', schmal);
+      return schmal;
+    }
+  };
+
+  function warenAuffrischen(name, stufen, waehrung) {
+    for (const zeile of warenZeilen[name]) {
+      const z = wareZustand(zeile.ware, stufen);
+      const beschriftung = z.voll ? 'MAX' : zahl(z.preis);
+      if (zeile.knopf.textContent !== beschriftung) zeile.knopf.textContent = beschriftung;
+      const aus = z.voll || z.gesperrt || waehrung < z.preis;
+      if (zeile.knopf.disabled !== aus) zeile.knopf.disabled = aus;
+
+      const stufenText = z.voll ? 'MAX' : z.stufe > 0 ? 'St. ' + z.stufe : '';
+      const titel = zeile.ware.name + (stufenText ? ' · ' + stufenText : '');
+      if (zeile.titel.textContent !== titel) zeile.titel.textContent = titel;
+    }
+  }
+
+  function zauberAuffrischen(zustand) {
+    for (const zeile of zauberZeilen) {
+      const stufe = zustand.zauber[zeile.zauber.k];
+      const wert = zauberWerte(zeile.zauber, stufe);
+      const gelernt = wert.gelernt;
+
+      const text = gelernt
+        ? Math.round(wert.schaden) + ' Schaden · ' + wert.abklingzeit.toFixed(0) + ' s · ' + wert.wirkbereich + ' px'
+        : zeile.zauber.kurz;
+      if (zeile.unter.textContent !== text) zeile.unter.textContent = text;
+
+      const beschriftung = gelernt ? '✓' : zahl(zeile.zauber.preis);
+      if (zeile.knopf.textContent !== beschriftung) zeile.knopf.textContent = beschriftung;
+      zeile.knopf.disabled = gelernt || zustand.blut < zeile.zauber.preis;
+      zeile.knopf.classList.toggle('gelernt', gelernt);
+
+      zeile.achsen.hidden = !gelernt;
+      for (const { achse, knopf } of zeile.achsKnoepfe) {
+        const preis = ausbauPreis(zeile.zauber, stufe[achse.k]);
+        const beschriftet = achse.zeichen + ' ' + zahl(preis);
+        if (knopf.textContent !== beschriftet) knopf.textContent = beschriftet;
+        knopf.disabled = zustand.blut < preis;
+        knopf.title = achse.name + ' — ' + zahl(preis) + ' Blut (Stufe ' + stufe[achse.k] + ')';
+      }
+    }
+
+    const r = zauberZeilen.ritual;
+    if (!r) return;
+    const hat = zustand.ritual >= 1;
+    const text = hat
+      ? (zustand.ritualAn ? 'Aktiv — Welle startet nachts von selbst' : 'Ruht — Wellen startest du selbst')
+      : 'Nächste Welle startet nachts von selbst';
+    if (r.unter.textContent !== text) r.unter.textContent = text;
+    const beschriftung = hat ? (zustand.ritualAn ? 'Aus' : 'An') : zahl(RITUAL_PREIS);
+    if (r.knopf.textContent !== beschriftung) r.knopf.textContent = beschriftung;
+    r.knopf.disabled = !hat && zustand.blut < RITUAL_PREIS;
+  }
+
+  /**
+   * Abklingzeit als Kreisausschnitt über dem Symbol.
+   * Er läuft im Uhrzeigersinn ab, wie man es aus anderen Spielen kennt.
+   */
+  function zauberLeisteAuffrischen(welt, w) {
+    void w;
+    const { zustand, szene } = welt;
+    const leiste = listen.zauber;
+    if (!leiste) return;
+
+    for (const knopf of leiste.children) {
+      const k = knopf.dataset.zauber;
+      const z = ZAUBER.find((e) => e.k === k);
+      const wert = zauberWerte(z, zustand.zauber[k]);
+      const rest = szene.abklingzeit[k];
+      const laeuft = (k === 'pranke' && szene.pranke)
+        || (k === 'flamme' && szene.flamme)
+        || (k === 'meteor' && szene.meteorZeit > 0);
+      const bereit = rest <= 0 && !laeuft && szene.phase === 'tag';
+      const scharf = k === 'donner' && szene.donnerBereit;
+
+      knopf.classList.toggle('bereit', bereit && !scharf);
+      knopf.classList.toggle('scharf', !!scharf);
+      knopf.classList.toggle('laeuft', !!laeuft);
+
+      const decke = knopf.querySelector('.zauberdecke');
+      if (!decke) continue;
+      const anteil = rest > 0 ? Math.min(1, rest / wert.abklingzeit) : 0;
+      const grad = Math.round(anteil * 360);
+      const bild = anteil > 0
+        ? 'conic-gradient(rgba(6,7,12,0.78) 0deg ' + grad + 'deg, rgba(0,0,0,0) ' + grad + 'deg 360deg)'
+        : 'none';
+      if (decke.style.backgroundImage !== bild) decke.style.backgroundImage = bild;
+      const beschriftung = rest > 0 ? String(Math.ceil(rest)) : scharf ? '◎' : '';
+      if (decke.textContent !== beschriftung) decke.textContent = beschriftung;
+    }
+  }
 }

@@ -1,280 +1,257 @@
-// Prüft die Wirtschaft — ohne Browser.
+// Prüft die Rechenregeln des Spiels — ohne Browser, ohne Zeichnen.
 //
 //   node werkzeuge/pruefe-wirtschaft.mjs
 //
-// Feste Erwartungen, die stimmen müssen. Was sich tatsächlich über die
-// Zeit entwickelt, rechnet balance.mjs aus.
+// Geprüft wird nicht, ob das Spiel Spaß macht, sondern ob die Zahlen sich
+// so verhalten, wie sie sollen: Preise steigen, Deckel greifen, nichts
+// wird negativ, nichts läuft ins Unendliche.
 
-import { RECKEN } from '../spiel/daten/recken.js';
-import { AUSBAUTEN, AUSBAU_IDS, KAUFSPRUCH, DAUERHAFT } from '../spiel/daten/ausbauten.js';
-import { TAG_DAUER, NACHT_DAUER, VOLLER_TAG, tagesStand, zulaufFaktor, wellenZahl, wellenStaerke } from '../spiel/tageslauf.js';
 import {
-  raten, torLeistung, freigeschaltet, klassenGewichte, mittlereBeute, tagesbilanz,
-  einnahmen, preis, dauerhaftPreis, kannKaufen, kaufen, kannDauerhaftKaufen,
-  dauerhaftKaufen, schaedelFuer, knochenBisSchaedel, darfNeuAnfangen, startkapital,
-  bestesAngebot, zahl, dauer, blutVergleich, STUFEN_LEER, DAUERHAFT_LEER
+  WAREN_GROMMSCH, WAREN_PIPS, ZAUBER, RITUAL_PREIS,
+  STUFEN_GROMMSCH_LEER, STUFEN_PIPS_LEER, zauberStufenLeer,
+  werte, wellenStaerke, spawnAbstand, verfuegbareKlassen, klassenGewichte,
+  zauberWerte, ausbauPreis, rueckfall, zahl
 } from './wirtschaft.mjs';
+import { RECKEN } from '../spiel/daten/recken.js';
 
 let geprueft = 0;
-let gescheitert = 0;
-const fehler = [];
+let fehler = 0;
 
-function pruefe(was, bedingung, zusatz = '') {
+function pruefe(bedingung, was) {
   geprueft++;
   if (bedingung) return;
-  gescheitert++;
-  fehler.push(was + (zusatz ? '  — ' + zusatz : ''));
+  fehler++;
+  console.log('  FEHLER: ' + was);
 }
 
-const nah = (a, b, t = 1e-9) => Math.abs(a - b) <= t;
-const frischerZustand = () => ({
-  blut: 0, knochen: 0, schrott: 0, schaedel: 0,
-  stufen: { ...STUFEN_LEER }, dauerhaft: { ...DAUERHAFT_LEER }, erledigte: 0
-});
-
-console.log('\n=== Prüfungen ===\n');
-
-/* ---------------- Daten ---------------- */
-
-pruefe('fünf Reckenklassen', RECKEN.length === 5);
-pruefe('fünf Ausbauten', AUSBAUTEN.length === 5);
-pruefe('jede Ausbaustufe hat Kaufsprüche',
-  AUSBAU_IDS.every((id) => Array.isArray(KAUFSPRUCH[id]) && KAUFSPRUCH[id].length > 0));
-pruefe('Freischaltschwellen steigen',
-  RECKEN.every((r, i) => i === 0 || r.ab > RECKEN[i - 1].ab));
-pruefe('Beute steigt mit der Klasse',
-  RECKEN.every((r, i) => i === 0 || r.blut > RECKEN[i - 1].blut));
-pruefe('ein Bauer trägt fünf Liter — die Einheit ist ehrlich verankert',
-  RECKEN[0].blut === 5);
-
-// Die wichtigste Balanceregel überhaupt.
-for (const a of AUSBAUTEN) {
-  pruefe(`"${a.name}": Preis wächst schneller als die Wirkung`,
-    a.preiswachstum > a.wirkung,
-    `Preis ×${a.preiswachstum} gegen Wirkung ×${a.wirkung}`);
+function gleich(a, b, was) {
+  pruefe(a === b, was + ' — erwartet ' + b + ', bekommen ' + a);
 }
 
-/* ---------------- Tageslauf ---------------- */
-
-pruefe('ein voller Tag ist Tag plus Nacht', VOLLER_TAG === TAG_DAUER + NACHT_DAUER);
-pruefe('bei Sekunde 0 ist Tag', tagesStand(0).istTag && tagesStand(0).tag === 1);
-pruefe('kurz vor Tagesende ist noch Tag', tagesStand(TAG_DAUER - 1).istTag);
-pruefe('bei Tagesende beginnt die Nacht', !tagesStand(TAG_DAUER).istTag);
-pruefe('nach einem vollen Zyklus beginnt Tag 2',
-  tagesStand(VOLLER_TAG).istTag && tagesStand(VOLLER_TAG).tag === 2);
-pruefe('nachts kommt niemand', zulaufFaktor(TAG_DAUER + 10) === 0);
-pruefe('tagsüber kommt jemand', zulaufFaktor(TAG_DAUER / 2) > 0);
-pruefe('mitten in der Nacht ist es stockdunkel', tagesStand(TAG_DAUER + 20).helligkeit === 0);
-pruefe('mittags ist es am hellsten', nah(tagesStand(TAG_DAUER / 2).helligkeit, 1));
-pruefe('im Morgengrauen ist es halbdunkel',
-  tagesStand(1).helligkeit > 0 && tagesStand(1).helligkeit < 0.3);
-pruefe('mehr Tage bringen mehr Wellen', wellenZahl(10) > wellenZahl(1));
-pruefe('die Wellenzahl ist gedeckelt', wellenZahl(1000) === 6);
-
-// Ohne diese Normierung würde jede Änderung der Wellenform still die
-// gesamte Balance verschieben.
-{
-  let summe = 0;
-  const n = 4000;
-  for (let i = 0; i < n; i++) summe += wellenStaerke((i + 0.5) / n, 4);
-  pruefe('der Wellenmittelwert über einen Tag ist genau 1', nah(summe / n, 1, 1e-6),
-    'gemessen ' + (summe / n).toFixed(6));
+function nahe(a, b, was, spielraum = 1e-9) {
+  pruefe(Math.abs(a - b) <= spielraum, was + ' — erwartet ~' + b + ', bekommen ' + a);
 }
-// Und über einen ganzen Zyklus kommen genauso viele wie bei stetigem Strom.
-{
-  let summe = 0;
-  const n = 6000;
-  for (let i = 0; i < n; i++) summe += zulaufFaktor((i + 0.5) / n * VOLLER_TAG);
-  pruefe('über Tag und Nacht gemittelt bleibt der Zulauf gleich', nah(summe / n, 1, 1e-3),
-    'gemessen ' + (summe / n).toFixed(4));
-}
-// Wellen heißt: es gibt auch Ruhe.
-{
-  let spitze = 0;
-  let tal = Infinity;
-  for (let i = 0; i < 500; i++) {
-    const f = wellenStaerke(i / 500, 4);
-    spitze = Math.max(spitze, f);
-    tal = Math.min(tal, f);
+
+/* ---------------- Preise ---------------- */
+
+console.log('Preise der Händlerwaren');
+for (const [name, waren] of [['Grommsch', WAREN_GROMMSCH], ['Pips', WAREN_PIPS]]) {
+  for (const ware of waren) {
+    let vorher = -1;
+    for (let stufe = 0; stufe < 12; stufe++) {
+      const preis = ware.preis(stufe);
+      pruefe(Number.isFinite(preis), name + '/' + ware.k + ' Stufe ' + stufe + ': Preis ist eine Zahl');
+      pruefe(Number.isInteger(preis), name + '/' + ware.k + ' Stufe ' + stufe + ': Preis ist ganzzahlig');
+      pruefe(preis > 0, name + '/' + ware.k + ' Stufe ' + stufe + ': Preis ist positiv');
+      pruefe(preis > vorher, name + '/' + ware.k + ' Stufe ' + stufe + ': Preis steigt');
+      vorher = preis;
+    }
+    // Der erste Preis muss bezahlbar wirken
+    pruefe(ware.preis(0) <= 40, name + '/' + ware.k + ': Einstiegspreis unter 40');
   }
-  pruefe('zwischen den Wellen ist es deutlich ruhiger', spitze > tal * 3,
-    `Spitze ${spitze.toFixed(2)}, Tal ${tal.toFixed(2)}`);
 }
 
-/* ---------------- Grundraten ---------------- */
+console.log('Höchststufen und Bedingungen');
+gleich(WAREN_GROMMSCH.find((w) => w.k === 'schuetze').max, 4, 'Höchstens 4 Bogenschützen');
+gleich(WAREN_PIPS.find((w) => w.k === 'koeder').max, 3, 'Höchstens 3 Stufen Köder');
+gleich(WAREN_PIPS.find((w) => w.k === 'sammler').max, 3, 'Höchstens 3 Drachlinge');
+const pfeile = WAREN_GROMMSCH.find((w) => w.k === 'pfeile');
+pruefe(pfeile.bedingung({ ...STUFEN_GROMMSCH_LEER }) === false, 'Pfeile ohne Schützen gesperrt');
+pruefe(pfeile.bedingung({ ...STUFEN_GROMMSCH_LEER, schuetze: 1 }) === true, 'Pfeile mit Schütze frei');
 
-const leer = raten(STUFEN_LEER);
-pruefe('Zulauf ohne Ausbau ist 0,42/s', nah(leer.zulauf, 0.42));
-pruefe('Verweildauer ohne Ausbau ist 2,4 s', nah(leer.verweildauer, 2.4));
-pruefe('ein Torplatz ohne Ausbau', leer.torplaetze === 1);
-pruefe('Beutefaktor ohne Ausbau ist 1', nah(leer.beute, 1));
-pruefe('auch ohne Kobolde wird geerntet', leer.ernteTempo > 0);
-pruefe('auch ohne Kobolde gibt es Lagerplatz', leer.lagerplatz > 0);
-pruefe('Kobolde erhöhen Ernte und Lager', () => true);
-{
-  const mit = raten({ ...STUFEN_LEER, kobold: 5 });
-  pruefe('fünf Kobolde ernten schneller', mit.ernteTempo > leer.ernteTempo);
-  pruefe('fünf Kobolde schaffen mehr Lagerplatz', mit.lagerplatz > leer.lagerplatz);
+/* ---------------- Abgeleitete Werte ---------------- */
+
+console.log('Werte aus den Stufen');
+const leer = werte({ ...STUFEN_GROMMSCH_LEER }, { ...STUFEN_PIPS_LEER });
+gleich(leer.kapazitaet, 3, 'Grundkapazität ist 3');
+nahe(leer.angriff, 1, 'Grundangriff ist 1');
+gleich(leer.schuetzen, 0, 'Anfangs keine Schützen');
+gleich(leer.pfeilSchaden, 1, 'Pfeilschaden ohne Ausbau ist 1');
+nahe(leer.tempoFaktor, 1, 'Tempofaktor ohne Marschmusik ist 1');
+nahe(leer.stolzFaktor, 1, 'Stolzfaktor ohne Ausbau ist 1');
+nahe(leer.ernteFaktor, 1.5, 'Besondere Tode bringen von Haus aus das Anderthalbfache');
+
+const voll = werte(
+  { klauen: 3, hallen: 4, schuetze: 4, pfeile: 2 },
+  { lockruf: 2, marsch: 2, koeder: 1, sammler: 1, stolz: 2, ernte: 1 }
+);
+gleich(voll.kapazitaet, 7, 'Vier Stufen Hallen ergeben Kapazität 7');
+nahe(voll.angriff, Math.pow(1.28, 3), 'Angriff wächst mit 1,28 je Stufe');
+gleich(voll.schuetzen, 4, 'Vier Schützen');
+gleich(voll.pfeilSchaden, 3, 'Zwei Stufen Pfeile ergeben Schaden 3');
+nahe(voll.tempoFaktor, 1.26, 'Zwei Stufen Marschmusik ergeben +26 %');
+nahe(voll.stolzFaktor, 1.5, 'Zwei Stufen Stolz ergeben +50 %');
+
+pruefe(werte({ ...STUFEN_GROMMSCH_LEER, klauen: 40 }, { ...STUFEN_PIPS_LEER }).angriff > 0,
+  'Angriff bleibt auch bei Stufe 40 endlich und positiv');
+
+/* ---------------- Wellen ---------------- */
+
+console.log('Wellenstärke');
+gleich(wellenStaerke(1), 5, 'Welle 1 bringt 5 Recken');
+pruefe(wellenStaerke(2) > wellenStaerke(1), 'Welle 2 ist größer als Welle 1');
+gleich(wellenStaerke(200), 80, 'Deckel bei 80 greift');
+gleich(wellenStaerke(1000), 80, 'Deckel hält auch weit oben');
+let vorherige = 0;
+for (let w = 1; w <= 60; w++) {
+  const n = wellenStaerke(w);
+  pruefe(n >= vorherige, 'Welle ' + w + ': Stärke fällt nie');
+  pruefe(n <= 80, 'Welle ' + w + ': Stärke bleibt unter dem Deckel');
+  pruefe(Number.isInteger(n), 'Welle ' + w + ': Stärke ist ganzzahlig');
+  vorherige = n;
 }
-pruefe('Verweildauer fällt nie unter 0,14 s',
-  nah(raten({ ...STUFEN_LEER, klinge: 80 }).verweildauer, 0.14));
+pruefe(wellenStaerke(10, 3) > wellenStaerke(10, 0), 'Lockrufe vergrößern die Welle');
 
-/* ---------------- Freischaltung und Verteilung ---------------- */
-
-pruefe('am Anfang nur der Bauer', freigeschaltet(0).length === 1);
-pruefe('bei 30 Erledigten kommt der Söldner', freigeschaltet(30).length === 2);
-pruefe('bei 50.000 Erledigten sind alle da', freigeschaltet(50000).length === 5);
-{
-  const v = klassenGewichte(50000);
-  pruefe('Anteile ergeben zusammen 1', nah(v.reduce((a, e) => a + e.anteil, 0), 1, 1e-12));
-  pruefe('die stärkste Klasse ist die häufigste',
-    v[v.length - 1].anteil === Math.max(...v.map((e) => e.anteil)));
-}
-pruefe('am Anfang gibt es keinen Schrott', mittlereBeute(0, STUFEN_LEER).schrott === 0);
-pruefe('mit Söldnern kommt Schrott', mittlereBeute(30, STUFEN_LEER).schrott > 0);
-pruefe('die Presse erhöht Blut und Schrott, nicht die Knochen', () => true);
-{
-  const ohne = mittlereBeute(200, STUFEN_LEER);
-  const mit = mittlereBeute(200, { ...STUFEN_LEER, presse: 5 });
-  pruefe('Presse erhöht Blut', mit.blut > ohne.blut);
-  pruefe('Presse erhöht Schrott', mit.schrott > ohne.schrott);
-  pruefe('Presse lässt Knochen unberührt', nah(mit.knochen, ohne.knochen));
-}
-
-/* ---------------- Preise und Kaufen ---------------- */
-
-pruefe('die erste Stufe kostet den Grundpreis',
-  preis('lockruf', 0) === Math.ceil(AUSBAUTEN[0].grundpreis));
-pruefe('jede weitere Stufe kostet mehr', preis('lockruf', 5) > preis('lockruf', 4));
-{
-  const z = frischerZustand();
-  pruefe('ohne Geld geht nichts', !kannKaufen(z, 'lockruf'));
-  pruefe('ein Kauf ohne Geld schlägt fehl', kaufen(z, 'lockruf') === false);
-  pruefe('und verändert nichts', z.stufen.lockruf === 0 && z.blut === 0);
-
-  z.blut = preis('lockruf', 0);
-  pruefe('mit genau genug Geld geht es', kannKaufen(z, 'lockruf'));
-  const vorher = z.blut;
-  pruefe('der Kauf klappt', kaufen(z, 'lockruf') === true);
-  pruefe('die Stufe steigt', z.stufen.lockruf === 1);
-  pruefe('das Geld ist weg', z.blut === vorher - preis('lockruf', 0));
-  pruefe('genau bis auf null', z.blut === 0);
-}
-{
-  const z = frischerZustand();
-  z.schrott = 1e9;
-  pruefe('Schrottausbauten kosten Schrott, nicht Blut',
-    kaufen(z, 'klinge') && z.blut === 0 && z.schrott < 1e9);
+console.log('Abstand zwischen zwei Recken');
+nahe(spawnAbstand(1), 2.64, 'Welle 1: knapp 2,6 Sekunden Abstand', 1e-9);
+gleich(spawnAbstand(100), 0.85, 'Der Abstand fällt nie unter 0,85 Sekunden');
+for (let w = 1; w <= 60; w++) {
+  pruefe(spawnAbstand(w) >= 0.85, 'Welle ' + w + ': Abstand über dem Boden');
 }
 
-/* ---------------- Der Verwalter wählt sinnvoll ---------------- */
-{
-  const z = frischerZustand();
-  z.erledigte = 300;
-  z.blut = 1e6;
-  z.schrott = 1e6;
-  const gewaehlt = bestesAngebot(z, true);
-  pruefe('bei voller Kasse wird irgendetwas Sinnvolles gewählt',
-    gewaehlt !== null && AUSBAU_IDS.includes(gewaehlt), 'gewählt: ' + gewaehlt);
-
-  const arm = frischerZustand();
-  arm.erledigte = 300;
-  pruefe('mit leerer Kasse wird nichts gewählt', bestesAngebot(arm, true) === null);
+console.log('Verfügbare Klassen');
+gleich(verfuegbareKlassen(RECKEN, 1).length, 1, 'In Welle 1 nur Bauern');
+gleich(verfuegbareKlassen(RECKEN, 3).length, 2, 'Ab Welle 3 kommt der Söldner dazu');
+gleich(verfuegbareKlassen(RECKEN, 18).length, 5, 'Ab Welle 18 sind alle fünf da');
+pruefe(verfuegbareKlassen(RECKEN, 6, 3).length > verfuegbareKlassen(RECKEN, 6, 0).length,
+  'Der Köder holt höhere Ränge früher');
+for (let w = 1; w <= 40; w++) {
+  const k = verfuegbareKlassen(RECKEN, w);
+  pruefe(k.length >= 1, 'Welle ' + w + ': mindestens eine Klasse verfügbar');
+  pruefe(k[0].id === 'bauer', 'Welle ' + w + ': der Bauer verschwindet nie');
 }
 
-/* ---------------- Tagesbilanz ---------------- */
-{
-  const b = tagesbilanz(0, STUFEN_LEER, DAUERHAFT_LEER, 1);
-  pruefe('am ersten Tag fallen Recken', b.erledigte > 0);
-  pruefe('am ersten Tag fließt Blut', b.blut > 0);
-  pruefe('am ersten Tag geht nichts verloren', !b.lagerVoll,
-    b.verlorenStueck.toFixed(1) + ' Stück verloren');
-  pruefe('der Haufen wird über Nacht ganz abgetragen', b.liegengeblieben < 0.5,
-    b.liegengeblieben.toFixed(1) + ' liegengeblieben');
-}
-{
-  // Viel Durchsatz, keine Kobolde: der Haufen muss überlaufen.
-  const wild = { ...STUFEN_LEER, lockruf: 30, tor: 12, klinge: 12 };
-  const b = tagesbilanz(500, wild, DAUERHAFT_LEER, 5);
-  pruefe('ohne Kobolde läuft der Haufen bei hohem Durchsatz über', b.lagerVoll,
-    b.verlorenStueck.toFixed(1) + ' Stück verloren');
-  const mit = tagesbilanz(500, { ...wild, kobold: 14 }, DAUERHAFT_LEER, 5);
-  pruefe('Kobolde beheben genau das', mit.verlorenStueck < b.verlorenStueck);
-  pruefe('und bringen dadurch mehr Schrott ein', mit.schrott > b.schrott);
-}
-{
-  const e = einnahmen(200, { ...STUFEN_LEER, lockruf: 4 }, DAUERHAFT_LEER, 1);
-  pruefe('Einnahmen sind je Sekunde gerechnet', e.blut > 0 && e.blut < 1e6);
-  pruefe('Knochen kommen erst über die Ernte', e.knochen > 0);
+console.log('Klassengewichte');
+for (const w of [1, 5, 20, 60]) {
+  const klassen = verfuegbareKlassen(RECKEN, w);
+  const g = klassenGewichte(klassen, w);
+  gleich(g.length, klassen.length, 'Welle ' + w + ': ein Gewicht je Klasse');
+  pruefe(g.every((x) => x > 0 && Number.isFinite(x)), 'Welle ' + w + ': alle Gewichte positiv');
+  for (let i = 1; i < g.length; i++) {
+    pruefe(g[i] > g[i - 1], 'Welle ' + w + ': höherer Rang wiegt schwerer als Rang ' + i);
+  }
 }
 
-/* ---------------- Neuanfang ---------------- */
+/* ---------------- Zauber ---------------- */
 
-pruefe('ohne Knochen kein Schädel', schaedelFuer(0) === 0);
-pruefe('120 Knochen ergeben einen Schädel', schaedelFuer(120) === 1);
-pruefe('480 Knochen ergeben zwei', schaedelFuer(480) === 2);
-pruefe('doppelt so lange spielen bringt nicht doppelt so viel',
-  schaedelFuer(4000) < 2 * schaedelFuer(2000));
-pruefe('die Restanzeige stimmt mit der Schwelle überein',
-  schaedelFuer(120 - knochenBisSchaedel(0) + knochenBisSchaedel(0)) === 1);
-{
-  const z = frischerZustand();
-  pruefe('ohne Knochen kein Neuanfang', !darfNeuAnfangen(z));
-  z.knochen = 500;
-  pruefe('mit genug Knochen schon', darfNeuAnfangen(z));
+console.log('Zauberwerte');
+const stufenLeer = zauberStufenLeer();
+gleich(Object.keys(stufenLeer).length, 4, 'Es gibt vier Zauber');
+for (const z of ZAUBER) {
+  const s0 = stufenLeer[z.k];
+  const w0 = zauberWerte(z, s0);
+  pruefe(w0.gelernt === false, z.name + ': anfangs nicht gelernt');
+  gleich(w0.schaden, z.schaden, z.name + ': Grundschaden');
+  nahe(w0.abklingzeit, z.abklingzeit, z.name + ': Grundabklingzeit');
+  gleich(w0.wirkbereich, z.wirkbereich, z.name + ': Grundwirkbereich');
+
+  // Schaden steigt gleichmäßig
+  for (let st = 1; st <= 8; st++) {
+    const w = zauberWerte(z, { ...s0, schaden: st });
+    gleich(w.schaden, z.schaden + z.schadenSchritt * st, z.name + ': Schaden auf Stufe ' + st);
+  }
+  // Abklingzeit fällt, aber nur bis zum Boden
+  let letzte = Infinity;
+  for (let st = 0; st <= 30; st++) {
+    const w = zauberWerte(z, { ...s0, abklingzeit: st });
+    pruefe(w.abklingzeit <= letzte + 1e-9, z.name + ': Abklingzeit steigt nie, Stufe ' + st);
+    pruefe(w.abklingzeit >= z.abklingzeit * 0.35 - 1e-9,
+      z.name + ': Abklingzeit fällt nicht unter 35 %, Stufe ' + st);
+    letzte = w.abklingzeit;
+  }
+  nahe(zauberWerte(z, { ...s0, abklingzeit: 99 }).abklingzeit, z.abklingzeit * 0.35,
+    z.name + ': Boden der Abklingzeit wird erreicht');
+  // Wirkbereich wächst
+  let vorherB = 0;
+  for (let st = 0; st <= 10; st++) {
+    const w = zauberWerte(z, { ...s0, wirkbereich: st });
+    pruefe(w.wirkbereich >= vorherB, z.name + ': Wirkbereich fällt nie, Stufe ' + st);
+    pruefe(Number.isInteger(w.wirkbereich), z.name + ': Wirkbereich ist ganzzahlig, Stufe ' + st);
+    vorherB = w.wirkbereich;
+  }
 }
-pruefe('ohne Erbe beginnt man bei null', startkapital({ erbe: 0 }).blut === 0);
-pruefe('mit Erbe beginnt man mit etwas', startkapital({ erbe: 1 }).blut > 0);
-{
-  const z = frischerZustand();
-  z.schaedel = 1;
-  pruefe('ein Schädel reicht für die erste dauerhafte Stufe', kannDauerhaftKaufen(z, 'blutzoll'));
-  pruefe('der Kauf klappt', dauerhaftKaufen(z, 'blutzoll'));
-  pruefe('der Schädel ist weg', z.schaedel === 0);
-  pruefe('die zweite Stufe kostet mehr', dauerhaftPreis('blutzoll', 1) > dauerhaftPreis('blutzoll', 0));
-  pruefe('und ist jetzt unbezahlbar', !kannDauerhaftKaufen(z, 'blutzoll'));
-}
-pruefe('der Verwalter ist nach drei Stufen ausgebaut',
-  !isFinite(dauerhaftPreis('verwalter', 3)));
-{
-  const ohne = raten(STUFEN_LEER, DAUERHAFT_LEER);
-  const mit = raten(STUFEN_LEER, { ...DAUERHAFT_LEER, blutzoll: 3, ruf: 2 });
-  pruefe('Blutzoll wirkt dauerhaft auf die Beute', mit.beute > ohne.beute);
-  pruefe('Ruf wirkt dauerhaft auf den Zulauf', mit.zulauf > ohne.zulauf);
+
+console.log('Ausbaupreise');
+for (const z of ZAUBER) {
+  let vorherP = -1;
+  for (let st = 0; st < 10; st++) {
+    const p = ausbauPreis(z, st);
+    pruefe(Number.isInteger(p) && p > 0, z.name + ': Ausbaupreis Stufe ' + st + ' ist positiv und ganzzahlig');
+    pruefe(p > vorherP, z.name + ': Ausbaupreis steigt, Stufe ' + st);
+    vorherP = p;
+  }
+  pruefe(ausbauPreis(z, 0) < z.preis, z.name + ': die erste Verbesserung kostet weniger als der Zauber selbst');
 }
 
-/* ---------------- Anzeige ---------------- */
+console.log('Reihenfolge der Zauber');
+for (let i = 1; i < ZAUBER.length; i++) {
+  pruefe(ZAUBER[i].preis > ZAUBER[i - 1].preis, ZAUBER[i].name + ' kostet mehr als ' + ZAUBER[i - 1].name);
+}
+gleich(ZAUBER.map((z) => z.taste).join(''), '1234', 'Die Tasten sind 1 bis 4');
+pruefe(RITUAL_PREIS > 0, 'Das Morgenritual hat einen Preis');
 
-pruefe('1234 wird zu "1,23 k"', zahl(1234) === '1,23 k', zahl(1234));
-pruefe('5,6 Mio wird gekürzt', zahl(5_600_000) === '5,60 Mio', zahl(5_600_000));
-pruefe('0 bleibt "0"', zahl(0) === '0');
-pruefe('Unsinn ergibt "0"', zahl(NaN) === '0' && zahl(-5) === '0');
-// Genau hier lief die alte Anzeige in eine endlose Ziffernkette.
-pruefe('jenseits von Billionen kommt eine Zehnerpotenz statt Ziffernwust',
-  zahl(1e18).includes('·10^'), zahl(1e18));
-pruefe('und diese Zahl bleibt kurz', zahl(1e40).length <= 12, zahl(1e40));
+/* ---------------- Rückfall ---------------- */
 
-pruefe('kleine Mengen bekommen keinen Vergleich', blutVergleich(3) === '');
-pruefe('150 Liter sind eine Badewanne', blutVergleich(150).includes('Badewanne'), blutVergleich(150));
-pruefe('2,5 Mio Liter sind ein Schwimmbecken',
-  blutVergleich(2_500_000).includes('Schwimmbecken'), blutVergleich(2_500_000));
-pruefe('4,8 Billionen Liter sind ein Bodensee',
-  blutVergleich(4.8e13).includes('Bodensee'), blutVergleich(4.8e13));
-pruefe('gigantische Mengen werden zu Weltmeeren',
-  blutVergleich(1e25).includes('Weltmeer'), blutVergleich(1e25));
-pruefe('bei zwei Badewannen steht die Mehrzahl',
-  blutVergleich(300).includes('Badewannen'), blutVergleich(300));
+console.log('Rückfall nach einer Niederlage');
+gleich(rueckfall(20), 15, 'Welle 20 fällt auf 15');
+gleich(rueckfall(6), 1, 'Welle 6 fällt auf 1');
+gleich(rueckfall(3), 1, 'Welle 3 fällt nicht unter 1');
+gleich(rueckfall(1), 1, 'Welle 1 bleibt 1');
+for (let w = 1; w <= 100; w++) {
+  pruefe(rueckfall(w) >= 1, 'Welle ' + w + ': Rückfall nie unter 1');
+  pruefe(rueckfall(w) <= w, 'Welle ' + w + ': Rückfall geht nie nach vorn');
+}
 
-pruefe('45 Sekunden bleiben Sekunden', dauer(45) === '45 s');
-pruefe('90 Sekunden werden zu Minuten', dauer(90) === '1 Min 30 s', dauer(90));
-pruefe('7200 Sekunden werden zu Stunden', dauer(7200) === '2 Std', dauer(7200));
+/* ---------------- Zahlen ---------------- */
+
+console.log('Zahlendarstellung');
+gleich(zahl(0), '0', 'Null');
+gleich(zahl(-5), '0', 'Negatives wird zu Null');
+gleich(zahl(7), '7', 'Kleine Zahl');
+gleich(zahl(999), '999', 'Knapp unter tausend');
+gleich(zahl(1000), '1,00 k', 'Tausend');
+gleich(zahl(1234), '1,23 k', 'Tausendertrennung mit Komma');
+gleich(zahl(1e6), '1,00 Mio', 'Million');
+gleich(zahl(1e9), '1,00 Mrd', 'Milliarde');
+gleich(zahl(1e12), '1,00 Bio', 'Billion');
+gleich(zahl(NaN), '0', 'Keine Zahl ergibt Null');
+gleich(zahl(Infinity), '0', 'Unendlich ergibt Null');
+pruefe(zahl(12345).indexOf('.') < 0, 'Kein englischer Dezimalpunkt');
+
+/* ---------------- Reckenklassen ---------------- */
+
+console.log('Reckenklassen');
+gleich(RECKEN.length, 5, 'Fünf Klassen');
+for (let i = 1; i < RECKEN.length; i++) {
+  const a = RECKEN[i - 1];
+  const b = RECKEN[i];
+  pruefe(b.abWelle > a.abWelle, b.name + ' erscheint später als ' + a.name);
+  pruefe(b.lp > a.lp, b.name + ' hat mehr Lebenspunkte als ' + a.name);
+  pruefe(b.blut > a.blut, b.name + ' bringt mehr Blut als ' + a.name);
+  pruefe(b.gold > a.gold, b.name + ' bringt mehr Gold als ' + a.name);
+  pruefe(b.schrott > a.schrott, b.name + ' bringt mehr Schrott als ' + a.name);
+  pruefe(b.hoehe > a.hoehe, b.name + ' ist größer als ' + a.name);
+}
+
+// Tempo: Der Söldner ist die bewusste Ausnahme — er ist mit 24 schneller
+// als der Bauer mit 20 und rennt am eifrigsten ins Tor. Ab dem Söldner
+// wird jede Klasse langsamer, weil die Rüstung schwerer wird.
+gleich(RECKEN[0].tempo, 20, 'Bauer läuft mit Tempo 20');
+gleich(RECKEN[1].tempo, 24, 'Der Söldner ist der schnellste Recke');
+for (let i = 2; i < RECKEN.length; i++) {
+  pruefe(RECKEN[i].tempo < RECKEN[i - 1].tempo,
+    RECKEN[i].name + ' ist langsamer als ' + RECKEN[i - 1].name);
+}
+pruefe(RECKEN[RECKEN.length - 1].tempo < RECKEN[0].tempo,
+  'Der Großmeister ist langsamer als der Bauer');
+for (const k of RECKEN) {
+  pruefe(k.helm || k.kopf, k.name + ': hat entweder Helm oder Kopffarbe');
+  pruefe(k.lp > 0 && k.tempo > 0 && k.blut > 0, k.name + ': Grundwerte positiv');
+}
 
 /* ---------------- Ergebnis ---------------- */
 
-if (fehler.length) {
-  console.log('  Fehlgeschlagen:');
-  for (const f of fehler) console.log('    · ' + f);
-  console.log('');
-}
-console.log(`  ${geprueft - gescheitert} von ${geprueft} Prüfungen bestanden.\n`);
-process.exit(gescheitert > 0 ? 1 : 0);
+console.log('');
+console.log('  ' + geprueft + ' Prüfungen, ' + fehler + ' Fehler');
+if (fehler > 0) process.exit(1);
+console.log('  Alles in Ordnung.');

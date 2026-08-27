@@ -1,5 +1,108 @@
 # Änderungsprotokoll
 
+## 0.5.0 — 27.08.2026
+
+**Die Wellen-Fassung ersetzt das Idle-Spiel.** Jannik hat in der
+Claude-Design-Werkbank eine deutlich weiter entwickelte Fassung gebaut und
+übergeben. Sie ist kein Nachfolger des hier liegenden Stands, sondern ein
+eigener Zweig aus derselben Wurzel — belegt am Speicherschlüssel
+(`burgtor.scene.v1` → `waves.v2` → `v5`) und daran, dass Grutz, Schatzkammer
+und Knochen-Neuanfang darin **nirgends** vorkommen.
+
+**Entscheidung Jannik, 27.08.2026:** Das Repository wird die Quelle. Die
+Werkbank wird für dieses Spiel nicht mehr benutzt, weil ihr Export bei jedem
+Mal die Aufteilung überschreiben würde. Die alte Idle-Fassung bleibt
+vollständig erhalten unter dem Etikett **`v0.4.1-idle`**.
+
+### Was das Spiel jetzt ist
+
+Kein reines Zusehen mehr, sondern Wellen mit Gegenwehr:
+
+- **Tag ist Angriffswelle, Nacht ist Lager.** Die Welle startet man selbst;
+  mit dem gekauften *Morgenritual* nach 22 Sekunden von allein.
+- **Verlieren ist möglich.** Nicht durch Schaden, sondern durch Stau: Passen
+  mehr Recken gleichzeitig ins Tor, als die Burg fasst, geht es **fünf Wellen
+  zurück**. Die Beute bleibt.
+- **Drei Händler** mit bewegten Pixelporträts — Grommsch (Schrott), Pips
+  (Gold), Malvina (Blut).
+- **Vier aktive Fähigkeiten** auf den Tasten 1 bis 4, jede mit drei
+  Ausbauachsen: Schaden, Abklingzeit, Wirkbereich.
+- **Gold muss aufgesammelt werden.** Es fällt als Münze auf die Brücke; wer
+  nicht klickt, kauft nichts. Der *Sammel-Drachling* nimmt einem das nachts ab.
+- **Zwei Wischseiten** auf schmalen Bildschirmen.
+
+### Aufteilung: aus einer Datei wurden 24
+
+Die Übergabe war wieder ein Ausgabepaket der Werkbank — 533 KB in einer
+`index.html`, mit React 18, sieben Schriftschnitten und 1.912 Zeilen fremder
+Laufzeit. Das eigentliche Spiel darin: 1.602 Zeilen Logik und 210 Zeilen
+Schablone.
+
+Jetzt: **24 Dateien, 4.150 Zeilen, kein React, keine fremde Laufzeit.** Die
+drei Porträts (je 28 × 32 Punkte) wurden maschinell übertragen statt
+abgetippt — alle drei mit 32 Zeilen zu 28 Zeichen nachgeprüft.
+
+| Bereich | Dateien |
+| --- | --- |
+| Regeln und Preise | `werkzeuge/wirtschaft.mjs` — ohne Browser, ohne Zufall |
+| Zustand | `spiel/welt.js`, `spiel/speicher.js` |
+| Ablauf | `spiel/simulation.js`, `spiel/wellen.js`, `spiel/kampf.js`, `spiel/zauber.js`, `spiel/handel.js` |
+| Bild | `spiel/szene.js`, `spiel/figuren.js`, `spiel/effekte.js`, `spiel/portraets.js` |
+| Bedienung | `spiel/anzeige.js`, `spiel/eingabe.js`, `spiel/marktschreier.js` |
+| Daten | `spiel/daten/*.js` |
+
+### Zwei Fehler beim Umbau gefunden und behoben
+
+1. **Die Beute kam nie an.** Die Gutschrift lag in der Uhr statt in der
+   Simulation. Gemessen: eine ganze Welle durchgespielt, 5 Recken tot,
+   28 Blutlachen — und **Blut, Gold und Schrott blieben auf null**. Jeder
+   andere Antrieb als die Bildschleife ging leer aus. Gutgeschrieben wird
+   jetzt sofort; nur das Schreiben ins Dokument bleibt gedrosselt.
+2. **Der Söldner ist schneller als der Bauer** (24 gegen 20). Das war in der
+   Übergabe schon so und ist offenbar Absicht — die Prüfung wurde an die
+   Daten angepasst, nicht die Daten an die Prüfung.
+
+### Bewusst anders als die Übergabe
+
+- **Fester Zeitschritt von 1/60 Sekunde** mit Nachholen statt der
+  schwankenden Bildrate. Sonst fliegen Trümmer auf einem 144-Hz-Bildschirm
+  anders als auf einem 60-Hz-Bildschirm.
+- **Pause im Hintergrund.** Läuft die Seite unsichtbar weiter, kann man eine
+  Welle nur verlieren — man sieht sie ja nicht. Beim Zurückkommen geht es
+  dort weiter, wo man war.
+- **Neuer Speicherschlüssel** `slayemall.wellen.v1`; die fünf alten
+  `burgtor.*` werden beim Start entfernt.
+
+### Geprüft
+
+- `node werkzeuge/pruefe-wirtschaft.mjs` — **1.592 Prüfungen, 0 Fehler**
+- `node werkzeuge/balance.mjs 60` — 60 Wellen ohne Browser durchgespielt,
+  **neun Kennzahlen grün**
+- Im Browser mit echten Klicks: Kaufen bei allen drei Händlern, Zauber lernen
+  und verbessern, Münze aufsammeln (7 Gold; mit *Sammlerstolz* 10 statt 8),
+  Donnerschlag scharf machen und einschlagen lassen, Niederlage erzwungen
+  (Welle 20 → 15, alle vier fliehen, danach Nacht).
+- Bildpunkte der Leinwand ausgelesen: **7.688 verschiedene Farben**,
+  Himmelverlauf, Torglut, Abgrund und Mauer an den erwarteten Stellen.
+- `node --check` über alle 24 Dateien.
+
+### Offen: Ab Welle 20 wird es leichter statt schwerer
+
+Gemessen über 60 Wellen. Die Wellengröße stößt bei **80 Recken** an ihren
+Deckel, der Spieler wächst aber weiter:
+
+| Welle | Recken | Dauer | Käufe je Welle | Gold am Ende |
+| --- | --- | --- | --- | --- |
+| 15 | 46 | 91 s | 7 | 963 |
+| 20 | 80 | 129 s | 11 | 8,5 k |
+| 30 | 80 | 82 s | 2 | 13,9 k |
+| 60 | 80 | 75 s | 0 | 137 k |
+
+Ab Welle 20 sinkt die Dauer, die Käufe versiegen, und Gold häuft sich
+ungenutzt an — es gibt nichts mehr dafür. Niederlagen kommen nicht mehr vor.
+Das ist der Punkt, an dem das Spiel aufhört, Fragen zu stellen. Eine
+Entscheidung dazu steht noch aus.
+
 ## 0.4.1 — 26.08.2026
 
 **Öffentlich und spielbar** (Entscheidung Jannik): <https://kimpaliz.github.io/slay-em-all/>
