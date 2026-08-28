@@ -76,6 +76,19 @@ export function ausloesen(welt, k) {
     return true;
   }
   if (k === 'meteor') {
+    // Zielzone beim Auslösen festhalten: dort, wo die Recken gerade
+    // stehen, mit etwas Rand. Steht niemand draußen, deckt der Schauer
+    // die Anmarschstrecke vor dem Tor ab.
+    let von = Infinity;
+    let bis = -Infinity;
+    for (const r of szene.recken) {
+      if (r.zustand !== 'laeuft') continue;
+      von = Math.min(von, r.x);
+      bis = Math.max(bis, r.x);
+    }
+    szene.meteorZone = von <= bis
+      ? { von: Math.max(0, von - 30), bis: Math.min(MASSE.TOR_RECHTS, bis + 30) }
+      : { von: MASSE.TOR_LINKS - 220, bis: MASSE.TOR_RECHTS };
     szene.meteorZeit = 6;
     szene.meteorTakt = 0;
     szene.meteorWirkung = w.wirkbereich;

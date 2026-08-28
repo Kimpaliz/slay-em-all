@@ -563,8 +563,13 @@ function meteoreFuehren(welt, dt, werte) {
     szene.meteorTakt -= dt;
     if (szene.meteorTakt <= 0) {
       szene.meteorTakt = 0.38;
+      // Der Schauer geht dort nieder, wo die Recken tatsächlich sind.
+      // Vorher lag der Bereich fest zwischen Klippe und Tor — auf der
+      // verbreiterten Bühne waren das nur noch 204 von 635 Punkten
+      // Laufweg, das ganze neue Land bekam nichts ab.
+      const zone = szene.meteorZone || { von: MASSE.KLIPPE, bis: MASSE.TOR_RECHTS };
       szene.meteore.push({
-        x: MASSE.KLIPPE + 10 + Math.random() * (MASSE.TOR_RECHTS - MASSE.KLIPPE - 14) + 26,
+        x: zone.von + Math.random() * Math.max(20, zone.bis - zone.von) + 26,
         y: -10, vx: -26, vy: 100
       });
     }
@@ -740,9 +745,13 @@ function drachlingFuehren(welt, dt, werte) {
 
   const d = szene.drachling;
   d.phase += dt;
-  d.x += d.richtung * (28 + 13 * stufe) * dt;
+  // Er fliegt schneller, seit die Bühne doppelt so breit ist — sonst
+  // bräuchte er für eine Runde über 40 Sekunden. Vorher kehrte er schon
+  // bei `KLIPPE - 70` um und hat das neue Land nie gesehen; Münzen, die
+  // dort lagen, blieben liegen.
+  d.x += d.richtung * (55 + 20 * stufe) * dt;
   if (d.x > MASSE.MAUER - 8) d.richtung = -1;
-  if (d.x < MASSE.KLIPPE - 70) d.richtung = 1;
+  if (d.x < 20) d.richtung = 1;
   d.y = MASSE.DECK - 26 + Math.sin(d.phase * 2.1) * 6;
 
   const reichweite = 17 + 7 * stufe;

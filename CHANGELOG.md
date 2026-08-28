@@ -1,5 +1,60 @@
 # Änderungsprotokoll
 
+## 0.12.1 — 29.08.2026
+
+**Notreparatur: Das Handy war unbenutzbar.** Zwei Wunden aus dem
+Entfernen des Marktschreiers in 0.11.0, beide von derselben Operation.
+
+### Die Seite war strukturell zerbrochen
+
+Beim Herausschneiden des Laufbands aus `index.html` blieb ein `</div>`
+zu viel stehen. Das schloss den Seitencontainer zu früh — **Händler und
+Artefakte rutschten aus `.seiten` heraus** und wurden Geschwister davon.
+
+Die Folge am Handy quer, gemessen auf 916 × 412: `.seiten` hatte Höhe
+**0**, die **Leinwand war 0 × 0**, die Steuerung saß bei y = −67
+außerhalb des Bildes, die Reiterleiste war ganz verschwunden. Nichts
+davon war bedienbar.
+
+### Die kompakte Kopfzeile gab es nie
+
+Dieselbe Operation ließ in `stil.css` eine Selektorliste mit hängendem
+Komma zurück:
+
+```
+.wurzel.schmal .untertitel,
+.wurzel.schmal .vorspann,
+                              ← Block fehlt
+.wurzel.schmal h1 { font-size: 17px; }
+```
+
+Statt `display: none` bekamen Vorspann und Untertitel damit
+`font-size: 17px`. Die Kopfzeile war am Handy **145 Punkte hoch** statt
+49 und fraß ein Drittel des Bildes.
+
+**Warum das durchrutschte:** In 0.11.0 habe ich nach dem Verbreitern der
+Bühne nur den Schreibtisch nachgemessen, nicht das Handy. Beide Fehler
+wären bei einer einzigen Messung auf 916 × 412 aufgefallen.
+
+Nach der Reparatur: Kopfzeile 49, Leinwand 1490 × 373, Brückenboden bei
+y 272 frei, alle drei Seiten wieder im Container, alle Reiter erreichbar,
+**90 % Bildschirmnutzung**.
+
+### Zwei Flugbahnen kannten die neue Karte nicht
+
+Auch das stammt aus dem Verbreitern:
+
+- **Der Meteoritenschauer** ging in einem festen Streifen zwischen
+  Klippe und Tor nieder — auf der breiteren Bühne nur noch 204 von 635
+  Punkten Laufweg. Das ganze neue Land bekam nichts ab. Jetzt wird die
+  **Zielzone beim Auslösen aus den Standorten der Recken bestimmt**
+  (gemessen: Recken auf 60–560 ergeben Einschläge von 50 bis 581).
+- **Der Sammel-Drachling** kehrte schon bei `KLIPPE − 70` um und hat das
+  neue Land nie gesehen; Münzen, die dort lagen, blieben liegen. Er
+  patrouilliert jetzt von 19 bis 609 — **96 % der Fläche** — und fliegt
+  schneller, weil eine Runde sonst über 40 Sekunden dauern würde.
+
+
 ## 0.11.0 — 28.08.2026
 
 **Die Bühne wird doppelt so lang, der Marktschreier geht, Bosse kommen

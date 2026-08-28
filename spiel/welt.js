@@ -112,6 +112,7 @@ export function neueSzene() {
     flamme: null,
     donnerBereit: false,
     meteorZeit: 0,
+    meteorZone: null,     // wo der Schauer niedergeht, beim Auslösen bestimmt
     meteorTakt: 0,
     meteorWirkung: 0,
     meteorSchaden: 0,

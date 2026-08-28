@@ -535,7 +535,7 @@ canvas[data-szene] {
 }
 
 .wurzel.schmal .untertitel,
-.wurzel.schmal .vorspann,
+.wurzel.schmal .vorspann { display: none; }
 
 .wurzel.schmal h1 { font-size: 17px; }
 .wurzel.schmal .kopf {
