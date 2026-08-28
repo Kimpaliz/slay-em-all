@@ -213,15 +213,27 @@ export function zauberStufenLeer() {
 
 /* ---------------- Abgeleitete Werte ---------------- */
 
-/** Grundgeschwindigkeit des Fressens, in Lebenspunkten je Sekunde. */
-export const FRESSTEMPO = 10;
+/**
+ * Wie schnell die Fresszeit abläuft, als Faktor.
+ *
+ * Seit 0.10.0 zählt nicht mehr Leben herunter, sondern eine **Zeit**:
+ * Jede Klasse bringt ihre eigene `fressZeit` mit (siehe
+ * `spiel/daten/recken.js`), und dieser Faktor bestimmt, wie schnell sie
+ * abläuft. 1 heißt Sekunde für Sekunde, 2 doppelt so schnell.
+ *
+ * Vorher hing die Verdauzeit an den Lebenspunkten. Das koppelte
+ * Zähigkeit und Durchsatz aneinander und ließ Bosse ins Unspielbare
+ * wachsen — gemessen am 28.08.2026 brauchte ein Boss auf Welle 20
+ * 1.011 Sekunden reine Fresszeit.
+ */
+export const FRESSTEMPO = 1;
 
 /**
  * Alles, was sich aus den gekauften Stufen ergibt.
  *
- * `angriff` ist die Fressgeschwindigkeit in Lebenspunkten je Sekunde;
- * `kapazitaet` die Zahl der Recken, die gleichzeitig in der Burg sein
- * dürfen. Wird sie überschritten, ist die Welle verloren.
+ * `fressTempo` ist der Faktor auf die Fresszeit — höher heißt schneller
+ * durch; `kapazitaet` die Zahl der Recken, die gleichzeitig in der Burg
+ * sein dürfen. Wird sie überschritten, ist die Welle verloren.
  *
  * `wirkung` ist die Summe der ausgerüsteten Artefakte (siehe
  * `spiel/artefakte.js`) und optional — ohne Regal rechnet alles wie
@@ -231,7 +243,7 @@ export function werte(stufenG, stufenP, wirkung) {
   const a = wirkung || null;
   const fress = 1 + 0.015 * stufenG.klauen + (a ? a.fressBonus / 100 : 0);
   return {
-    angriff: FRESSTEMPO * fress,
+    fressTempo: FRESSTEMPO * fress,
     kapazitaet: 3 + stufenG.hallen + (a ? a.kapazitaet : 0),
     // Wie viele Recken gleichzeitig gefressen werden. Der Rest wartet in
     // der Schlange — Kapazität ist der Puffer, der Schlund der Durchsatz.
@@ -311,23 +323,48 @@ export function klassenGewichte(klassen, welle) {
 
 /* ---------------- Bosse ---------------- */
 
-/** Jede fünfte Welle bringt einen Boss. */
+/**
+ * Wie selten ein Boss kommt.
+ *
+ * Seit 0.10.0 alle 190 Wellen statt alle fünf — ein Meilenstein, kein
+ * Rhythmus. Die Zahl steht bewusst als eine einzige Konstante hier.
+ */
+export const BOSS_ABSTAND = 190;
+
 export function istBosswelle(welle) {
-  return welle >= 5 && welle % 5 === 0;
+  return welle >= BOSS_ABSTAND && welle % BOSS_ABSTAND === 0;
 }
 
 /**
- * Der Boss: ein aufgewerteter Recke des höchsten verfügbaren Rangs.
+ * Der Boss ist keine Mahlzeit mehr, sondern eine Frist.
  *
- * Er ist nicht schnell und hat keine Sonderfähigkeit — er ist einfach
- * zäh und blockiert lange einen Fressplatz. Damit ist jede fünfte Welle
- * automatisch eine Kapazitäts- und Schlundprüfung, ohne eine einzige
- * Sonderregel.
+ * **Betritt er das Tor, ist die Burg sofort verloren.** Er wird also
+ * nicht verdaut, er muss auf der Brücke sterben. Damit hängt seine
+ * Schwierigkeit nicht mehr an Kapazität und Schlund, sondern allein an
+ * der Frage: Reicht der Schaden, bevor er ankommt?
+ *
+ * Daraus folgt die Auslegung:
+ *
+ * - **Er geht langsam** (ein Drittel des Grundtempos). Über die knapp
+ *   320 Bildpunkte der Brücke bleiben so gut 45 Sekunden Zeit.
+ * - **Sein Leben ist an die Welle gekoppelt, nicht an eine Klasse.**
+ *   `lpFaktor` mal dem Leben eines gewöhnlichen Recken derselben Welle.
+ *   Vorher waren es 25 mal dem *stärksten* Rang, was mit jeder
+ *   Klassenfreischaltung zusätzlich sprang — bei Welle 20 kamen so
+ *   10.108 Lebenspunkte zusammen. Jetzt wächst er mit derselben Kurve
+ *   wie alles andere und bleibt im Verhältnis gleich schwer.
+ * - **Er wirft viel ab**, weil er der einzige seiner Art ist.
  */
 export const BOSS = {
-  lpFaktor: 25,
-  tempoFaktor: 0.6,
-  goldFaktor: 10,
+  // Fünf mal dem stärksten Rang sind rund 40 Bauern derselben Welle.
+  // Bei 80 Sekunden Laufzeit muss der Spieler also etwa einen halben
+  // Bauern je Sekunde umlegen — das schafft, wer die Welle davor
+  // überstanden hat, und es ist keine Formsache.
+  lpFaktor: 5,
+  // Ein Drittel des Grundtempos: 4 px/s über 315 px Brücke sind
+  // 80 Sekunden Zeit zum Töten.
+  tempoFaktor: 0.33,
+  goldFaktor: 40,
   groesse: 2
 };
 

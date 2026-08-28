@@ -1,5 +1,85 @@
 # Änderungsprotokoll
 
+## 0.10.0 — 28.08.2026
+
+**Fresszeit löst sich von den Lebenspunkten. Zwei neue Einheiten. Bosse
+werden zur Frist statt zum Kaubrocken.**
+
+### Die zentrale Änderung
+
+Bisher war `lp` beides zugleich: Zähigkeit auf der Brücke **und**
+Verdauzeit im Tor. Das koppelte zwei Dinge, die nichts miteinander zu tun
+haben — und ließ Bosse ins Unspielbare wachsen (Messung vom 28.08.: Welle
+20 hätte 1.011 Sekunden reine Fresszeit gebraucht).
+
+Jetzt sind es zwei Achsen:
+
+| | bedeutet |
+| --- | --- |
+| `lp` | wie schwer einer auf der Brücke zu töten ist |
+| `fressZeit` | wie lange er im Tor einen Platz blockiert |
+
+Gewöhnliche Recken kosten **2 Sekunden** — vom Bauern bis zum
+Großmeister gleich. „Scharfe Klauen" beschleunigt jetzt diese Zeit
+(20 Stufen drücken 2 s auf gemessene 1,55 s).
+
+### Zwei neue Einheiten
+
+**Panzerritter** (ab Welle 9): 220 Lebenspunkte, Tempo 10 — und
+**7 Sekunden Fresszeit**. Er ist der Verstopfer: nicht gefährlich,
+aber hinter ihm staut sich die Welle. Breiterer Rumpf, Schulterplatten,
+Streitkolben.
+
+**Heilzauberer** (ab Welle 14): trottet mit Tempo 7 hinterher und hält
+alles in 34 px Umkreis am Leben (9 LP je Sekunde). Grüne, pulsierende
+Aura mit hartem Ring auf den Planken; wer geheilt wird, schimmert kurz
+grün. Er heilt **nicht sich selbst** — sonst wären zwei davon
+unsterblich. Trägt einen Stab mit leuchtendem Knauf statt einer Klinge.
+
+### Bosse
+
+- **Alle 190 Wellen** statt alle fünf. Ein Meilenstein, kein Rhythmus.
+- **Betritt er das Tor, ist die Burg sofort verloren.** Er wird nicht
+  mehr verdaut — er muss auf der Brücke sterben. Eigene Niederlagen-
+  meldung: „DER BOSS IST DURCH".
+- Daraus folgt die neue Auslegung: **fünffaches Leben des stärksten
+  Rangs** (statt 25-fach) = rund 40 Bauern, und **ein Drittel Tempo** =
+  gemessene **80 Sekunden** Zeit zum Töten. Vorher hing seine Schwierig-
+  keit an Kapazität und Schlund; jetzt allein an der Frage, ob der
+  Schaden reicht.
+- Vierzigfaches Gold, weil er der einzige seiner Art ist.
+
+### Gemessen
+
+Neues Prüfskript `werkzeuge/pruefe-simulation.mjs` — es lässt die echte
+Simulation im Zeitschritt laufen, statt nur Formeln nachzurechnen.
+**20 Prüfungen, 0 Fehler**, darunter:
+
+- Bauer 2,02 s, Großmeister 2,02 s — achtfaches Leben, gleiche Zeit.
+- Panzerritter 7,02 s.
+- Der Nahe wird geheilt (5 → 20 LP), der Ferne nicht, der Heiler selbst
+  nicht, und nie über volles Leben hinaus.
+- Boss am Tor: Phase sofort `niederlage`, nichts landet im Tor.
+- Ein gewöhnlicher Großmeister am selben Punkt: Welle läuft weiter.
+
+Im Browser nachgesehen: Die Aura färbt die Umgebung an drei gemessenen
+Punkten grün, der Ring auf den Planken ebenfalls.
+
+**Balance danach:** Die Streuung, die am 28.08. noch Faktor 14 betrug
+(Welle 7 bis 20), ist praktisch verschwunden — sechs Läufe endeten
+alle bei Welle 7 mit 663 bis 1.610 Gold. Die Wellen laufen deutlich
+zügiger (29–72 s statt 19–239 s), weil der Boss-Slog weg ist. Die
+Kapazitätswand bei Welle 9–10 steht unverändert; sie ist eine
+Entwurfsfrage und in `docs/BALANCE-2026-08-28.md` beschrieben.
+
+### Prüfungen nachgezogen
+
+Die Reihe der Recken ist keine Leiter mehr, sondern eine Aufstellung mit
+Rollen. „Später = in allem größer" galt für sieben Klassen nicht mehr und
+wurde durch die Regeln ersetzt, die wirklich gelten: Erscheinungswelle
+und Goldwert steigen, alles andere folgt der Rolle.
+
+
 ## 0.9.2 — 28.08.2026
 
 **Balance vermessen. Dabei einen Absturz gefunden und behoben.**

@@ -191,10 +191,13 @@ export function belegungZeichnen(ctx, imTor, kapazitaet, schlund, zeit) {
   for (let i = 0; i < zeigen; i++) {
     const x = x0 + i * abstand;
     // Fressbalken: Über jedem Recken, der gerade im Maul steckt, läuft
-    // sein Restleben ab — von voll (frisch geschluckt) bis leer (tot).
+    // seine Fresszeit ab — von voll (frisch geschluckt) bis leer (tot).
+    // Nicht sein Leben: Wie zäh er auf der Brücke war, spielt im Tor
+    // keine Rolle mehr.
     if (i < anzahl && i < schlund) {
       const opfer = imTor[i];
-      const anteil = Math.max(0, Math.min(1, opfer.lp / (opfer.maxLp || opfer.klasse.lp)));
+      const ganz = opfer.fressZeit || opfer.klasse.fressZeit || 2;
+      const anteil = Math.max(0, Math.min(1, (opfer.fressRest != null ? opfer.fressRest : ganz) / ganz));
       ctx.fillStyle = 'rgba(6,7,12,0.8)';
       ctx.fillRect(x, y - 5, 5, 2);
       ctx.fillStyle = anteil > 0.5 ? '#ff9a4a' : '#ff6a52';

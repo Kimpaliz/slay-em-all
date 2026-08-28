@@ -26,9 +26,29 @@ export function reckeZeichnen(ctx, r, zeit) {
   const oben = fuesse - hoehe - wippen;
   const vorne = schritt > 0;
 
+  // Die Heilaura liegt unter allem anderen — ein pulsierender grüner
+  // Schein, dessen Radius genau der Reichweite entspricht. Wer ihn
+  // sieht, weiß, wen er zuerst umlegen sollte.
+  if (k.heilt) {
+    const puls = 0.72 + 0.28 * Math.sin(zeit * 2.4 + r.phase);
+    const rw = k.heilt.reichweite;
+    const mitte = x + 3;
+    const schein = ctx.createRadialGradient(mitte, fuesse - 8, 2, mitte, fuesse - 8, rw);
+    schein.addColorStop(0, 'rgba(126, 214, 150, ' + (0.26 * puls).toFixed(3) + ')');
+    schein.addColorStop(0.6, 'rgba(90, 190, 130, ' + (0.10 * puls).toFixed(3) + ')');
+    schein.addColorStop(1, 'rgba(90, 190, 130, 0)');
+    ctx.fillStyle = schein;
+    ctx.fillRect(mitte - rw, fuesse - 8 - rw, rw * 2, rw * 2);
+    // Ein flacher Ring auf den Planken zeigt die Reichweite hart.
+    ctx.globalAlpha = 0.30 * puls;
+    ctx.fillStyle = '#8fd39a';
+    ctx.fillRect(mitte - rw, fuesse, rw * 2, 1);
+    ctx.globalAlpha = 1;
+  }
+
   // Schatten
   ctx.fillStyle = 'rgba(0,0,0,0.4)';
-  ctx.fillRect(x, fuesse, 6, 1);
+  ctx.fillRect(x, fuesse, k.breit ? 8 : 6, 1);
 
   if (k.umhang) {
     ctx.fillStyle = k.umhang;
@@ -46,9 +66,19 @@ export function reckeZeichnen(ctx, r, zeit) {
     ctx.fillRect(x + 4, fuesse - 3, 2, 3);
   }
 
-  // Rumpf
+  // Rumpf. Der Panzerritter ist zwei Punkte breiter — man soll ihn im
+  // Getümmel sofort erkennen, denn er ist der, der das Tor verstopft.
+  const breite = k.breit ? 7 : 5;
   ctx.fillStyle = k.rumpf;
-  ctx.fillRect(x + 1, oben + 4, 5, hoehe - 6);
+  ctx.fillRect(x + 1, oben + 4, breite, hoehe - 6);
+  if (k.breit) {
+    // Schulterplatten und ein Gürtel aus Metall
+    ctx.fillStyle = k.metall;
+    ctx.fillRect(x, oben + 4, 9, 2);
+    ctx.fillRect(x + 1, oben + Math.round(hoehe * 0.6), breite, 1);
+    ctx.fillStyle = 'rgba(255,255,255,0.14)';
+    ctx.fillRect(x, oben + 4, 9, 1);
+  }
   ctx.fillStyle = 'rgba(0,0,0,0.35)';
   ctx.fillRect(x + 1, oben + 4, 1, hoehe - 6);
   ctx.fillStyle = k.arm;
@@ -75,6 +105,14 @@ export function reckeZeichnen(ctx, r, zeit) {
     ctx.fillRect(x + 1, oben, 5, 2);
   }
 
+  // Wer gerade geheilt wurde, schimmert kurz grün auf.
+  if (r.geheilt > 0) {
+    ctx.globalAlpha = Math.min(0.7, r.geheilt * 2);
+    ctx.fillStyle = '#8fd39a';
+    ctx.fillRect(x + 1, oben, breite, hoehe - 2);
+    ctx.globalAlpha = 1;
+  }
+
   // Waffe — je höher der Rang, desto länger die Klinge
   ctx.fillStyle = '#4a3a26';
   ctx.fillRect(x + 7, oben + 1, 1, hoehe - 2);
@@ -86,6 +124,23 @@ export function reckeZeichnen(ctx, r, zeit) {
   } else if (k.id === 'soeldner') {
     ctx.fillRect(x + 7, oben - 3, 1, 4);
     ctx.fillRect(x + 6, oben + 1, 3, 1);
+  } else if (k.heilt) {
+    // Kein Schwert, sondern ein Stab mit leuchtendem Knauf.
+    ctx.fillStyle = '#5c4a32';
+    ctx.fillRect(x + 7, oben - 4, 1, hoehe + 2);
+    const glut = 0.6 + 0.4 * Math.sin(zeit * 3.6 + r.phase);
+    ctx.fillStyle = '#8fd39a';
+    ctx.fillRect(x + 6, oben - 6, 3, 3);
+    ctx.globalAlpha = glut;
+    ctx.fillStyle = '#dff5e4';
+    ctx.fillRect(x + 7, oben - 5, 1, 1);
+    ctx.globalAlpha = 1;
+  } else if (k.breit) {
+    // Ein wuchtiger Streitkolben statt einer Klinge.
+    ctx.fillRect(x + 9, oben - 2, 1, hoehe);
+    ctx.fillRect(x + 8, oben - 5, 3, 3);
+    ctx.fillStyle = 'rgba(255,255,255,0.18)';
+    ctx.fillRect(x + 8, oben - 5, 3, 1);
   } else {
     ctx.fillRect(x + 7, oben - 4, 1, 5);
     ctx.fillRect(x + 6, oben - 4, 3, 1);

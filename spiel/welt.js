@@ -66,6 +66,7 @@ export function neueSzene() {
     // Lebendes
     recken: [],          // unterwegs auf der Brücke
     imTor: [],           // verschluckt, wird gerade verdaut
+    bossDurch: null,     // Name des Bosses, der das Tor erreicht hat
     brennende: [],       // verbrennen gerade zu Asche
 
     // Fliegendes und Liegendes

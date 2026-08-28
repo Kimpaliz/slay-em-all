@@ -132,12 +132,21 @@ bei allen Waren, bei den Fähigkeiten in der Aktionsleiste und bei
 Artefakten. Der Tooltip erscheint über dem Finger und bleibt stehen, bis
 man woanders hintippt — sonst läge die eigene Hand davor.
 
-### Die fünf Ränge
+### Die sieben Ränge
 
-Bauer → Söldner → Ritter → Paladin → Großmeister, ab den Wellen 1, 3, 7, 12
-und 18 — feste Grenzen, der „Edle Köder" ist gestrichen. Lebenspunkte sind
-zugleich Verdauzeit: Das Monster frisst 10 LP je Sekunde, ein Großmeister
-hat 160 und blockiert damit 16 Sekunden lang einen Platz.
+Bauer → Söldner → Ritter → **Panzerritter** → Paladin → **Heilzauberer** →
+Großmeister, ab den Wellen 1, 3, 7, 9, 12, 14 und 18.
+
+Zwei davon fallen bewusst aus der Reihe. Der **Panzerritter** ist kaum
+gefährlich, blockiert das Tor aber **7 Sekunden** statt 2 — hinter ihm
+staut sich die Welle. Der **Heilzauberer** ist dünn und langsam, hält
+aber alles um sich herum am Leben; seine grüne Aura zeigt genau, wie
+weit er reicht.
+
+**Lebenspunkte und Fresszeit sind zwei verschiedene Dinge.** Wie zäh
+einer auf der Brücke ist, sagt nichts darüber, wie lange er im Tor einen
+Platz belegt. Ein Großmeister hat das Achtfache an Leben eines Bauern —
+und kostet im Tor genau gleich viel Zeit.
 
 ## Aufbau
 
@@ -170,7 +179,8 @@ symbole/                    App-Symbole, erzeugt
 werkzeuge/
   symbole-erzeugen.mjs      malt die App-Symbole als PNG
   wirtschaft.mjs            alle Regeln und Preise, ohne Browser
-  pruefe-wirtschaft.mjs     2.203 Prüfungen
+  pruefe-wirtschaft.mjs     2.269 Prüfungen der Formeln
+  pruefe-simulation.mjs     20 Prüfungen an der laufenden Welt
   balance.mjs               spielt Wellen durch und misst
   vorschau-server.mjs       örtlicher Server
 ```

@@ -18,7 +18,7 @@ import {
   vergiften, fundstueckNehmen
 } from './kampf.js';
 import { wirkungAus } from './artefakte.js';
-import { RECKEN } from './daten/recken.js';
+import { RECKEN, FRESSZEIT_NORMAL } from './daten/recken.js';
 import {
   welleGewonnen, welleVerloren, niederlageBeenden, welleStarten, bossKlasse, RITUAL_WARTEZEIT
 } from './wellen.js';
@@ -39,7 +39,7 @@ export function schritt(welt, dt, einstellungen = {}) {
   const werte = werteAus(zustand.stufenG, zustand.stufenP, wirkung);
   // Hungriges Gemäuer: gestapelte Fressboni, jeder 3 %.
   if (wirkung.hungrigesGemaeuer > 0 && szene.sattStapel > 0) {
-    werte.angriff *= 1 + 0.03 * szene.sattStapel;
+    werte.fressTempo *= 1 + 0.03 * szene.sattStapel;
   }
   const blutmenge = einstellungen.blutmenge != null ? einstellungen.blutmenge : BLUTMENGE;
   const ruetteln = einstellungen.ruetteln !== false;
@@ -57,6 +57,7 @@ export function schritt(welt, dt, einstellungen = {}) {
   reckenFuehren(welt, dt, werte);
   abklingzeitenFuehren(szene, dt);
 
+  heilungFuehren(welt, dt);
   brandFuehren(welt, dt, werte);
   giftFuehren(welt, dt, werte);
   prankeFuehren(welt, dt, werte);
@@ -122,8 +123,11 @@ function phaseFuehren(welt, dt, werte) {
     // der Schlund der Durchsatz — zwei getrennte Käufe, zwei Nöte.
     const maeuler = Math.min(werte.schlund, szene.imTor.length);
     for (let i = maeuler - 1; i >= 0; i--) {
-      szene.imTor[i].lp -= werte.angriff * dt;
-      if (szene.imTor[i].lp <= 0) {
+      // Es zaehlt eine Zeit herunter, kein Leben. Wie zaeh einer auf der
+      // Bruecke war, spielt hier keine Rolle mehr — nur, was seine
+      // Klasse an Fresszeit mitbringt.
+      szene.imTor[i].fressRest -= werte.fressTempo * dt;
+      if (szene.imTor[i].fressRest <= 0) {
         const opfer = szene.imTor[i];
         szene.imTor.splice(i, 1);
         torTod(welt, opfer, 9, true, werte);
@@ -255,15 +259,57 @@ function reckenFuehren(welt, dt, werte) {
     r.x += tempo * dt;
     if (r.x >= MASSE.TOR_EINTRITT) {
       szene.recken.splice(i, 1);
+
+      // Der Boss wird nicht gefressen. Erreicht er das Tor, ist die
+      // Burg auf der Stelle verloren — er ist eine Frist, keine
+      // Mahlzeit. Deshalb muss er auf der Brücke sterben.
+      if (r.boss) {
+        szene.bossDurch = r.name;
+        welleVerloren(welt);
+        break;
+      }
+
+      const fressZeit = r.klasse.fressZeit || FRESSZEIT_NORMAL;
       szene.imTor.push({
         klasse: r.klasse, name: r.name, lp: r.lp, maxLp: r.maxLp,
-        boss: !!r.boss, groesse: r.groesse || 1
+        fressZeit, fressRest: fressZeit,
+        groesse: r.groesse || 1
       });
       if (szene.imTor.length > werte.kapazitaet) {
         welleVerloren(welt);
         break;
       }
     }
+  }
+}
+
+/**
+ * Der Heilzauberer hält seine Nachbarn am Leben.
+ *
+ * Er heilt in einem festen Umkreis und **nicht sich selbst** — sonst
+ * wäre er in einer Gruppe von zweien unsterblich. Geheilt wird nur bis
+ * zum vollen Leben; wer schon voll ist, kostet nichts.
+ *
+ * Für die Anzeige merkt sich jeder Geheilte einen kurzen Schimmer.
+ */
+function heilungFuehren(welt, dt) {
+  const szene = welt.szene;
+  const heiler = szene.recken.filter((r) => r.klasse.heilt && r.zustand === 'laeuft');
+  if (!heiler.length) return;
+
+  for (const h of heiler) {
+    const { reichweite, proSekunde } = h.klasse.heilt;
+    for (const r of szene.recken) {
+      if (r === h || r.zustand !== 'laeuft') continue;
+      if (r.lp >= r.maxLp) continue;
+      if (Math.abs(r.x - h.x) > reichweite) continue;
+      r.lp = Math.min(r.maxLp, r.lp + proSekunde * dt);
+      r.geheilt = 0.35;
+    }
+  }
+  // Der Schimmer verblasst.
+  for (const r of szene.recken) {
+    if (r.geheilt > 0) r.geheilt = Math.max(0, r.geheilt - dt);
   }
 }
 

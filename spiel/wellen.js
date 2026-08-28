@@ -146,7 +146,8 @@ export function welleVerloren(welt) {
       zustand: 'flieht',
       getroffen: 0,
       wartet: false,
-      boss: !!opfer.boss,
+      // Ein Boss steht hier nie: Betritt er das Tor, ist die Welle
+      // sofort vorbei, er wird also nie verschluckt.
       groesse: opfer.groesse || 1
     });
   }
@@ -157,11 +158,17 @@ export function welleVerloren(welt) {
   szene.donnerBereit = false;
 
   szene.spruchband = {
-    text: 'DIE BURG IST ÜBERRANNT',
-    unter: 'Das Monster ist bezwungen — zurück zu Welle ' + ziel,
+    // Zwei Arten zu verlieren, zwei Meldungen: überfüllt oder
+    // durchgelassen. Die zweite ist die neue — ein Boss, der das Tor
+    // erreicht, beendet die Welle auf der Stelle.
+    text: szene.bossDurch ? 'DER BOSS IST DURCH' : 'DIE BURG IST ÜBERRANNT',
+    unter: szene.bossDurch
+      ? szene.bossDurch + ' hat das Tor erreicht — zurück zu Welle ' + ziel
+      : 'Das Monster ist bezwungen — zurück zu Welle ' + ziel,
     farbe: '#c1444f', zeit: 0, dauer: 4.5
   };
   melden(szene, ausListe(WELLE_VERLOREN));
+  szene.bossDurch = null;
   zustand.welle = ziel;
   zustand.phase = 'niederlage';
 }

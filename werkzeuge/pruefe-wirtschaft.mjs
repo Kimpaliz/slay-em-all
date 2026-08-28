@@ -12,10 +12,10 @@ import {
   werte, wellenStaerke, spawnAbstand, verfuegbareKlassen, klassenGewichte,
   zauberWerte, ausbauPreis, klickWerte, klickAusbauPreis, rueckfall, zahl,
   SCHADENSARTEN, schadensFarbe, HALLEN_AB_WELLE, FRESSTEMPO, TEMPO_DECKEL,
-  wellenSkalierung, istBosswelle, BOSS
+  wellenSkalierung, istBosswelle, BOSS, BOSS_ABSTAND
 } from './wirtschaft.mjs';
 import { leereWirkung } from '../spiel/artefakte.js';
-import { RECKEN } from '../spiel/daten/recken.js';
+import { RECKEN, FRESSZEIT_NORMAL } from '../spiel/daten/recken.js';
 
 let geprueft = 0;
 let fehler = 0;
@@ -85,8 +85,8 @@ if (typeof hallen.bedingung === 'function') {
 console.log('Werte aus den Stufen');
 const leer = werte({ ...STUFEN_GROMMSCH_LEER }, { ...STUFEN_PIPS_LEER });
 gleich(leer.kapazitaet, 3, 'Grundkapazität ist 3');
-gleich(FRESSTEMPO, 10, 'Grundfresstempo ist 10 LP/s (Rebasierung mal 10)');
-nahe(leer.angriff, 10, 'Grundangriff ist 10 LP/s');
+gleich(FRESSTEMPO, 1, 'Fresstempo ist ein Faktor auf die Fresszeit, kein Schaden mehr');
+nahe(leer.fressTempo, 1, 'Ohne Ausbau laeuft die Fresszeit in Echtzeit ab');
 gleich(leer.schuetzen, 0, 'Anfangs keine Schützen');
 gleich(leer.pfeilSchaden, 10, 'Pfeilschaden ohne Ausbau ist 10');
 nahe(leer.stolzFaktor, 1, 'Stolzfaktor ohne Ausbau ist 1');
@@ -99,12 +99,12 @@ const voll = werte(
   { ...STUFEN_PIPS_LEER, sammler: 1, stolz: 2, ernte: 1 }
 );
 gleich(voll.kapazitaet, 7, 'Vier Stufen Hallen ergeben Kapazität 7');
-nahe(voll.angriff, FRESSTEMPO * (1 + 0.015 * 3), 'Klauen geben 1,5 % je Stufe');
+nahe(voll.fressTempo, FRESSTEMPO * (1 + 0.015 * 3), 'Klauen geben 1,5 % je Stufe');
 gleich(voll.schuetzen, 4, 'Vier Schützen');
 gleich(voll.pfeilSchaden, 30, 'Zwei Stufen Pfeile ergeben Schaden 30');
 nahe(voll.stolzFaktor, 1.5, 'Zwei Stufen Stolz ergeben +50 %');
 
-pruefe(werte({ ...STUFEN_GROMMSCH_LEER, klauen: 40 }, { ...STUFEN_PIPS_LEER }).angriff > 0,
+pruefe(werte({ ...STUFEN_GROMMSCH_LEER, klauen: 40 }, { ...STUFEN_PIPS_LEER }).fressTempo > 0,
   'Angriff bleibt auch bei Stufe 40 endlich und positiv');
 
 gleich(leer.schlund, 1, 'Ohne Ausbau frisst das Monster einen zugleich');
@@ -135,12 +135,12 @@ console.log('Artefakt-Wirkung fliesst in die Werte ein');
   const mit = werte({ ...STUFEN_GROMMSCH_LEER }, { ...STUFEN_PIPS_LEER }, w);
   gleich(mit.kapazitaet, 5, 'Artefakte erhöhen die Kapazität');
   gleich(mit.schlund, 2, 'Artefakte geben ein zweites Maul');
-  nahe(mit.angriff, FRESSTEMPO * 1.5, 'Eisenmagen wirkt auf das Fresstempo');
+  nahe(mit.fressTempo, FRESSTEMPO * 1.5, 'Eisenmagen wirkt auf das Fresstempo');
   nahe(mit.muenzFaktor, 1.2, 'Gierschimmer macht Münzen wertvoller');
   nahe(mit.fundchance, 0.55, 'Spürnase erhöht die Fundchance');
   pruefe(mit.wirkung === w, 'Die Wirkung wird durchgereicht');
   const ohne = werte({ ...STUFEN_GROMMSCH_LEER }, { ...STUFEN_PIPS_LEER });
-  nahe(ohne.angriff, FRESSTEMPO, 'Ohne Artefakte bleibt der Grundwert');
+  nahe(ohne.fressTempo, FRESSTEMPO, 'Ohne Artefakte bleibt der Grundwert');
   gleich(ohne.wirkung, null, 'Ohne Regal ist die Wirkung null');
 }
 
@@ -268,17 +268,26 @@ console.log('Wie die Wellen von selbst wachsen');
 
 console.log('Bosswellen');
 {
-  for (const w of [5, 10, 15, 20, 100]) pruefe(istBosswelle(w), 'Welle ' + w + ' ist eine Bosswelle');
-  for (const w of [1, 2, 4, 6, 9, 11, 99]) pruefe(!istBosswelle(w), 'Welle ' + w + ' ist keine Bosswelle');
-  pruefe(!istBosswelle(0), 'Welle 0 ist keine Bosswelle');
+  for (const w of [190, 380, 570]) pruefe(istBosswelle(w), 'Welle ' + w + ' ist eine Bosswelle');
+  for (const w of [1, 5, 10, 50, 189, 191, 379]) pruefe(!istBosswelle(w), 'Welle ' + w + ' ist keine Bosswelle');
+  
+  // Bosse sind seit 0.10.0 ein Meilenstein, kein Rhythmus.
+gleich(BOSS_ABSTAND, 190, 'Ein Boss kommt alle 190 Wellen');
+for (const w of [1, 5, 10, 50, 189, 191, 380 - 1]) {
+  pruefe(!istBosswelle(w), 'Welle ' + w + ' ist keine Bosswelle');
+}
+for (const w of [190, 380, 570]) {
+  pruefe(istBosswelle(w), 'Welle ' + w + ' ist eine Bosswelle');
+}
+pruefe(BOSS.tempoFaktor < 0.5, 'Der Boss geht deutlich langsamer — man soll ihn toeten koennen');
 
-  gleich(BOSS.lpFaktor, 25, 'Der Boss hat 25-faches Leben');
-  gleich(BOSS.goldFaktor, 10, 'Der Boss bringt zehnfaches Gold');
+gleich(BOSS.lpFaktor, 5, 'Der Boss hat fuenffaches Leben des staerksten Rangs');
+  gleich(BOSS.goldFaktor, 40, 'Der Boss bringt vierzigfaches Gold');
   gleich(BOSS.groesse, 2, 'Der Boss ist doppelt so groß');
   pruefe(BOSS.tempoFaktor < 1, 'Der Boss ist langsamer als ein normaler Recke');
 
   // Halbes Gefolge, aber nie weniger als zwei.
-  for (const w of [5, 10, 20, 40, 60]) {
+  for (const w of [190, 380]) {
     const boss = wellenStaerke(w);
     const normal = wellenStaerke(w - 1);
     pruefe(boss < normal, 'Bosswelle ' + w + ' hat weniger Gefolge als Welle ' + (w - 1));
@@ -295,7 +304,8 @@ pruefe(wellenStaerke(2) > wellenStaerke(1), 'Welle 2 ist größer als Welle 1');
 // und bringen dort nur halbes Gefolge. Der Deckel gilt fuer normale Wellen.
 gleich(wellenStaerke(199), 80, 'Deckel bei 80 greift');
 gleich(wellenStaerke(1001), 80, 'Deckel hält auch weit oben');
-gleich(wellenStaerke(200), 40, 'Bosswelle 200 bringt halbes Gefolge');
+gleich(wellenStaerke(190), 40, 'Bosswelle 190 bringt halbes Gefolge');
+gleich(wellenStaerke(200), 80, 'Welle 200 ist keine Bosswelle und bringt volles Gefolge');
 // Die Monotonie gilt nur unter NORMALEN Wellen. Bosswellen bringen
 // absichtlich halbes Gefolge -- dort faellt die Zahl, und das ist richtig.
 let vorherige = 0;
@@ -333,7 +343,7 @@ nahe(spawnAbstand(100) / wellenSkalierung(100).truppGroesse, 0.85,
 console.log('Verfügbare Klassen');
 gleich(verfuegbareKlassen(RECKEN, 1).length, 1, 'In Welle 1 nur Bauern');
 gleich(verfuegbareKlassen(RECKEN, 3).length, 2, 'Ab Welle 3 kommt der Söldner dazu');
-gleich(verfuegbareKlassen(RECKEN, 18).length, 5, 'Ab Welle 18 sind alle fünf da');
+gleich(verfuegbareKlassen(RECKEN, 18).length, 7, 'Ab Welle 18 sind alle sieben da');
 // Der Koeder ist gestrichen (0.7.0): Die Klassen kommen allein nach Welle.
 gleich(verfuegbareKlassen(RECKEN, 6).length, verfuegbareKlassen(RECKEN, 6, 3).length,
   'Ein zweites Argument wird ignoriert -- kein Köder mehr');
@@ -447,30 +457,82 @@ pruefe(zahl(12345).indexOf('.') < 0, 'Kein englischer Dezimalpunkt');
 /* ---------------- Reckenklassen ---------------- */
 
 console.log('Reckenklassen');
-gleich(RECKEN.length, 5, 'Fünf Klassen');
+gleich(RECKEN.length, 7, 'Sieben Klassen');
+
+// Seit 0.10.0 ist die Reihe keine reine Leiter mehr, sondern eine
+// Aufstellung mit Rollen: Der Panzerritter ist zaeh und harmlos, der
+// Heilzauberer duenn und gefaehrlich. "Spaeter = in allem groesser"
+// gilt deshalb bewusst nicht mehr — nur zwei Dinge muessen steigen.
 for (let i = 1; i < RECKEN.length; i++) {
   const a = RECKEN[i - 1];
   const b = RECKEN[i];
   pruefe(b.abWelle > a.abWelle, b.name + ' erscheint später als ' + a.name);
-  pruefe(b.lp > a.lp, b.name + ' hat mehr Lebenspunkte als ' + a.name);
-  pruefe(b.blut > a.blut, b.name + ' bringt mehr Blut als ' + a.name);
   pruefe(b.gold > a.gold, b.name + ' bringt mehr Gold als ' + a.name);
+}
+for (const k of RECKEN) {
+  pruefe(k.lp > 0, k.name + ' hat Lebenspunkte');
+  pruefe(k.blut > 0, k.name + ' hinterlässt Blut');
+  pruefe(k.tempo > 0, k.name + ' bewegt sich');
   // Schrott ist seit 0.7.0 keine Waehrung mehr und darf nicht zurueckkehren.
-  pruefe(b.schrott === undefined, b.name + ' hat kein Schrott-Feld mehr');
-  pruefe(b.hoehe > a.hoehe, b.name + ' ist größer als ' + a.name);
+  pruefe(k.schrott === undefined, k.name + ' hat kein Schrott-Feld mehr');
 }
 
-// Tempo: Der Söldner ist die bewusste Ausnahme — er ist mit 24 schneller
-// als der Bauer mit 20 und rennt am eifrigsten ins Tor. Ab dem Söldner
-// wird jede Klasse langsamer, weil die Rüstung schwerer wird.
+/* ---------------- Fresszeit als eigene Achse ---------------- */
+
+console.log('Fresszeit');
+gleich(FRESSZEIT_NORMAL, 2, 'Ein gewöhnlicher Recke kostet 2 Sekunden im Tor');
+for (const k of RECKEN) {
+  pruefe(k.fressZeit > 0, k.name + ' hat eine Fresszeit');
+  pruefe(k.fressZeit === FRESSZEIT_NORMAL || k.id === 'panzer',
+    k.name + ' hat die normale Fresszeit oder ist der Panzerritter');
+}
+{
+  const panzer = RECKEN.find((k) => k.id === 'panzer');
+  gleich(panzer.fressZeit, 7, 'Der Panzerritter blockiert 7 Sekunden');
+  pruefe(panzer.fressZeit > FRESSZEIT_NORMAL * 3, 'Er verstopft das Tor deutlich länger als jeder andere');
+  pruefe(panzer.tempo < RECKEN.find((k) => k.id === 'ritter').tempo,
+    'Dafür ist er langsamer als ein Ritter');
+
+  // Der Beweis der Entkopplung: Der Großmeister hat das Achtfache an
+  // Lebenspunkten eines Bauern und kostet im Tor exakt gleich viel Zeit.
+  const bauer = RECKEN.find((k) => k.id === 'bauer');
+  const meister = RECKEN.find((k) => k.id === 'meister');
+  pruefe(meister.lp >= bauer.lp * 8, 'Der Großmeister ist achtmal so zäh wie ein Bauer');
+  gleich(meister.fressZeit, bauer.fressZeit,
+    '... und kostet im Tor trotzdem genau gleich viel Zeit');
+  // Und andersherum: Der Zäheste ist zugleich der Langsamste im Maul —
+  // das ist Absicht und die einzige Stelle, wo beides zusammenfällt.
+  pruefe(panzer.lp === Math.max(...RECKEN.map((k) => k.lp)),
+    'Der Panzerritter ist der zäheste Recke');
+}
+{
+  const heiler = RECKEN.find((k) => k.id === 'heiler');
+  gleich(heiler.fressZeit, FRESSZEIT_NORMAL, 'Der Heilzauberer kostet normale Fresszeit');
+  pruefe(!!heiler.heilt, 'Der Heilzauberer heilt');
+  pruefe(heiler.heilt.reichweite > 0, 'Seine Aura hat eine Reichweite');
+  pruefe(heiler.heilt.proSekunde > 0, 'Seine Aura heilt je Sekunde');
+  pruefe(heiler.tempo < RECKEN.find((k) => k.id === 'bauer').tempo / 2,
+    'Er trottet — weniger als halbes Bauerntempo');
+  gleich(RECKEN.filter((k) => k.heilt).length, 1, 'Genau eine Klasse heilt');
+}
+
+// Tempo: Der Söldner ist die bewusste Ausnahme nach oben — er ist mit 24
+// schneller als der Bauer mit 20 und rennt am eifrigsten ins Tor.
+// Seit 0.10.0 gibt es zwei weitere Ausnahmen, weil die Reihe keine
+// Leiter mehr ist: Der Panzerritter trägt zu viel Eisen (10), der
+// Heilzauberer trottet hinterher (7). Beide sind absichtlich langsamer
+// als Klassen, die später erscheinen.
 gleich(RECKEN[0].tempo, 20, 'Bauer läuft mit Tempo 20');
 gleich(RECKEN[1].tempo, 24, 'Der Söldner ist der schnellste Recke');
-for (let i = 2; i < RECKEN.length; i++) {
-  pruefe(RECKEN[i].tempo < RECKEN[i - 1].tempo,
-    RECKEN[i].name + ' ist langsamer als ' + RECKEN[i - 1].name);
+pruefe(RECKEN.every((k) => k.tempo <= 24), 'Niemand ist schneller als der Söldner');
+{
+  const heiler = RECKEN.find((k) => k.id === 'heiler');
+  pruefe(RECKEN.every((k) => k.tempo >= heiler.tempo),
+    'Der Heilzauberer ist der langsamste Recke');
+  const panzer = RECKEN.find((k) => k.id === 'panzer');
+  pruefe(panzer.tempo < RECKEN.find((k) => k.id === 'meister').tempo,
+    'Der Panzerritter ist langsamer als der Großmeister');
 }
-pruefe(RECKEN[RECKEN.length - 1].tempo < RECKEN[0].tempo,
-  'Der Großmeister ist langsamer als der Bauer');
 for (const k of RECKEN) {
   pruefe(k.helm || k.kopf, k.name + ': hat entweder Helm oder Kopffarbe');
   pruefe(k.lp > 0 && k.tempo > 0 && k.blut > 0, k.name + ': Grundwerte positiv');
