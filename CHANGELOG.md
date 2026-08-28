@@ -1,5 +1,51 @@
 # Änderungsprotokoll
 
+## 0.8.2 — 28.08.2026
+
+**Am Handy quer füllt das Schlachtfeld jetzt den Bildschirm, randlos.**
+
+Jannik meldete mit Bildschirmfoto: „auf handy sieht man den boden
+garnicht". Nachgemessen auf 915 × 412 (Handy quer):
+
+| | vorher | nachher |
+| --- | --- | --- |
+| Bild der Szene | 891 × 371, unten abgeschnitten | 915 × 381, vollständig |
+| Bildschirmnutzung | 88 %, davon Teile außerhalb | **93 %** |
+| Brückenboden | 7 px unter dem Bildrand | sichtbar bei y 279, 37 px Luft |
+| Steuerung und Reiter | vollständig außerhalb des Bildes | sichtbar |
+| Seitenrand | 12 px | **0** |
+
+**Die Ursache:** Die Leinwand richtete sich allein nach der *Breite*
+(`width: 100%; height: auto`). Bei 2,4 : 1 wird sie auf 915 px Breite
+381 px hoch — mehr, als nach Kopfzeile (30 px), Steuerung (73 px) und
+Reiterleiste (28 px) übrig war. Der Rest lief unten aus dem Bild.
+
+**Die Lösung:** Quer legen sich Kopfzeile und Steuerung *auf* die Szene
+statt über und unter sie, jeweils mit einem weichen Verlauf als
+Untergrund. Draußen bleibt nur die schmale Reiterleiste. Die Leinwand
+richtet sich mit `object-fit: contain` nach Breite **und** Höhe, wird
+also nie abgeschnitten und nie verzerrt. Dazu: kein Seitenrand, keine
+abgerundeten Ecken, keine Schlagschatten — randlos bis an die Kanten.
+
+Die Steuerung liegt über dem Burggraben, wo es nichts anzuklicken gibt;
+der Brückenboden bleibt in jedem geprüften Format frei. Sie wurde quer
+zusätzlich kompakter gesetzt (75 → 66 px), damit das auch auf sehr
+flachen Bildschirmen gilt — bei 900 × 340 bleiben 18 px Luft.
+
+**Hochkant** war schon vorher heil, hatte aber einen unschönen Rest von
+429 px unter dem Spiel. Szene und Steuerung stehen jetzt mittig (199 px
+oben, 199 px unten), und darunter steht ein Hinweis: „Quer halten — dann
+füllt das Schlachtfeld den Bildschirm." Bei 2,4 : 1 Szene auf 1 : 2,2
+Bildschirm ist mehr als ein Fünftel Höhe rechnerisch nicht drin.
+
+**Geprüft:** 915 × 412, 900 × 340, 390 × 844 und 1280 × 880 gemessen;
+Bildpunkte der Leinwand ausgelesen (Planken `#32271a` bei y 147–150,
+Abgrund darunter); Händler- und Artefaktseite kommen unter der
+schwebenden Kopfzeile hervor; am Schreibtisch ist nichts verändert
+(Kopf und Steuerung stehen still, Rundung und Rand wie zuvor,
+Marktschreier sichtbar, Reiterleiste aus). Keine Konsolenmeldung.
+
+
 ## 0.8.1 — 28.08.2026
 
 Kein neuer Spielinhalt. Diese Fassung holt die Pruefungen nach, die seit dem

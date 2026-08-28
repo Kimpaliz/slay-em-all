@@ -522,11 +522,15 @@ canvas[data-szene] {
 
 /* ---------------- Schmale Bildschirme ---------------- */
 
+/* Randlos: Am Handy gibt es keinen Seitenrand und keine abgerundeten
+   Ecken. Die Szene soll bis an die Kanten laufen. Innenabstand bekommen
+   nur die Seiten, die Text enthalten (Händler, Artefakte). */
 .wurzel.schmal {
+  position: relative;
   height: 100dvh;
   min-height: 0;
-  padding: max(12px, env(safe-area-inset-top)) 12px 8px;
-  gap: 6px;
+  padding: 0;
+  gap: 0;
   overflow: hidden;
 }
 
@@ -534,12 +538,17 @@ canvas[data-szene] {
 .wurzel.schmal .vorspann,
 .wurzel.schmal .marktschreier { display: none; }
 
-.wurzel.schmal h1 { font-size: 19px; }
-.wurzel.schmal .kopf { gap: 10px; align-items: center; }
+.wurzel.schmal h1 { font-size: 17px; }
+.wurzel.schmal .kopf {
+  gap: 10px;
+  align-items: center;
+  padding: max(6px, env(safe-area-inset-top)) 12px 6px;
+}
 .wurzel.schmal .beutel { gap: 12px; }
-.wurzel.schmal .beute-wert { font-size: 18px; }
+.wurzel.schmal .beute-wert { font-size: 17px; }
+.wurzel.schmal .wellenmarke { padding: 3px 9px; font-size: 10px; }
 
-/* Zwei Wischseiten nebeneinander, eine Bildschirmbreite je Seite. */
+/* Drei Wischseiten nebeneinander, eine Bildschirmbreite je Seite. */
 .wurzel.schmal .seiten {
   flex: 1 1 auto;
   flex-direction: row;
@@ -556,26 +565,39 @@ canvas[data-szene] {
   flex: 0 0 100%;
   scroll-snap-align: start;
   overflow-y: auto;
-  padding-bottom: 4px;
 }
+
+/* Nur die Textseiten bekommen ihren Rand zurück. */
+.wurzel.schmal .seite-haendler,
+.wurzel.schmal .seite-artefakte { padding: 0 10px 6px; }
 
 .wurzel.schmal .seite-schlacht {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  justify-content: flex-start;
 }
 
-/* Die Bühne ist am Handy nur so hoch wie ihr Inhalt.
+/* Der Hinweis erscheint nur hochkant am Handy. Dort bleibt die Szene
+   zwangsläufig klein: 480 × 200 sind 2,4 : 1, ein Handy hochkant etwa
+   1 : 2,2 — die Leinwand kann also höchstens ein Fünftel der Höhe füllen.
+   Statt das kommentarlos hinzunehmen, sagen wir, wie es besser wird. */
+.drehhinweis { display: none; }
+
+.wurzel.schmal .buehne {
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* Hochkant ist die Bühne nur so hoch wie ihr Inhalt.
    Vorher stand hier `flex: 1 1 auto`, damit die Leinwand schrumpfen kann,
    wenn die Steuerung umbricht. Am Hochkant-Handy hatte das eine
    Nebenwirkung: Die Szene ist 480 × 200 breit zu hoch (2,4 : 1), auf
-   375 px Breite also nur 147 px hoch. Die Bühne dehnte sich trotzdem auf
-   volle Höhe — gemessen am 28.08.2026 auf 375 × 812: Bühne 689 px,
-   davon Leinwand 147 und Steuerung 147, macht **395 px schwarzes Nichts**
-   mitten auf dem Bildschirm. Es sah aus wie ein Ladefehler.
+   375 px Breite also nur 156 px hoch. Die Bühne dehnte sich trotzdem auf
+   volle Höhe — gemessen am 28.08.2026 auf 375 × 812: **395 px schwarzes
+   Nichts** mitten auf dem Bildschirm. Es sah aus wie ein Ladefehler.
    `min-height: 0` bleibt, damit die Leinwand weiterhin nachgeben kann. */
 .wurzel.schmal .buehne { flex: 0 0 auto; min-height: 0; }
-.wurzel.schmal .seite-schlacht { justify-content: flex-start; }
 
 .wurzel.schmal .haendlergitter { grid-template-columns: 1fr; }
 .wurzel.schmal .inventar { grid-template-columns: repeat(5, minmax(0, 42px)); }
@@ -587,7 +609,7 @@ canvas[data-szene] {
   gap: 8px;
   justify-content: center;
   flex: 0 0 auto;
-  padding-bottom: env(safe-area-inset-bottom);
+  padding: 5px 0 max(5px, env(safe-area-inset-bottom));
 }
 
 .reiter button {
@@ -605,6 +627,116 @@ canvas[data-szene] {
   color: var(--text);
   background: rgba(145, 132, 217, 0.22);
   box-shadow: 0 0 0 1px var(--akzent);
+}
+
+/* Hochkant: Szene und Steuerung wandern in die Mitte, damit der
+   unvermeidliche Rest sich gleichmäßig oben und unten verteilt statt als
+   ein großer Block unter dem Spiel zu stehen. */
+@media (orientation: portrait) {
+  .wurzel.schmal .seite-schlacht { justify-content: center; gap: 14px; }
+  .wurzel.schmal .drehhinweis {
+    display: block;
+    margin: 0;
+    padding: 0 16px;
+    text-align: center;
+    font-size: 11.5px;
+    color: var(--gedaempft);
+    text-wrap: pretty;
+  }
+}
+
+/* ---------------- Handy quer: die Szene füllt den Schirm ---------------- */
+
+/*
+   Quer ist die Haltung, in der gespielt wird, und sie passt zur Szene:
+   480 × 200 sind 2,4 : 1, ein Handy quer liegt bei etwa 2,2 : 1. Die
+   Leinwand kann also fast bildfüllend stehen — sie muss nur dürfen.
+
+   Vorher durfte sie nicht. Kopfzeile (30 px), Steuerung (73 px) und
+   Reiterleiste (28 px) nahmen zusammen 131 von 412 Bildpunkten Höhe weg,
+   und die Leinwand richtete sich allein nach der *Breite*. Gemessen am
+   28.08.2026 auf 915 × 412: Leinwand 891 × 371, Unterkante 7 px unter
+   dem Bildrand, Steuerung und Reiterleiste vollständig außerhalb — der
+   Burggraben war weg und der Brückenboden gerade noch zu erahnen.
+
+   Die Lösung: Kopfzeile und Steuerung legen sich *auf* die Szene statt
+   über und unter sie, mit einem weichen Verlauf als Untergrund. Draußen
+   bleibt nur die schmale Reiterleiste. Die Leinwand richtet sich dann
+   nach beidem, Breite und Höhe (`object-fit: contain`), und füllt rund
+   90 % des Bildschirms.
+*/
+@media (orientation: landscape) {
+
+  /* Die Kopfzeile schwebt. `pointer-events` nur für den Knopf, damit
+     Klicks daneben die Szene erreichen. */
+  .wurzel.schmal .kopf {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 20;
+    padding: max(5px, env(safe-area-inset-top)) 12px 14px;
+    background: linear-gradient(180deg,
+      rgba(16, 18, 32, 0.88) 0%,
+      rgba(16, 18, 32, 0.55) 55%,
+      rgba(16, 18, 32, 0) 100%);
+    pointer-events: none;
+  }
+  .wurzel.schmal .kopf button { pointer-events: auto; }
+
+  /* Die Textseiten rücken unter der schwebenden Kopfzeile nach. */
+  .wurzel.schmal .seite-haendler,
+  .wurzel.schmal .seite-artefakte { padding: 54px 10px 6px; }
+
+  /* Die Bühne nimmt jetzt alles, was die Reiterleiste übrig lässt. */
+  .wurzel.schmal .buehne {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: block;      /* nicht mehr flex — die Steuerung schwebt */
+    position: relative;
+    background: #0a0b12;
+  }
+
+  /* Beides zugleich: nie breiter und nie höher als der Platz.
+     `contain` hält dabei das Seitenverhältnis, es wird nichts verzerrt
+     und nichts abgeschnitten. */
+  .wurzel.schmal canvas[data-szene] {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+
+  /* Die Steuerung schwebt am unteren Rand. Sie liegt über dem Burggraben,
+     wo es nichts anzuklicken gibt — der Brückenboden bleibt frei. */
+  .wurzel.schmal .steuerung {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 15;
+    border-top: 0;
+    padding: 18px 12px 7px;
+    gap: 10px;
+    background: linear-gradient(0deg,
+      rgba(16, 18, 32, 0.92) 0%,
+      rgba(16, 18, 32, 0.62) 60%,
+      rgba(16, 18, 32, 0) 100%);
+  }
+
+  /* Kompakter als am Schreibtisch: Jeder Bildpunkt, den die Steuerung
+     nicht braucht, gehört der Szene. Gemessen: 75 px werden zu 58 px,
+     der Brückenboden bekommt dadurch auch auf sehr flachen Bildschirmen
+     Luft nach unten. */
+  .wurzel.schmal .phase { font-size: 11.5px; }
+  .wurzel.schmal .lagezeile { font-size: 10px; }
+  .wurzel.schmal .vorschau { margin-top: 2px; gap: 5px; }
+  .wurzel.schmal .vorschau-chip { font-size: 9.5px; padding: 1px 7px 1px 4px; }
+  .wurzel.schmal .zauberknopf { width: 34px; height: 34px; }
+  .wurzel.schmal .zaubersymbol { width: 21px; height: 21px; }
+  .wurzel.schmal .knopf-welle { font-size: 12px; padding: 7px 13px; }
+
+  .wurzel.schmal .reiter { padding: 3px 0 max(3px, env(safe-area-inset-bottom)); }
+  .reiter button { padding: 5px 16px; }
 }
 
 /* ---------------- Tooltip der Aktionsleiste und der Waren ---------------- */
