@@ -35,9 +35,18 @@ Was drinnen passiert, sieht man nicht — nur was herauskommt: Arme, Beine,
 rollende Helme, Schädel im Burggraben. **Nachts** kommt keiner: Dann wird
 eingekauft, und der Sammel-Drachling holt liegengebliebenes Gold.
 
-**Verlieren geht nur auf eine Art.** Nicht durch Schaden, sondern durch Stau:
+### Ein langes Schlachtfeld
+
+Die Bühne ist **800 Punkte breit** und passt nicht auf einen Schirm —
+sie **scrollt waagerecht**. Der Blick beginnt am Tor; das offene Land
+davor sieht man beim Zurückscrollen. Vom Erscheinen bis ins Tor sind es
+635 Punkte, also reichlich Zeit, jemanden aufzuhalten.
+
+**Verlieren geht auf zwei Arten.** Nicht durch Schaden, sondern durch Stau:
 Passen mehr Recken gleichzeitig ins Tor, als die Burg fasst, ist das Monster
-überfordert — und es geht **fünf Wellen zurück**. Die Beute bleibt. Deshalb ist
+überfordert. Und: **Erreicht ein Boss das Tor, ist sofort Schluss** — er
+wird nicht gefressen, er muss auf der Brücke sterben. Beides kostet
+**fünf Wellen**. Die Beute bleibt. Deshalb ist
 „Tiefere Hallen" bei Grommsch der eigentliche Verteidigungskauf.
 
 ### Eine Währung: Gold
@@ -169,8 +178,7 @@ spiel/
   portraets.js              die bewegten Händlerporträts
   anzeige.js                Brücke zwischen Zustand und Oberfläche
   eingabe.js                Maus, Finger, Tastatur
-  marktschreier.js          das Laufband
-  masse.js                  die feste Bühne (480 × 200)
+  masse.js                  die feste Bühne (800 × 200)
   speicher.js               Spielstand
   daten/                    Recken, Bosse, Texte, Paletten, Porträtbilder
 manifest.webmanifest        macht es als App installierbar

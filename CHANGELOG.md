@@ -1,5 +1,71 @@
 # Änderungsprotokoll
 
+## 0.11.0 — 28.08.2026
+
+**Die Bühne wird doppelt so lang, der Marktschreier geht, Bosse kommen
+alle zehn Wellen.**
+
+### Mehr Fläche zum Kämpfen
+
+Die Bühne ist von 480 auf **800 Punkte** gewachsen. Alle Landmarken —
+Klippe, Brücke, Mauer, Tor — sind unverändert geblieben und um 320
+Punkte nach rechts gerückt; links davor liegt neues offenes Land.
+
+Der Weg vom Erscheinen bis ins Tor ist damit **doppelt so lang: 635
+statt 315 Punkte**. Mehr Platz zum Kämpfen, mehr Zeit, jemanden
+aufzuhalten — Bogenschützen und Zauber bekommen die doppelte Zahl an
+Gelegenheiten.
+
+Auf den Schirm passt das nicht mehr am Stück. Die Leinwand steht deshalb
+in einem **waagerecht scrollbaren Rahmen** und behält ihre Höhe, statt
+zusammengestaucht zu werden. Der Blick beginnt **am Tor** — dort
+entscheidet sich alles; das Land davor sieht man beim Zurückscrollen.
+
+Was mitwandert und was nicht, ist bewusst getrennt: Spruchband,
+Dämmerung und Randabdunklung richten sich nach dem sichtbaren
+Ausschnitt (nachgemessen: Bandmitte bei 199 bzw. 600, sie folgt genau).
+Alles andere steht fest in der Welt.
+
+Auf dem Handy verhindert `overscroll-behavior-x: contain`, dass ein
+Wisch über das Schlachtfeld am Rand zur nächsten Seite weiterblättert.
+**Gewechselt wird dort jetzt über die Reiter**, nicht mehr durch Wischen.
+
+### Der Marktschreier ist weg
+
+Das Laufband kostete Platz, den die breitere Bühne besser gebraucht.
+Mit ihm sind seine Reimzeilen gegangen — `marktschreier.js`, alle
+`melden()`-Aufrufe und acht Textlisten, die nur er benutzt hat, sind
+restlos entfernt. Die Namen der Recken und die Händlersprüche bleiben.
+
+### Bosse alle zehn Wellen
+
+Statt alle 190. Auf der längeren Brücke brauchte der Boss mit dem alten
+Tempo 160 Sekunden — zu träge, um spannend zu bleiben. Sein Tempofaktor
+steigt deshalb von 0,33 auf 0,6, was **88 Sekunden** ergibt.
+
+### Nachgezogen
+
+Alles, was an festen Koordinaten hing, rechnet jetzt relativ: Fackeln
+und Bogenschützen stehen in `MASSE`, die Zahl der Sterne und die
+Felsstruktur der Klippe wachsen mit der Breite, und der Anstieg vor der
+Abbruchkante hängt an der Klippenbreite statt an einer festen 100.
+
+`MASSE.SCHUETZE_X` liegt bewusst bei der Bühne und nicht im Zeichnen:
+Die Simulation braucht den Abschusspunkt und darf nicht von der Grafik
+abhängen.
+
+### Geprüft
+
+- 2.267 Wirtschafts-, 15.108 Artefakt- und 20 Simulationsprüfungen grün.
+- **Jedes Modul einzeln geladen**, nicht nur syntaktisch geprüft — das
+  fand zwei tote Importe, die `node --check` nicht sieht, weil es
+  Importe gar nicht auflöst.
+- Im Browser: Leinwand 800 × 200, Rahmen scrollt, Start am rechten Rand.
+  Waagerechter Schnitt über neun Stellen der ganzen Breite — überall
+  Boden, Planken oder Mauer, **keine schwarzen Lücken**. Spruchband
+  folgt der Sicht.
+
+
 ## 0.10.0 — 28.08.2026
 
 **Fresszeit löst sich von den Lebenspunkten. Zwei neue Einheiten. Bosse

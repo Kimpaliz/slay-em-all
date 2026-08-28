@@ -326,10 +326,11 @@ export function klassenGewichte(klassen, welle) {
 /**
  * Wie selten ein Boss kommt.
  *
- * Seit 0.10.0 alle 190 Wellen statt alle fünf — ein Meilenstein, kein
- * Rhythmus. Die Zahl steht bewusst als eine einzige Konstante hier.
+ * Alle zehn Wellen. Die Zahl steht bewusst als eine einzige Konstante
+ * hier — sie ist der Taktgeber des ganzen Spiels und soll sich an einer
+ * Stelle ändern lassen.
  */
-export const BOSS_ABSTAND = 190;
+export const BOSS_ABSTAND = 10;
 
 export function istBosswelle(welle) {
   return welle >= BOSS_ABSTAND && welle % BOSS_ABSTAND === 0;
@@ -361,9 +362,10 @@ export const BOSS = {
   // Bauern je Sekunde umlegen — das schafft, wer die Welle davor
   // überstanden hat, und es ist keine Formsache.
   lpFaktor: 5,
-  // Ein Drittel des Grundtempos: 4 px/s über 315 px Brücke sind
-  // 80 Sekunden Zeit zum Töten.
-  tempoFaktor: 0.33,
+  // Auf der breiteren Bühne (635 px Weg) ergeben 0,6 des Grundtempos
+  // rund 88 Sekunden Zeit zum Töten. Mit dem alten Drittel wären es
+  // 160 Sekunden gewesen — zu träge, um spannend zu bleiben.
+  tempoFaktor: 0.6,
   goldFaktor: 40,
   groesse: 2
 };

@@ -12,16 +12,14 @@
 // überfordert. Deshalb ist "Tiefere Hallen" bei Grommsch der eigentliche
 // Verteidigungskauf und nicht bloß ein Durchsatzkauf.
 //
-// Jede fünfte Welle ist eine Bosswelle: halbes Gefolge plus ein sehr
-// zäher Recke, der als Letzter anrückt und im Tor lange einen Fressplatz
-// blockiert.
+// Jede zehnte Welle ist eine Bosswelle: halbes Gefolge plus ein Boss,
+// der als Letzter anrückt. Erreicht er das Tor, ist die Burg sofort
+// verloren — er muss auf der Brücke sterben.
 
 import { MASSE } from './masse.js';
 import { buehneRaeumen } from './welt.js';
-import { melden } from './marktschreier.js';
 import { RECKEN } from './daten/recken.js';
-import { bossName, BOSS_ANKUNFT } from './daten/bosse.js';
-import { WELLE_GESCHAFFT, WELLE_VERLOREN, ausListe, mitNamen } from './daten/texte.js';
+import { bossName } from './daten/bosse.js';
 import {
   wellenStaerke, rueckfall, verfuegbareKlassen, klassenGewichte, istBosswelle
 } from '../werkzeuge/wirtschaft.mjs';
@@ -94,12 +92,6 @@ export function welleStarten(welt) {
     unter: bossWelle ? szene.spawnBoss + ' führt an' : szene.wellenGroesse + ' Recken im Anmarsch',
     farbe: bossWelle ? '#e0b64f' : '#ff9a4a', zeit: 0, dauer: bossWelle ? 4 : 3
   };
-  melden(szene, bossWelle
-    ? mitNamen(ausListe(BOSS_ANKUNFT), szene.spawnBoss)
-    : ausListe([
-      'Welle ' + zustand.welle + '! Frisches Fleisch im Anmarsch!',
-      'Tor auf! Welle ' + zustand.welle + ' will Ruhm — wir nehmen den Rest!'
-    ]));
   zustand.phase = 'tag';
   return true;
 }
@@ -113,7 +105,6 @@ export function welleGewonnen(welt) {
     unter: 'Nachtlager — Beute einsammeln und aufrüsten',
     farbe: '#9184d9', zeit: 0, dauer: 4
   };
-  melden(szene, ausListe(WELLE_GESCHAFFT));
   zustand.welle += 1;
   zustand.phase = 'nacht';
   welleAuslosen(zustand);
@@ -167,7 +158,6 @@ export function welleVerloren(welt) {
       : 'Das Monster ist bezwungen — zurück zu Welle ' + ziel,
     farbe: '#c1444f', zeit: 0, dauer: 4.5
   };
-  melden(szene, ausListe(WELLE_VERLOREN));
   szene.bossDurch = null;
   zustand.welle = ziel;
   zustand.phase = 'niederlage';

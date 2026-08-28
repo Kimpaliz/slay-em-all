@@ -21,15 +21,10 @@
 // keine Beute. Nur die Anzeige wird gedrosselt, nicht die Buchhaltung.
 
 import { MASSE } from './masse.js';
-import { melden } from './marktschreier.js';
 import { schadensFarbe, BOSS } from '../werkzeuge/wirtschaft.mjs';
 import {
   artefaktErzeugen, seltenheitAuslosen, seltenheitNach, fundWurf, INVENTAR_PLAETZE, verkaufswert
 } from './artefakte.js';
-import { BOSS_TOD } from './daten/bosse.js';
-import {
-  IM_TOR_GESTORBEN, VERBRANNT, ZERMALMT, ERSCHOSSEN, ausListe, mitNamen
-} from './daten/texte.js';
 
 /** Blutspritzer an einer Stelle. */
 export function spritzen(szene, x, y, menge, blutmenge) {
@@ -160,7 +155,6 @@ export function fundstueckFallen(welt, x, artefakt) {
     x: ziel, y: MASSE.DECK - 22,
     text: s.name.toUpperCase() + '!', farbe: s.farbe, gross: true, zeit: 0
   });
-  melden(szene, 'Ein Fundstück! »' + artefakt.name + '« liegt auf der Brücke — aufsammeln!');
 }
 
 /**
@@ -328,8 +322,6 @@ export function verbrennen(welt, recke, ursache, werte) {
     if (szene.gluten.length > 12) szene.gluten.shift();
   }
   verbuchen(welt, recke.klasse, recke.boss, recke.x + 3, werte);
-  if (recke.boss) melden(szene, mitNamen(ausListe(BOSS_TOD), recke.name));
-  else if (Math.random() < 0.5) melden(szene, mitNamen(ausListe(VERBRANNT), recke.name));
 }
 
 /** Tod auf der Brücke durch Pfeil, Blitz oder Pranke. */
@@ -354,10 +346,6 @@ export function brueckenTod(welt, recke, ursache, werte) {
     recke.boss ? BOSS.goldFaktor : 0);
   verbuchen(welt, k, recke.boss, recke.x + 3, werte);
   szene.ruettelt = Math.min(4, szene.ruettelt + 1);
-  if (recke.boss) melden(szene, mitNamen(ausListe(BOSS_TOD), recke.name));
-  else if (ursache === 'pfeil' && Math.random() < 0.45) {
-    melden(szene, mitNamen(ausListe(ERSCHOSSEN), recke.name));
-  }
 }
 
 /**
@@ -418,9 +406,7 @@ export function torTod(welt, opfer, blutmenge, ruetteln, werte) {
     szene.sattStapel = Math.min(10, szene.sattStapel + 1);
     szene.sattZeit = 6;
   }
-  if (opfer.boss) melden(szene, mitNamen(ausListe(BOSS_TOD), opfer.name));
   else if (Math.random() < 0.55) {
-    melden(szene, mitNamen(ausListe(IM_TOR_GESTORBEN), opfer.name));
   }
 }
 
@@ -451,10 +437,8 @@ export function zermalmen(welt, werte) {
     lacheSetzen(szene, r.x + 3, 6);
     muenzenFallen(szene, r.x + 3, r.klasse, true, werte.ernteFaktor, r.boss ? BOSS.goldFaktor : 0);
     verbuchen(welt, r.klasse, r.boss, r.x + 3, werte);
-    if (r.boss) melden(szene, mitNamen(ausListe(BOSS_TOD), r.name));
   }
 
   szene.ruettelt = Math.min(6, szene.ruettelt + 4);
   szene.blitzlicht = 0.7;
-  if (name) melden(szene, mitNamen(ausListe(ZERMALMT), name));
 }

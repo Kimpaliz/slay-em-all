@@ -53,7 +53,9 @@
 
     <section class="seite seite-schlacht" aria-label="Schlachtfeld">
       <div class="buehne">
-        <canvas data-szene width="480" height="200" aria-label="Die Szene am Burgtor"></canvas>
+        <div class="sicht" data-sicht>
+          <canvas data-szene width="800" height="200" aria-label="Die Szene am Burgtor"></canvas>
+        </div>
 
         <div class="steuerung">
           <div class="lage">
@@ -68,14 +70,6 @@
           <button type="button" class="knopf-welle" data-knopf="welle">Welle 1 starten</button>
         </div>
 
-        <div class="marktschreier" data-marktschreier>
-          <div class="marktschreier-marke"><span class="punkt"></span>Marktschreier</div>
-          <div class="marktschreier-band" data-band>
-            <span class="bandfeld" data-bandfeld><span>Wellenkampf! Tags&uuml;ber wird gest&uuml;rmt, nachts wird kassiert!</span><span class="stern">&#10022;</span></span>
-            <span class="bandfeld" data-bandfeld><span>Die Pranke ist geladen &mdash; ein Griff in die Aktionsleiste, und es matscht!</span><span class="stern">&#10022;</span></span>
-            <span class="bandfeld" data-bandfeld><span>Gold liegt auf der Br&uuml;cke &mdash; aufsammeln, bevor die Raben es tun!</span><span class="stern">&#10022;</span></span>
-            <div class="bandblende"></div>
-          </div>
         </div>
       </div>
       <p class="drehhinweis">Quer halten &mdash; dann f&uuml;llt das Schlachtfeld den Bildschirm.</p>

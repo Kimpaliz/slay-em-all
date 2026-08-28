@@ -230,27 +230,28 @@ export function belegungZeichnen(ctx, imTor, kapazitaet, schlund, zeit) {
 }
 
 /** Das große Spruchband bei Wellenbeginn, Sieg und Niederlage. */
-export function spruchbandZeichnen(ctx, band) {
+export function spruchbandZeichnen(ctx, band, mitte = 240) {
   const deckkraft = Math.max(0, Math.min(1, Math.min(band.zeit * 2.5, (band.dauer - band.zeit) * 1.6)));
   if (deckkraft <= 0) return;
 
   ctx.globalAlpha = deckkraft * 0.85;
   ctx.fillStyle = 'rgba(6,7,12,0.85)';
-  ctx.fillRect(110, 26, 260, 32);
+  const links = Math.round(mitte - 130);
+  ctx.fillRect(links, 26, 260, 32);
   ctx.fillStyle = band.farbe;
-  ctx.fillRect(110, 26, 260, 1);
-  ctx.fillRect(110, 57, 260, 1);
+  ctx.fillRect(links, 26, 260, 1);
+  ctx.fillRect(links, 57, 260, 1);
 
   ctx.globalAlpha = deckkraft;
   ctx.font = 'bold 11px ui-monospace, monospace';
   let breite = ctx.measureText(band.text).width;
   ctx.fillStyle = band.farbe;
-  ctx.fillText(band.text, Math.round(240 - breite / 2), 40);
+  ctx.fillText(band.text, Math.round(mitte - breite / 2), 40);
 
   ctx.font = '8px ui-monospace, monospace';
   breite = ctx.measureText(band.unter).width;
   ctx.fillStyle = '#b9b7c9';
-  ctx.fillText(band.unter, Math.round(240 - breite / 2), 51);
+  ctx.fillText(band.unter, Math.round(mitte - breite / 2), 51);
   ctx.globalAlpha = 1;
 }
 

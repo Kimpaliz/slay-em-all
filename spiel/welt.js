@@ -133,7 +133,7 @@ export function neueSzene() {
     spruchQueue: [],     // wartende Zeilen fuers Laufband
     letzterSpruch: -3,
     muenzHinweisGezeigt: false,
-    sterne: sterneAnlegen(),
+    sterne: sterneAnlegen(MASSE.BREITE),
     fledermausTakt: 24,
     naechsteId: 1
   };

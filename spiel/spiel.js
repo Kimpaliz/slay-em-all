@@ -15,10 +15,10 @@
 //    dort weiter, wo man aufgehört hat.
 
 import { neueWelt, weltZuruecksetzen } from './welt.js';
+import { MASSE } from './masse.js';
 import { schritt } from './simulation.js';
 import { zeichnen } from './szene.js';
 import { anzeigeAnlegen } from './anzeige.js';
-import { marktschreierAnlegen } from './marktschreier.js';
 import { portraetsAnlegen } from './portraets.js';
 import { eingabeAnlegen } from './eingabe.js';
 import { vollbildAnlegen } from './vollbild.js';
@@ -89,10 +89,33 @@ export function spielStarten(optionen = {}) {
     sichern(welt.zustand);
   }
 
-  const schreier = marktschreierAnlegen(
-    wurzel.querySelector('[data-band]'),
-    [...wurzel.querySelectorAll('[data-bandfeld]')]
-  );
+  /*
+    Der sichtbare Ausschnitt der Bühne.
+
+    Die Leinwand ist 800 Punkte breit und wird in einem scrollbaren
+    Rahmen gezeigt. Was davon gerade zu sehen ist, rechnen wir aus der
+    Scrollstellung zurück in Bühnenpunkte — die Einblendungen richten
+    sich danach, damit das Spruchband dort steht, wo der Spieler
+    hinschaut, statt am linken Weltrand zu kleben.
+  */
+  const sichtRahmen = wurzel.querySelector('[data-sicht]');
+  function sichtLesen() {
+    if (!sichtRahmen || !leinwand) return null;
+    const dargestellt = leinwand.getBoundingClientRect().width;
+    if (!dargestellt) return null;
+    const faktor = MASSE.BREITE / dargestellt;
+    return {
+      x: sichtRahmen.scrollLeft * faktor,
+      breite: Math.min(MASSE.BREITE, sichtRahmen.clientWidth * faktor)
+    };
+  }
+
+  // Der Blick beginnt am Tor: Dort entscheidet sich alles, das Land
+  // links davor sieht man beim Zurückscrollen.
+  function ansTorScrollen() {
+    if (sichtRahmen) sichtRahmen.scrollLeft = sichtRahmen.scrollWidth;
+  }
+
   const portraets = portraetsAnlegen({
     grommsch: wurzel.querySelector('[data-portraet="grommsch"]'),
     pips: wurzel.querySelector('[data-portraet="pips"]'),
@@ -109,9 +132,9 @@ export function spielStarten(optionen = {}) {
 
   anzeige.breiteMessen();
   anzeige.auffrischen(welt);
+  ansTorScrollen();
   window.addEventListener('resize', () => {
     anzeige.breiteMessen();
-    if (schreier) schreier.neuAusmessen();
   });
 
   /* ---------- Die Uhr ---------- */
@@ -142,8 +165,7 @@ export function spielStarten(optionen = {}) {
       seitAnzeige += TAKT;
     }
 
-    zeichnen(ctx, welt, optionen.einstellungen);
-    if (schreier) schreier.schritt(welt.szene, vergangen, welt.zustand.welle);
+    zeichnen(ctx, welt, optionen.einstellungen, sichtLesen());
     if (portraets) portraets.schritt(vergangen, welt.szene.zeit);
 
     // Die Oberfläche muss nicht mit 60 Hz neu geschrieben werden.

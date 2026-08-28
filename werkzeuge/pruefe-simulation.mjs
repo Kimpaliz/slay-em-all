@@ -154,10 +154,11 @@ console.log('\n6. Ist der Boss zu schaffen?');
   const bossTempo = meister.tempo * BOSS.tempoFaktor;
   const zeit = strecke / bossTempo;
   const bossLp = meister.lp * BOSS.lpFaktor;
-  pruefe(zeit > 45, 'Er braucht ueber 45 s ueber die Bruecke', Math.round(zeit) + ' s');
+  pruefe(zeit > 60 && zeit < 120, 'Er braucht 60 bis 120 s ueber die Bruecke', Math.round(zeit) + ' s');
   pruefe(bossLp / bauer.lp < 60, 'Sein Leben entspricht unter 60 Bauern',
     Math.round(bossLp / bauer.lp) + ' Bauern');
-  pruefe(istBosswelle(190) && !istBosswelle(5), 'Bosse kommen alle 190 Wellen');
+  pruefe(istBosswelle(10) && istBosswelle(20) && !istBosswelle(5) && !istBosswelle(11),
+    'Bosse kommen alle 10 Wellen');
 }
 
 console.log('\n' + (ok + schlecht) + ' Pruefungen, ' + schlecht + ' Fehler.');

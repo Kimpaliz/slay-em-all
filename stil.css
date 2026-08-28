@@ -237,17 +237,37 @@ h1 {
   flex-direction: column;
 }
 
-canvas[data-szene] {
-  display: block;
-  width: 100%;
-  height: auto;
-  image-rendering: pixelated;
-  touch-action: manipulation;
-  /* Wächst die Steuerung (Umbruch bei schmalen Fenstern), nimmt sie dem
-     Bild Platz statt aus der Bühne herauszulaufen — `overflow:hidden`
-     würde den Startknopf sonst wegschneiden. */
+/*
+   Die Bühne ist 800 Punkte breit, auf den Schirm passt sie nicht am
+   Stück. Der Rahmen scrollt deshalb waagerecht; die Leinwand behält ihre
+   Höhe, statt zusammengestaucht zu werden.
+
+   `overscroll-behavior-x: contain` ist wichtig: Ohne das würde ein Wisch
+   auf dem Schlachtfeld, sobald es am Rand angekommen ist, die Seite
+   weiterblättern. Gewechselt wird über die Reiter darunter.
+*/
+.sicht {
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--linie) transparent;
+  line-height: 0;
   flex-shrink: 1;
   min-height: 0;
+}
+.sicht::-webkit-scrollbar { height: 6px; }
+.sicht::-webkit-scrollbar-thumb { background: var(--linie); border-radius: 3px; }
+.sicht::-webkit-scrollbar-track { background: transparent; }
+
+canvas[data-szene] {
+  display: block;
+  height: clamp(230px, 38vh, 420px);
+  width: auto;
+  max-width: none;
+  image-rendering: pixelated;
+  /* Waagerecht wischen scrollt die Bühne, senkrecht bleibt der Seite. */
+  touch-action: pan-x;
 }
 
 .steuerung {
@@ -359,80 +379,6 @@ canvas[data-szene] {
   font-family: var(--schrift-fest);
   font-size: 8px;
   color: var(--schwach);
-  pointer-events: none;
-}
-
-/* ---------------- Marktschreier ---------------- */
-
-.marktschreier {
-  display: flex;
-  align-items: stretch;
-  background: var(--flaeche);
-  border-top: 1px solid var(--linie);
-  overflow: hidden;
-}
-
-.marktschreier-marke {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  padding: 12px 16px;
-  background: #241620;
-  border-right: 1px solid var(--linie);
-  font-size: 9.5px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--gedaempft);
-  white-space: nowrap;
-}
-
-.punkt {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--blut);
-  animation: pulsieren 1.4s ease-in-out infinite;
-}
-
-@keyframes pulsieren {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.35; }
-}
-
-.marktschreier-band {
-  position: relative;
-  flex: 1 1 auto;
-  overflow: hidden;
-  min-height: 44px;
-}
-
-.bandfeld {
-  position: absolute;
-  top: 50%;
-  left: 0;
-  transform: translate(1200px, -50%);
-  display: flex;
-  align-items: center;
-  white-space: nowrap;
-  font-size: 14px;
-  will-change: transform;
-}
-
-.stern {
-  padding: 0 20px;
-  color: var(--akzent);
-  opacity: 0.6;
-  font-size: 12px;
-}
-
-.bandblende {
-  position: absolute;
-  top: 0;
-  right: 0;
-  width: 40px;
-  height: 100%;
-  background: linear-gradient(90deg, rgba(31, 33, 45, 0) 0%, var(--flaeche) 85%);
   pointer-events: none;
 }
 
@@ -590,7 +536,6 @@ canvas[data-szene] {
 
 .wurzel.schmal .untertitel,
 .wurzel.schmal .vorspann,
-.wurzel.schmal .marktschreier { display: none; }
 
 .wurzel.schmal h1 { font-size: 17px; }
 .wurzel.schmal .kopf {
@@ -751,13 +696,18 @@ canvas[data-szene] {
     background: #0a0b12;
   }
 
-  /* Beides zugleich: nie breiter und nie höher als der Platz.
-     `contain` hält dabei das Seitenverhältnis, es wird nichts verzerrt
-     und nichts abgeschnitten. */
+  /* Die Leinwand füllt die Höhe, die Breite folgt dem Seitenverhältnis —
+     und was nicht hineinpasst, wird gescrollt. So bleibt die Szene so
+     groß wie möglich, statt auf 800 Punkte Breite zu schrumpfen. */
+  .wurzel.schmal .sicht {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+  }
   .wurzel.schmal canvas[data-szene] {
-    width: 100%;
     height: 100%;
-    object-fit: contain;
+    width: auto;
   }
 
   /* Die Steuerung schwebt am unteren Rand. Sie liegt über dem Burggraben,

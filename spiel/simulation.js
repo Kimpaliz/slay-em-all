@@ -12,7 +12,6 @@
 
 import { MASSE, festerBoden, ausklang } from './masse.js';
 import { reckeAnlegen } from './welt.js';
-import { melden } from './marktschreier.js';
 import {
   schaden, torTod, zermalmen, lacheSetzen, muenzenFallen, muenzeAufsammeln, rauchen,
   vergiften, fundstueckNehmen
@@ -22,7 +21,7 @@ import { RECKEN, FRESSZEIT_NORMAL } from './daten/recken.js';
 import {
   welleGewonnen, welleVerloren, niederlageBeenden, welleStarten, bossKlasse, RITUAL_WARTEZEIT
 } from './wellen.js';
-import { NACHTS, ausListe, reckenName } from './daten/texte.js';
+import { reckenName } from './daten/texte.js';
 import {
   werte as werteAus, spawnAbstand, wellenSkalierung, BOSS
 } from '../werkzeuge/wirtschaft.mjs';
@@ -150,7 +149,6 @@ function phaseFuehren(welt, dt, werte) {
     if (zustand.ritual >= 1 && zustand.ritualAn && szene.nachtzeit >= RITUAL_WARTEZEIT) {
       welleStarten(welt);
     }
-    if (Math.random() < dt * 0.02) melden(szene, ausListe(NACHTS));
   }
 
   if (szene.phase === 'niederlage') {
@@ -450,7 +448,7 @@ function schuetzenFuehren(welt, dt, werte) {
 
     // Vorhalten: Es wird dorthin geschossen, wo das Ziel gleich sein wird.
     const ziel = ziele[(Math.random() * ziele.length) | 0];
-    const ax = 306 + a * 24;
+    const ax = MASSE.SCHUETZE_X + a * 24;
     const ay = 22;
     const flugzeit = Math.max(0.45, Math.min(1.1, (ax - ziel.x) / 150));
     szene.pfeile.push({

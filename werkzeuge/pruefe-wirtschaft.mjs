@@ -268,18 +268,18 @@ console.log('Wie die Wellen von selbst wachsen');
 
 console.log('Bosswellen');
 {
-  for (const w of [190, 380, 570]) pruefe(istBosswelle(w), 'Welle ' + w + ' ist eine Bosswelle');
-  for (const w of [1, 5, 10, 50, 189, 191, 379]) pruefe(!istBosswelle(w), 'Welle ' + w + ' ist keine Bosswelle');
+  for (const w of [10, 20, 50, 100]) pruefe(istBosswelle(w), 'Welle ' + w + ' ist eine Bosswelle');
+  for (const w of [1, 5, 9, 11, 19, 21, 99]) pruefe(!istBosswelle(w), 'Welle ' + w + ' ist keine Bosswelle');
   
   // Bosse sind seit 0.10.0 ein Meilenstein, kein Rhythmus.
-gleich(BOSS_ABSTAND, 190, 'Ein Boss kommt alle 190 Wellen');
-for (const w of [1, 5, 10, 50, 189, 191, 380 - 1]) {
+gleich(BOSS_ABSTAND, 10, 'Ein Boss kommt alle 10 Wellen');
+for (const w of [1, 5, 9, 11, 19, 21, 99]) {
   pruefe(!istBosswelle(w), 'Welle ' + w + ' ist keine Bosswelle');
 }
-for (const w of [190, 380, 570]) {
+for (const w of [10, 20, 50, 100]) {
   pruefe(istBosswelle(w), 'Welle ' + w + ' ist eine Bosswelle');
 }
-pruefe(BOSS.tempoFaktor < 0.5, 'Der Boss geht deutlich langsamer — man soll ihn toeten koennen');
+pruefe(BOSS.tempoFaktor > 0 && BOSS.tempoFaktor < 0.8, 'Der Boss geht langsamer — man soll ihn töten können');
 
 gleich(BOSS.lpFaktor, 5, 'Der Boss hat fuenffaches Leben des staerksten Rangs');
   gleich(BOSS.goldFaktor, 40, 'Der Boss bringt vierzigfaches Gold');
@@ -287,7 +287,7 @@ gleich(BOSS.lpFaktor, 5, 'Der Boss hat fuenffaches Leben des staerksten Rangs');
   pruefe(BOSS.tempoFaktor < 1, 'Der Boss ist langsamer als ein normaler Recke');
 
   // Halbes Gefolge, aber nie weniger als zwei.
-  for (const w of [190, 380]) {
+  for (const w of [10, 20, 40]) {
     const boss = wellenStaerke(w);
     const normal = wellenStaerke(w - 1);
     pruefe(boss < normal, 'Bosswelle ' + w + ' hat weniger Gefolge als Welle ' + (w - 1));
@@ -304,8 +304,8 @@ pruefe(wellenStaerke(2) > wellenStaerke(1), 'Welle 2 ist größer als Welle 1');
 // und bringen dort nur halbes Gefolge. Der Deckel gilt fuer normale Wellen.
 gleich(wellenStaerke(199), 80, 'Deckel bei 80 greift');
 gleich(wellenStaerke(1001), 80, 'Deckel hält auch weit oben');
-gleich(wellenStaerke(190), 40, 'Bosswelle 190 bringt halbes Gefolge');
-gleich(wellenStaerke(200), 80, 'Welle 200 ist keine Bosswelle und bringt volles Gefolge');
+gleich(wellenStaerke(20), 40, 'Bosswelle 20 bringt halbes Gefolge');
+gleich(wellenStaerke(21), 80, 'Welle 21 ist keine Bosswelle und bringt volles Gefolge');
 // Die Monotonie gilt nur unter NORMALEN Wellen. Bosswellen bringen
 // absichtlich halbes Gefolge -- dort faellt die Zahl, und das ist richtig.
 let vorherige = 0;
