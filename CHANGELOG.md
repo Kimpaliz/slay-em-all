@@ -1,5 +1,39 @@
 # Änderungsprotokoll
 
+## 0.9.1 — 28.08.2026
+
+**Vollbildknopf — auch ohne Installation ohne Browserleiste spielen.**
+
+In 0.9.0 stand `display: fullscreen` im Manifest. Das war richtig, aber
+nur die halbe Antwort: **Es wirkt ausschließlich in der installierten
+App.** Wer die Seite als gewöhnlichen Tab öffnet, behält die
+Adressleiste — daran ändert kein Manifest etwas. Vollbild geht dort nur
+über die Fullscreen-API, und die verlangt eine echte Nutzergeste.
+
+Also gibt es jetzt einen Knopf in der Kopfzeile, rechts neben den
+Währungen. Er schaltet Vollbild ein und aus (Symbol wechselt zwischen
+Pfeilen nach außen und nach innen) und versucht dabei, die Ausrichtung
+auf quer festzulegen — im Vollbild ist das erlaubt, außerhalb nicht.
+
+Der Knopf zeigt sich nur, wo er gebraucht wird:
+
+| Lage | Knopf |
+| --- | --- |
+| Normaler Browser-Tab | **sichtbar** — dafür ist er da |
+| Installierte App | versteckt (dort ist schon Vollbild) |
+| Browser ohne Fullscreen-API (iPhone/Safari) | versteckt statt leerer Versprechung |
+
+Auf dem iPhone kann Safari bis heute kein Vollbild für Webseiten; dort
+bleibt nur das Installieren über „Zum Home-Bildschirm".
+
+**Nicht in dieser Umgebung prüfbar:** Der eingebettete Testbrowser
+sperrt Vollbild per Berechtigungsrichtlinie — ein echter Klick auf den
+Knopf meldet `TypeError: Permissions check failed`, dieselbe Art Grenze,
+die vorher schon den Dienst blockierte. Geprüft ist alles Übrige: Der
+Knopf erscheint, erkennt die API, meldet den richtigen Zustand, und die
+Erkennung „läuft als App" arbeitet.
+
+
 ## 0.9.0 — 28.08.2026
 
 **Als App installierbar, und am Handy zeigen Tooltips beim Gedrückthalten.**

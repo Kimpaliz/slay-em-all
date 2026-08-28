@@ -21,6 +21,7 @@ import { anzeigeAnlegen } from './anzeige.js';
 import { marktschreierAnlegen } from './marktschreier.js';
 import { portraetsAnlegen } from './portraets.js';
 import { eingabeAnlegen } from './eingabe.js';
+import { vollbildAnlegen } from './vollbild.js';
 import { laden, sichern, loeschen, altlastenEntfernen } from './speicher.js';
 import { welleStarten, welleAuslosen } from './wellen.js';
 import { ausloesen } from './zauber.js';
@@ -101,6 +102,10 @@ export function spielStarten(optionen = {}) {
     geaendert: () => anzeige.auffrischen(welt),
     zauberAusloesen: (k) => { if (ausloesen(welt, k)) anzeige.auffrischen(welt); }
   });
+
+  // Vollbild gibt es im normalen Browser nur auf Knopfdruck; in der
+  // installierten App versteckt sich der Knopf von selbst.
+  vollbildAnlegen(wurzel.querySelector('[data-knopf="vollbild"]'));
 
   anzeige.breiteMessen();
   anzeige.auffrischen(welt);

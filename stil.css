@@ -166,6 +166,38 @@ h1 {
 .beute-deko .beute-name { white-space: nowrap; }
 .beute-deko .beute-wert { font-size: clamp(13px, 1.5vw, 16px); }
 
+/* Der Vollbildknopf. Zwei Pfade im selben Symbol: Pfeile nach aussen,
+   solange Vollbild aus ist, Pfeile nach innen, wenn es an ist. */
+.knopf-vollbild {
+  align-self: center;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  color: var(--gedaempft);
+  background: transparent;
+  border: 0;
+  box-shadow: 0 0 0 1px var(--linie);
+  border-radius: var(--rundung-klein);
+  cursor: pointer;
+}
+.knopf-vollbild:hover { color: var(--text); box-shadow: 0 0 0 1px var(--schwach); }
+.knopf-vollbild[hidden] { display: none; }
+.knopf-vollbild.an { color: var(--akzent-hell); box-shadow: 0 0 0 1px var(--akzent); }
+
+.knopf-vollbild svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: square;
+}
+.knopf-vollbild .ecken-zu { display: none; }
+.knopf-vollbild.an .ecken-auf { display: none; }
+.knopf-vollbild.an .ecken-zu { display: inline; }
+
 .knopf-neustart {
   align-self: center;
   font: inherit;
