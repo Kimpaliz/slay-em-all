@@ -180,6 +180,131 @@ export function anzeigeAnlegen(wurzel, rueckrufe) {
     tippAusrichten(knopf);
   }
 
+  /* ---------- Gedrückthalten am Handy ---------- */
+
+  /*
+    Mit der Maus genügt Überfahren. Am Finger gibt es das nicht: Wer
+    tippt, kauft. Deshalb gilt hier — **antippen kauft, halten zeigt**.
+
+    Zwei Dinge sind dabei wichtig und beide bewusst gelöst:
+
+    1. Der Finger darf den Tooltip nicht verdecken. Er erscheint
+       deshalb *über* dem Druckpunkt, mit `FINGERLUFT` Abstand — die
+       Fingerkuppe deckt rund 22 px ab, die Hand liegt darunter.
+    2. Er verschwindet **nicht** beim Loslassen, sondern bleibt stehen,
+       bis irgendwo hingetippt oder gescrollt wird. Sonst müsste man
+       ihn lesen, während die eigene Hand davor liegt.
+  */
+
+  /** So lange muss gedrückt werden, bis der Tooltip kommt. */
+  const HALTEDAUER = 380;
+  /** So weit über dem Druckpunkt steht er dann. */
+  const FINGERLUFT = 34;
+  /** Ab so vielen Bildpunkten Bewegung gilt es als Wischen, nicht als Halten. */
+  const WACKELN = 10;
+
+  let halteUhr = null;
+  let haltePunkt = null;
+  let gehaltenerKnopf = null;
+  let klickVerschlucken = false;
+
+  function haltenAbbrechen() {
+    if (halteUhr) { clearTimeout(halteUhr); halteUhr = null; }
+    haltePunkt = null;
+  }
+
+  function tippSchliessen() {
+    tipp.hidden = true;
+    tipp.classList.remove('gehalten');
+    if (gehaltenerKnopf) {
+      gehaltenerKnopf.classList.remove('haelt');
+      gehaltenerKnopf = null;
+    }
+  }
+
+  /** Setzt den Tooltip über den Druckpunkt, innerhalb des Bildschirms. */
+  function tippUeberFinger(x, y) {
+    tipp.hidden = false;
+    tipp.classList.add('gehalten');
+    const wr = wurzel.getBoundingClientRect();
+    const breite = tipp.offsetWidth;
+    const hoehe = tipp.offsetHeight;
+    let links = x - wr.left - breite / 2;
+    links = Math.max(6, Math.min(links, wr.width - breite - 6));
+    let oben = y - wr.top - hoehe - FINGERLUFT;
+    // Oben kein Platz? Dann anheften. Nach unten auszuweichen wäre
+    // falsch — dort liegt die Hand.
+    if (oben < 4) oben = 4;
+    tipp.style.left = links + 'px';
+    tipp.style.top = oben + 'px';
+  }
+
+  /**
+   * Hängt einen Tooltip an ein Bedienelement.
+   *
+   * `fuellen()` schreibt den Inhalt und wird erst im Moment des Zeigens
+   * gerufen — so stehen dort immer die aktuellen Zahlen.
+   */
+  function tippAnbinden(el, fuellen) {
+    // Maus: wie gehabt beim Überfahren.
+    el.addEventListener('mouseenter', (e) => {
+      // Ein Fingertipp erzeugt hinterher ein `mouseenter`. Das würde den
+      // gehaltenen Tooltip überschreiben und falsch platzieren.
+      if (e.sourceCapabilities && e.sourceCapabilities.firesTouchEvents) return;
+      fuellen();
+      tippAusrichten(el);
+    });
+    el.addEventListener('mouseleave', () => {
+      if (!tipp.classList.contains('gehalten')) tippSchliessen();
+    });
+
+    // Finger: halten.
+    el.addEventListener('pointerdown', (e) => {
+      if (e.pointerType === 'mouse') return;
+      haltenAbbrechen();
+      haltePunkt = { x: e.clientX, y: e.clientY };
+      halteUhr = setTimeout(() => {
+        halteUhr = null;
+        klickVerschlucken = true;    // der Tipp danach darf nicht kaufen
+        gehaltenerKnopf = el;
+        el.classList.add('haelt');
+        fuellen();
+        tippUeberFinger(haltePunkt.x, haltePunkt.y);
+        if (navigator.vibrate) { try { navigator.vibrate(12); } catch (fehler) { /* egal */ } }
+      }, HALTEDAUER);
+    });
+
+    el.addEventListener('pointermove', (e) => {
+      if (!haltePunkt) return;
+      if (Math.abs(e.clientX - haltePunkt.x) > WACKELN
+        || Math.abs(e.clientY - haltePunkt.y) > WACKELN) haltenAbbrechen();
+    });
+    el.addEventListener('pointerup', haltenAbbrechen);
+    el.addEventListener('pointercancel', haltenAbbrechen);
+
+    // Der Klick nach einem Halten wird verschluckt — in der
+    // Erfassungsphase, damit er den Kauf gar nicht erst erreicht.
+    el.addEventListener('click', (e) => {
+      if (!klickVerschlucken) return;
+      klickVerschlucken = false;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+    }, true);
+  }
+
+  // Ein Tipp irgendwo sonst schließt den gehaltenen Tooltip wieder.
+  document.addEventListener('pointerdown', (e) => {
+    if (!tipp.classList.contains('gehalten')) return;
+    if (gehaltenerKnopf && gehaltenerKnopf.contains(e.target)) return;
+    tippSchliessen();
+  }, true);
+  // Beim Scrollen ebenso: der Knopf wandert, der Tooltip nicht.
+  for (const el of wurzel.querySelectorAll('.seite')) {
+    el.addEventListener('scroll', () => {
+      if (tipp.classList.contains('gehalten')) tippSchliessen();
+    }, { passive: true });
+  }
+
   /* ---------- Aufbau der Läden ---------- */
 
   /** Ein Ladenknopf: Goldzeichen plus Preis. */
@@ -220,13 +345,11 @@ export function anzeigeAnlegen(wurzel, rueckrufe) {
       const { knopf, zeichen, preis } = preisKnopf();
       knopf.addEventListener('click', () => kaufen(ware.k));
       const zeile = { ware, titel, unter, knopf, zeichen, preis, li, stufen: name };
-      knopf.addEventListener('mouseenter', () => {
+      tippAnbinden(knopf, () => {
         const zustand = rueckrufe.zustand();
         const stufen = name === 'grommsch' ? zustand.stufenG : zustand.stufenP;
         tippWareFuellen(ware, wareZustand(ware, stufen, zustand.welle), zustand.welle);
-        tippAusrichten(knopf);
       });
-      knopf.addEventListener('mouseleave', () => { tipp.hidden = true; });
 
       li.append(text, knopf);
       liste.append(li);
@@ -267,8 +390,7 @@ export function anzeigeAnlegen(wurzel, rueckrufe) {
     // --- Der Klick: erst lernen, dann auf drei Achsen ausbauen ---
     const klick = zauberZeile(liste, KLICK.name, KLICK.kurz);
     klick.knopf.addEventListener('click', () => rueckrufe.klickKaufen());
-    klick.knopf.addEventListener('mouseenter', () => tippZeigen(klick.knopf, 'klick', rueckrufe.zustand()));
-    klick.knopf.addEventListener('mouseleave', () => { tipp.hidden = true; });
+    tippAnbinden(klick.knopf, () => tippFuellen('klick', rueckrufe.zustand()));
     const klickAchsen = document.createElement('div');
     klickAchsen.className = 'achsen';
     for (const achse of KLICK_ACHSEN) {
@@ -287,8 +409,7 @@ export function anzeigeAnlegen(wurzel, rueckrufe) {
     for (const z of ZAUBER) {
       const zeile = zauberZeile(liste, z.name, z.kurz);
       zeile.knopf.addEventListener('click', () => rueckrufe.zauberLernen(z.k));
-      zeile.knopf.addEventListener('mouseenter', () => tippZeigen(zeile.knopf, z.k, rueckrufe.zustand()));
-      zeile.knopf.addEventListener('mouseleave', () => { tipp.hidden = true; });
+      tippAnbinden(zeile.knopf, () => tippFuellen(z.k, rueckrufe.zustand()));
       const achsen = document.createElement('div');
       achsen.className = 'achsen';
       const achsKnoepfe = ACHSEN.map((a) => {
@@ -379,6 +500,27 @@ export function anzeigeAnlegen(wurzel, rueckrufe) {
   function artefaktBei(ort, index, zustand) {
     const liste = ort === 'regal' ? zustand.regal : zustand.inventar;
     return liste ? liste[index] : null;
+  }
+
+  /** Kurzfassung eines Artefakts für den gehaltenen Tooltip. */
+  function tippArtefaktFuellen(artefakt) {
+    const s = seltenheitNach(artefakt.seltenheit);
+    const tags = tagsVon(artefakt).map((t) => TAG_NAMEN[t] || t).join(' · ');
+    tippKopf(artefakt.name, s.name + '  ·  Welle ' + artefakt.fundwelle + (tags ? '  ·  ' + tags : ''));
+    tipp.querySelector('.tipp-kopf').style.color = s.farbe;
+    for (const zeile of affixZeilen(artefakt)) {
+      const z = document.createElement('div');
+      z.className = 'tipp-zeile';
+      const links = document.createElement('span');
+      links.className = 'tipp-name';
+      links.style.color = TAG_FARBEN[zeile.tag] || '#e9e9ed';
+      links.textContent = zeile.name;
+      const rechts = document.createElement('span');
+      rechts.className = 'tipp-wert';
+      rechts.textContent = zeile.text;
+      z.append(links, rechts);
+      tipp.append(z);
+    }
   }
 
   function karteZeigen(ort, index) {
@@ -497,6 +639,9 @@ export function anzeigeAnlegen(wurzel, rueckrufe) {
     punkt.style.background = s.farbe;
     knopf.append(bild, punkt);
     knopf.addEventListener('click', () => karteZeigen(ort, index));
+    // Antippen öffnet die volle Karte, Halten zeigt die Kurzfassung —
+    // dieselbe Regel wie im Laden.
+    if (artefakt) tippAnbinden(knopf, () => tippArtefaktFuellen(artefakt));
     return knopf;
   }
 
@@ -622,8 +767,7 @@ export function anzeigeAnlegen(wurzel, rueckrufe) {
       if (e.k !== 'klick') {
         knopf.addEventListener('click', () => rueckrufe.zauberAusloesen(e.k));
       }
-      knopf.addEventListener('mouseenter', () => tippZeigen(knopf, e.k, rueckrufe.zustand()));
-      knopf.addEventListener('mouseleave', () => { tipp.hidden = true; });
+      tippAnbinden(knopf, () => tippFuellen(e.k, rueckrufe.zustand()));
       leiste.append(knopf);
     }
   }

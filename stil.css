@@ -46,12 +46,34 @@
 
 * { box-sizing: border-box; }
 
+/*
+   Es soll sich wie eine App anfuehlen, nicht wie eine Webseite.
+   Unterdrueckt wird deshalb alles, was der Browser sonst bei
+   Beruehrung anbietet: Text markieren, das Lupen-/Kopieren-Menue beim
+   Gedrueckthalten, das blaue Aufblitzen beim Antippen, Doppeltipp zum
+   Zoomen und das Ueberdehnen am Rand.
+
+   Ausgenommen bleibt nichts — das Spiel hat keinen Text, den man
+   sinnvoll markieren wollte. Sollte spaeter doch einer dazukommen,
+   bekommt er `user-select: text` einzeln zurueck.
+*/
 body {
   margin: 0;
   background: var(--grund);
   color: var(--text);
   font-family: var(--schrift);
   -webkit-text-size-adjust: 100%;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+  touch-action: manipulation;
+}
+
+button {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
 .wurzel {
@@ -744,6 +766,10 @@ canvas[data-szene] {
 .zaubertipp {
   position: absolute;
   z-index: 40;
+  /* Beim Gedrueckthalten am Handy steht der Tooltip frei ueber dem
+     Finger. Ein kraeftigerer Schatten und ein Rand heben ihn dann
+     deutlich von der Szene ab. */
+  transition: opacity 0.12s ease;
   width: 262px;
   padding: 9px 11px 10px;
   background: #14151f;
@@ -780,6 +806,27 @@ canvas[data-szene] {
 .tipp-wert { font-weight: 600; text-align: right; text-wrap: pretty; }
 .tipp-bonus { color: #7fd48a; font-weight: 600; }
 .tipp-bonus.schlecht { color: var(--blut); }
+
+/* Der gehaltene Tooltip am Handy: etwas breiter, deutlicher abgesetzt,
+   und mit einem Schliessen-Hinweis am Fuss. */
+.zaubertipp.gehalten {
+  box-shadow: 0 0 0 1px var(--akzent-tief), 0 14px 34px rgba(0, 0, 0, 0.75);
+}
+
+.tipp-fuss {
+  margin-top: 7px;
+  padding-top: 6px;
+  border-top: 1px solid color-mix(in srgb, #e9e9ed 8%, transparent);
+  font-size: 10px;
+  color: var(--schwach);
+  text-align: center;
+}
+
+/* Was gerade gehalten wird, hebt sich ab — so ist klar, wovon der
+   Tooltip spricht. */
+.haelt {
+  box-shadow: 0 0 0 2px var(--akzent-hell) !important;
+}
 
 /* ---------------- Artefakte ---------------- */
 

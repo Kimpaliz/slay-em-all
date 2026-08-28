@@ -26,7 +26,8 @@ const TYPEN = {
   '.json': 'application/json; charset=utf-8',
   '.woff2': 'font/woff2',
   '.svg': 'image/svg+xml',
-  '.png': 'image/png'
+  '.png': 'image/png',
+  '.webmanifest': 'application/manifest+json; charset=utf-8'
 };
 
 const server = createServer(async (anfrage, antwort) => {

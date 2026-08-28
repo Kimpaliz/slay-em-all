@@ -1,5 +1,81 @@
 # Änderungsprotokoll
 
+## 0.9.0 — 28.08.2026
+
+**Als App installierbar, und am Handy zeigen Tooltips beim Gedrückthalten.**
+
+### Installierbar, im Vollbild
+
+Neu sind `manifest.webmanifest`, `sw.js` und drei erzeugte App-Symbole.
+Wer die Seite auf dem Handy über „Zum Startbildschirm hinzufügen"
+installiert, bekommt:
+
+- **Vollbild** (`display: fullscreen`) — keine Adresszeile, keine
+  Browserleisten.
+- **Quer festgelegt** (`orientation: landscape`) — die Szene ist 2,4 : 1,
+  quer füllt sie 93 % des Bildschirms, hochkant nur ein Fünftel.
+- **Eigenes Symbol** statt eines Bildschirmfotos: ein glühender Torbogen,
+  in drei Größen, darunter eine maskierbare Fassung für Android.
+- **Offline spielbar.** Der Dienst im Hintergrund arbeitet nach „Netz
+  zuerst, Vorrat als Rückhalt" — online ist immer der neueste Stand da,
+  ohne Netz läuft es trotzdem. Andersherum wäre es schneller, würde aber
+  nach jeder Veröffentlichung den alten Stand zeigen.
+
+Die Symbole erzeugt `werkzeuge/symbole-erzeugen.mjs` als PNG, ohne fremde
+Pakete — ein PNG ist eine Handvoll Blöcke mit Prüfsumme, und `zlib` steckt
+in Node. So bleibt das Motiv mit dem Lesezeichen-Symbol zusammen und ist
+im Diff nachvollziehbar.
+
+### Es fühlt sich wie eine App an, nicht wie eine Webseite
+
+Unterdrückt sind jetzt: Text markieren, das Lupen- und Kopieren-Menü beim
+Gedrückthalten, das blaue Aufblitzen beim Antippen, Doppeltipp zum Zoomen
+und das Überdehnen am Rand.
+
+### Antippen kauft, Halten zeigt
+
+Am Handy gab es keine Möglichkeit, einen Tooltip zu sehen — Überfahren
+kennt der Finger nicht. Jetzt gilt überall dieselbe Regel: **antippen
+kauft oder öffnet, 380 ms halten zeigt die Werte.** Das gilt für die
+Waren bei allen drei Händlern, die Fähigkeiten in der Aktionsleiste und
+neu auch für Artefakte im Regal und im Lager (dort als Kurzfassung mit
+Name in der Seltenheitsfarbe und allen Affixen).
+
+Zwei Dinge waren dabei wichtig und sind beide gelöst:
+
+1. **Der Finger verdeckt den Tooltip nicht.** Er erscheint über dem
+   Druckpunkt, mit 34 px Abstand — gemessen: 28 bis 34 px Luft zwischen
+   Tooltip-Unterkante und Fingerspitze. Nach unten auszuweichen wäre
+   falsch, dort liegt die Hand; ist oben kein Platz, heftet er oben an.
+2. **Er bleibt nach dem Loslassen stehen**, bis irgendwo hingetippt oder
+   gescrollt wird. Sonst müsste man lesen, während die eigene Hand davor
+   liegt.
+
+Der Klick nach einem Halten wird verschluckt, damit Nachschauen nichts
+kauft. Ein kurzer Rüttler (12 ms) meldet, dass der Tooltip da ist.
+
+### Geprüft
+
+Mit echten Zeigerereignissen am 915 × 412-Fenster durchgespielt:
+
+- Ware kurz antippen → **gekauft**, kein Tooltip.
+- Ware halten → Tooltip mit Ist-Wert, nächster Stufe und Preis, 28 px über
+  dem Finger; Loslassen kauft **nicht**; Wegtippen schließt.
+- Fähigkeit halten → alle vier Werte samt Schadensart, 34 px Luft.
+- Artefakt halten → Kurzfassung, und die große Karte bleibt zu.
+- Mit der Maus unverändert: Überfahren zeigt, Verlassen versteckt,
+  Klicken kauft.
+- Wischen zwischen den drei Seiten rastet weiter korrekt ein.
+- 2.203 Wirtschafts- und 15.108 Artefaktprüfungen grün.
+
+**Nicht prüfbar in dieser Umgebung:** Der eingebettete Testbrowser lässt
+Service Worker grundsätzlich nicht zu (`An unknown error occurred when
+fetching the script`, obwohl die Datei mit HTTP 200 und korrektem Typ
+ausgeliefert wird). Manifest, Symbole und Verknüpfungen sind geprüft; das
+Anmelden des Dienstes und der Installationsvorgang selbst müssen am
+echten Gerät bestätigt werden.
+
+
 ## 0.8.2 — 28.08.2026
 
 **Am Handy quer füllt das Schlachtfeld jetzt den Bildschirm, randlos.**

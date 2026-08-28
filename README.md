@@ -10,8 +10,12 @@ kommt einzeln.
 
 ### → **[kimpaliz.github.io/slay-em-all](https://kimpaliz.github.io/slay-em-all/)**
 
-Läuft im Browser und auf dem Handy. Nichts zu installieren, nichts anzumelden.
-Der Spielstand liegt im Browser und läuft beim nächsten Besuch weiter.
+Läuft im Browser und auf dem Handy. Nichts anzumelden. Der Spielstand
+liegt im Browser und läuft beim nächsten Besuch weiter.
+
+**Als App aufs Handy:** Im Browsermenü „Zum Startbildschirm hinzufügen"
+(Chrome: „App installieren"). Dann startet es im **Vollbild**, quer, mit
+eigenem Symbol — und läuft auch ohne Netz.
 
 ### Örtlich, zum Weiterentwickeln
 
@@ -120,6 +124,14 @@ mehrere zugleich fressen — Kapazität ist der Puffer, der Schlund der
 Durchsatz. Und nachts kündigt das Lager an, **was die nächste Welle
 bringt** — die Aufstellung ist dann schon ausgelost.
 
+### Bedienung
+
+Am Schreibtisch zeigt jeder Knopf seine Werte, wenn die Maus darüberfährt.
+**Am Handy gilt: antippen kauft, gedrückt halten zeigt.** Das funktioniert
+bei allen Waren, bei den Fähigkeiten in der Aktionsleiste und bei
+Artefakten. Der Tooltip erscheint über dem Finger und bleibt stehen, bis
+man woanders hintippt — sonst läge die eigene Hand davor.
+
 ### Die fünf Ränge
 
 Bauer → Söldner → Ritter → Paladin → Großmeister, ab den Wellen 1, 3, 7, 12
@@ -152,9 +164,13 @@ spiel/
   masse.js                  die feste Bühne (480 × 200)
   speicher.js               Spielstand
   daten/                    Recken, Bosse, Texte, Paletten, Porträtbilder
+manifest.webmanifest        macht es als App installierbar
+sw.js                       Dienst im Hintergrund: offline spielbar
+symbole/                    App-Symbole, erzeugt
 werkzeuge/
+  symbole-erzeugen.mjs      malt die App-Symbole als PNG
   wirtschaft.mjs            alle Regeln und Preise, ohne Browser
-  pruefe-wirtschaft.mjs     1.910 Prüfungen
+  pruefe-wirtschaft.mjs     2.203 Prüfungen
   balance.mjs               spielt Wellen durch und misst
   vorschau-server.mjs       örtlicher Server
 ```
