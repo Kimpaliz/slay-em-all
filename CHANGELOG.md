@@ -1,5 +1,73 @@
 # Änderungsprotokoll
 
+## 0.9.2 — 28.08.2026
+
+**Balance vermessen. Dabei einen Absturz gefunden und behoben.**
+
+### Der Absturz
+
+`explodieren()` rief `schaden()` mit einem Argument zu wenig auf. Die
+Signatur hat sieben Stellen — `(welt, recke, menge, ursache, art, werte,
+krit)` —, übergeben wurden fünf. Dadurch rutschte das Werte-Objekt in
+den Platz der Schadensart, und `werte` kam als `undefined` an:
+
+```
+TypeError: Cannot read properties of undefined (reading 'ernteFaktor')
+```
+
+**Wie man dort hinkam:** ein Feuer-Artefakt anlegen, einen Recken
+anklicken, er brennt, stirbt brennend, explodiert — und die Explosion
+tötet einen Nachbarn auf der Brücke. Also jede Kettenexplosion. Von den
+zehn Aufrufstellen war genau diese eine falsch; die anderen neun
+stimmten.
+
+Gefunden wurde er erst, weil dem Balance-Rechner beigebracht wurde,
+gefundene Artefakte auch **anzulegen** — vorher lagen sie unberührt im
+Lager (gemessen: 5 Funde, Regal 0/5), und die ganze Artefaktwirkung war
+in keiner Messung enthalten.
+
+### Neu im Balance-Rechner
+
+- **Der Bot legt Artefakte an**: das Seltenste zuerst, freie Plätze
+  auffüllen, nie tauschen.
+- **Gold eingenommen** und **Gold ausgegeben** über die ganze Partie.
+  Ohne diese Summe sieht man nicht, ob ein teurer Kauf überhaupt je
+  erreichbar ist — nur, dass er nicht gekauft wurde.
+- Neue Prüfung: **Reicht das Einkommen rechnerisch für die erste
+  Kapazitätsstufe?**
+
+### Was die Messung zeigt
+
+Zehn Läufe über 30 und 60 Wellen. Die Zahlen stehen in
+`docs/BALANCE-2026-08-28.md`; die zwei Kernbefunde:
+
+**1. Die Streuung ist gewaltig.** Sechs Läufe über 30 Wellen mit
+identischen Regeln endeten zwischen Welle **7 und 20**, das Einkommen
+lag zwischen **474 und 6.490 Gold** — Faktor 14. Über 60 Wellen wird es
+schlimmer statt besser: Welle 15 bis 35, Einkommen 1.210 bis 73.300,
+Faktor 60. Ursache ist eine Rückkopplung: Eine Niederlage wirft fünf
+Wellen zurück, also in den Bereich mit dem geringsten Einkommen (Welle 1
+bringt 4 Gold, Welle 20 bringt 816). Wer einmal fällt, fällt tiefer.
+
+**2. Bosse wachsen schneller, als die Burg fressen kann.** Boss-Leben
+skaliert mit 25 × Klassenleben × 1,05^Welle, das Fresstempo dagegen mit
++1,5 % je Stufe „Scharfe Klauen". Ohne Ausbau:
+
+| Welle | Boss-Leben | reine Fresszeit |
+| --- | --- | --- |
+| 5 | 1.216 | 122 s |
+| 10 | 2.715 | 271 s |
+| 15 | 5.445 | 544 s |
+| 20 | 10.108 | 1.011 s |
+
+Gemessen wurden 147 s für Welle 5 und 239 s für Welle 10 — passend. In
+dieser Zeit blockiert der Boss das einzige Maul, während sein Gefolge
+die Kapazität füllt.
+
+**Am Spielgleichgewicht wurde nichts geändert** — das sind Entscheidungen
+für den Entwurf, nicht für einen Messlauf.
+
+
 ## 0.9.1 — 28.08.2026
 
 **Vollbildknopf — auch ohne Installation ohne Browserleiste spielen.**

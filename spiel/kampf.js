@@ -305,7 +305,11 @@ export function explodieren(welt, x, werte) {
   for (let i = szene.recken.length - 1; i >= 0; i--) {
     const r = szene.recken[i];
     if (r.zustand === 'laeuft' && Math.abs(r.x + 3 - x) < 14) {
-      schaden(welt, r, 20, 'feuer', werte);
+      // Sieben Stellen in der Signatur: (welt, recke, menge, ursache,
+      // art, werte, krit). Hier fehlte die Ursache, dadurch rutschte
+      // `werte` in den Platz der Schadensart und kam als `undefined`
+      // an — jede Kettenexplosion warf einen Fehler mitten im Schritt.
+      schaden(welt, r, 20, 'explosion', 'feuer', werte);
     }
   }
 }

@@ -17,14 +17,14 @@ import { welleStarten } from '../spiel/wellen.js';
 import { muenzeAufsammeln } from '../spiel/kampf.js';
 import {
   beiGrommsch, beiPips, zauberLernen, zauberVerbessern, ritualKaufen,
-  klickKaufen, klickVerbessern
+  klickKaufen, klickVerbessern, artefaktAnlegen
 } from '../spiel/handel.js';
 import { ausloesen, klickAngriff } from '../spiel/zauber.js';
 import {
   werte as werteAus, wellenStaerke, WAREN_GROMMSCH, WAREN_PIPS, ZAUBER, zahl,
   KLICK, istBosswelle
 } from './wirtschaft.mjs';
-import { wirkungAus, REGAL_PLAETZE } from '../spiel/artefakte.js';
+import { wirkungAus, REGAL_PLAETZE, SELTENHEITEN } from '../spiel/artefakte.js';
 
 const TAKT = 1 / 60;
 const WELLEN = Number(process.argv[2] || 30);
@@ -42,9 +42,39 @@ const GEDULD = 400;
 const ORDNUNG_BURG = ['schlund', 'klauen', 'hallen', 'schuetze', 'krit', 'pfeile'];
 const ORDNUNG_PIPS = ['sammler', 'stolz', 'ernte', 'schatzjaeger'];
 
+/**
+ * Gefundene Artefakte auch anlegen.
+ *
+ * Ohne das misst der Rechner ein System, das gar nicht mitspielt: Bis
+ * 0.9.1 lagen die Funde unberuehrt im Lager (gemessen: 5 Funde, Regal
+ * 0/5), ihre Wirkung war also in keiner Zahl enthalten.
+ *
+ * Die Regel ist absichtlich schlicht — das Seltenste zuerst, freie
+ * Plaetze auffuellen, nie tauschen. Ein Mensch wuerde nach Bauart
+ * waehlen; dieser Bot soll die Untergrenze zeigen, nicht die Obergrenze.
+ */
+function artefakteAnlegen(welt) {
+  const zustand = welt.zustand;
+  let gelegt = 0;
+  while (zustand.regal.some((a) => !a) && zustand.inventar.length) {
+    let besterIndex = 0;
+    let besteStufe = -1;
+    for (let i = 0; i < zustand.inventar.length; i++) {
+      const a = zustand.inventar[i];
+      const stufe = SELTENHEITEN.findIndex((s) => s.k === a.seltenheit);
+      if (stufe > besteStufe) { besteStufe = stufe; besterIndex = i; }
+    }
+    if (!artefaktAnlegen(welt, besterIndex)) break;
+    gelegt++;
+  }
+  return gelegt;
+}
+
 function einkaufen(welt) {
   const zustand = welt.zustand;
   let gekauft = 0;
+
+  artefakteAnlegen(welt);
 
   // Der Klick zuerst — er ist billig und die wichtigste Fruehhilfe.
   if (zustand.klick.gekauft < 1 && zustand.gold >= KLICK.preis) {
@@ -123,11 +153,18 @@ const verlauf = [];
 let niederlagen = 0;
 let gesamtzeit = 0;
 let steckengeblieben = null;
+// Was ueber die ganze Partie hereinkam und was davon ausgegeben wurde.
+// Ohne diese Summe sieht man nicht, ob ein teurer Kauf ueberhaupt je
+// erreichbar ist — nur, dass er nicht gekauft wurde.
+let eingenommen = 0;
+let ausgegeben = 0;
 
 for (let n = 1; n <= WELLEN; n++) {
   const werte = werteAus(welt.zustand.stufenG, welt.zustand.stufenP,
     wirkungAus(welt.zustand.regal));
+  const goldVorKauf = welt.zustand.gold;
   const gekauft = einkaufen(welt);
+  ausgegeben += Math.max(0, goldVorKauf - welt.zustand.gold);
   const wellenNummer = welt.zustand.welle;
   const staerke = wellenStaerke(wellenNummer);
 
@@ -150,6 +187,7 @@ for (let n = 1; n <= WELLEN; n++) {
 
   if (zeit >= GEDULD) { steckengeblieben = wellenNummer; break; }
   if (verloren) niederlagen++;
+  eingenommen += Math.max(0, welt.zustand.gold - vorGold);
 
   verlauf.push({
     welle: wellenNummer,
@@ -202,6 +240,8 @@ console.log('  Dauer je Welle           ' + kuerzeste.toFixed(0) + ' bis ' + lae
   + ' s (Schnitt ' + schnitt.toFixed(0) + ' s)');
 console.log('  Niederlagen              ' + niederlagen);
 console.log('  Erledigte Recken         ' + z.erledigte);
+console.log('  Gold eingenommen         ' + zahl(eingenommen));
+console.log('  Gold ausgegeben          ' + zahl(ausgegeben));
 console.log('  Gold am Ende             ' + zahl(z.gold));
 console.log('  Blut vergossen           ' + zahl(z.blut) + ' Liter');
 console.log('  Artefakte gefunden       ' + (z.funde || 0)
@@ -232,6 +272,11 @@ allesGut = urteil(
   'Mindestens zwei Zauber sind erreichbar'
 ) && allesGut;
 allesGut = urteil(werteAus(z.stufenG, z.stufenP).kapazitaet > 3, 'Die Burg wächst über die Grundgröße hinaus') && allesGut;
+// Das Einkommen der ganzen Partie gegen den einen Kauf, der Niederlagen
+// verhindert. Faellt das durch, liegt es nicht an der Spielweise.
+const hallenPreis = WAREN_GROMMSCH.find((x) => x.k === 'hallen').preis(0);
+allesGut = urteil(eingenommen >= hallenPreis,
+  'Das Einkommen reicht rechnerisch für die erste Kapazitätsstufe (' + zahl(hallenPreis) + ' Gold)') && allesGut;
 
 console.log(urteile.join('\n'));
 console.log('');
