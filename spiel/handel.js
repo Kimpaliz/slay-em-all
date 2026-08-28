@@ -1,23 +1,22 @@
 // Einkaufen bei den drei Händlern.
 //
 // Jeder Kauf läuft gleich ab: Ware suchen, Höchststufe und Bedingung
-// prüfen, Preis holen, Währung prüfen, abbuchen, Stufe erhöhen. Schlägt
-// eine Prüfung fehl, passiert schlicht nichts — die Oberfläche schaltet
+// prüfen, Preis holen, Gold prüfen, abbuchen, Stufe erhöhen. Schlägt eine
+// Prüfung fehl, passiert schlicht nichts — die Oberfläche schaltet
 // unbezahlbare Knöpfe ohnehin ab, aber verlassen sollte man sich darauf
 // nicht.
 //
-// Wer womit bezahlt:
-//   Grommsch — Schrott
-//   Pips     — Gold
-//   Malvina  — Blut
+// Alle drei kassieren dasselbe: **Gold**. Blut ist nur noch eine
+// Statistik, Schrott ganz fort.
 
 import {
   WAREN_GROMMSCH, WAREN_PIPS, ZAUBER, RITUAL_PREIS, ausbauPreis,
-  KLICK, KLICK_VARIANTEN, klickAusbauPreis
+  KLICK, klickAusbauPreis
 } from '../werkzeuge/wirtschaft.mjs';
 import {
   SPRUCH_GROMMSCH, SPRUCH_PIPS, SPRUCH_MALVINA, ausListe
 } from './daten/texte.js';
+import { INVENTAR_PLAETZE, verkaufswert } from './artefakte.js';
 
 /** Die drei Achsen, auf denen sich ein Zauber verbessern lässt. */
 export const ACHSEN = [
@@ -26,36 +25,41 @@ export const ACHSEN = [
   { k: 'wirkbereich', zeichen: '◎', name: 'Wirkbereich +12 %' }
 ];
 
-/** Ist die Ware ausgereizt oder noch gesperrt? */
-export function wareZustand(ware, stufen) {
+/**
+ * Ist die Ware ausgereizt oder noch gesperrt?
+ *
+ * `welle` wird durchgereicht, weil manche Waren erst ab einer bestimmten
+ * Welle freigeschaltet sind (Tiefere Hallen ab Welle 8).
+ */
+export function wareZustand(ware, stufen, welle) {
   const stufe = stufen[ware.k] || 0;
   const voll = ware.max != null && stufe >= ware.max;
-  const gesperrt = ware.bedingung ? !ware.bedingung(stufen) : false;
+  const gesperrt = ware.bedingung ? !ware.bedingung(stufen, welle) : false;
   return { stufe, voll, gesperrt, preis: voll ? 0 : ware.preis(stufe) };
 }
 
-function kaufen(welt, waren, stufenName, waehrung, schluessel, sprueche, spruchName) {
+function kaufen(welt, waren, stufenName, schluessel, sprueche, spruchName) {
   const zustand = welt.zustand;
   const ware = waren.find((w) => w.k === schluessel);
   if (!ware) return false;
 
   const stufen = zustand[stufenName];
-  const z = wareZustand(ware, stufen);
+  const z = wareZustand(ware, stufen, zustand.welle);
   if (z.voll || z.gesperrt) return false;
-  if (zustand[waehrung] < z.preis) return false;
+  if (zustand.gold < z.preis) return false;
 
-  zustand[waehrung] -= z.preis;
+  zustand.gold -= z.preis;
   stufen[ware.k] = z.stufe + 1;
   welt.sprueche[spruchName] = ausListe(sprueche);
   return true;
 }
 
 export function beiGrommsch(welt, schluessel) {
-  return kaufen(welt, WAREN_GROMMSCH, 'stufenG', 'schrott', schluessel, SPRUCH_GROMMSCH, 'grommsch');
+  return kaufen(welt, WAREN_GROMMSCH, 'stufenG', schluessel, SPRUCH_GROMMSCH, 'grommsch');
 }
 
 export function beiPips(welt, schluessel) {
-  return kaufen(welt, WAREN_PIPS, 'stufenP', 'gold', schluessel, SPRUCH_PIPS, 'pips');
+  return kaufen(welt, WAREN_PIPS, 'stufenP', schluessel, SPRUCH_PIPS, 'pips');
 }
 
 /** Einen Zauber erstmals lernen. */
@@ -64,9 +68,9 @@ export function zauberLernen(welt, schluessel) {
   const zauber = ZAUBER.find((z) => z.k === schluessel);
   if (!zauber) return false;
   if (zustand.zauber[schluessel].gelernt >= 1) return false;
-  if (zustand.blut < zauber.preis) return false;
+  if (zustand.gold < zauber.preis) return false;
 
-  zustand.blut -= zauber.preis;
+  zustand.gold -= zauber.preis;
   zustand.zauber[schluessel].gelernt = 1;
   welt.sprueche.malvina = ausListe(SPRUCH_MALVINA);
   return true;
@@ -81,9 +85,9 @@ export function zauberVerbessern(welt, schluessel, achse) {
   if (stufen.gelernt < 1) return false;
 
   const preis = ausbauPreis(zauber, stufen[achse]);
-  if (zustand.blut < preis) return false;
+  if (zustand.gold < preis) return false;
 
-  zustand.blut -= preis;
+  zustand.gold -= preis;
   stufen[achse] += 1;
   welt.sprueche.malvina = ausListe(SPRUCH_MALVINA);
   return true;
@@ -93,7 +97,7 @@ export function zauberVerbessern(welt, schluessel, achse) {
 
 /** Die drei Achsen des Klicks — Krit statt Wirkbereich. */
 export const KLICK_ACHSEN = [
-  { k: 'schaden', zeichen: '⚔', name: 'Schaden +1' },
+  { k: 'schaden', zeichen: '⚔', name: 'Schaden +10' },
   { k: 'abklingzeit', zeichen: '⏱', name: 'Abklingzeit −12 %' },
   { k: 'krit', zeichen: '✛', name: 'Kritische Treffer +4 %' }
 ];
@@ -102,8 +106,8 @@ export const KLICK_ACHSEN = [
 export function klickKaufen(welt) {
   const zustand = welt.zustand;
   if (zustand.klick.gekauft >= 1) return false;
-  if (zustand.blut < KLICK.preis) return false;
-  zustand.blut -= KLICK.preis;
+  if (zustand.gold < KLICK.preis) return false;
+  zustand.gold -= KLICK.preis;
   zustand.klick.gekauft = 1;
   welt.sprueche.malvina = ausListe(SPRUCH_MALVINA);
   return true;
@@ -114,37 +118,10 @@ export function klickVerbessern(welt, achse) {
   const zustand = welt.zustand;
   if (zustand.klick.gekauft < 1) return false;
   const preis = klickAusbauPreis(zustand.klick[achse]);
-  if (zustand.blut < preis) return false;
-  zustand.blut -= preis;
+  if (zustand.gold < preis) return false;
+  zustand.gold -= preis;
   zustand.klick[achse] += 1;
   welt.sprueche.malvina = ausListe(SPRUCH_MALVINA);
-  return true;
-}
-
-/** Eine Spielart des Klicks kaufen (einmalig). */
-export function varianteKaufen(welt, k) {
-  const zustand = welt.zustand;
-  const variante = KLICK_VARIANTEN.find((v) => v.k === k);
-  if (!variante) return false;
-  if (zustand.klick.gekauft < 1) return false;
-  if (zustand.klick.varianten[k] >= 1) return false;
-  if (zustand.blut < variante.preis) return false;
-  zustand.blut -= variante.preis;
-  zustand.klick.varianten[k] = 1;
-  zustand.klick.aktiv = k;
-  welt.sprueche.malvina = ausListe(SPRUCH_MALVINA);
-  return true;
-}
-
-/**
- * Zwischen gekauften Spielarten umschalten.
- * Ein zweiter Druck auf die aktive schaltet zurück auf den schlichten Klick.
- */
-export function varianteWaehlen(welt, k) {
-  const zustand = welt.zustand;
-  if (zustand.klick.gekauft < 1) return false;
-  if (k !== 'normal' && !(zustand.klick.varianten[k] >= 1)) return false;
-  zustand.klick.aktiv = (zustand.klick.aktiv === k) ? 'normal' : k;
   return true;
 }
 
@@ -152,8 +129,8 @@ export function varianteWaehlen(welt, k) {
 export function ritualKaufen(welt) {
   const zustand = welt.zustand;
   if (zustand.ritual >= 1) return false;
-  if (zustand.blut < RITUAL_PREIS) return false;
-  zustand.blut -= RITUAL_PREIS;
+  if (zustand.gold < RITUAL_PREIS) return false;
+  zustand.gold -= RITUAL_PREIS;
   zustand.ritual = 1;
   zustand.ritualAn = true;
   welt.sprueche.malvina = ausListe(SPRUCH_MALVINA);
@@ -164,5 +141,53 @@ export function ritualKaufen(welt) {
 export function ritualUmschalten(welt) {
   if (welt.zustand.ritual < 1) return false;
   welt.zustand.ritualAn = !welt.zustand.ritualAn;
+  return true;
+}
+
+/* ---------------- Artefakte ---------------- */
+
+/**
+ * Ein Artefakt aus dem Lager ins Regal legen.
+ *
+ * Es geht auf den ersten freien Platz. Ist keiner frei, passiert nichts —
+ * absichtlich: Ein stiller Tausch würde ein ausgerüstetes Artefakt
+ * verdrängen, ohne dass jemand es wollte.
+ */
+export function artefaktAnlegen(welt, index) {
+  const zustand = welt.zustand;
+  const artefakt = zustand.inventar[index];
+  if (!artefakt) return false;
+  const platz = zustand.regal.findIndex((a) => !a);
+  if (platz < 0) return false;
+  zustand.regal[platz] = artefakt;
+  zustand.inventar.splice(index, 1);
+  return true;
+}
+
+/** Ein Artefakt aus dem Regal zurück ins Lager. */
+export function artefaktAblegen(welt, index) {
+  const zustand = welt.zustand;
+  const artefakt = zustand.regal[index];
+  if (!artefakt) return false;
+  if (zustand.inventar.length >= INVENTAR_PLAETZE) return false;
+  zustand.inventar.push(artefakt);
+  zustand.regal[index] = null;
+  return true;
+}
+
+/**
+ * Ein Artefakt verkaufen.
+ *
+ * Auch direkt vom Regal — der Knopf sagt dann „Ablegen & verkaufen", damit
+ * niemand versehentlich seine Ausrüstung verscherbelt.
+ */
+export function artefaktVerkaufen(welt, ort, index) {
+  const zustand = welt.zustand;
+  const liste = ort === 'regal' ? zustand.regal : zustand.inventar;
+  const artefakt = liste[index];
+  if (!artefakt) return false;
+  zustand.gold += verkaufswert(artefakt);
+  if (ort === 'regal') zustand.regal[index] = null;
+  else zustand.inventar.splice(index, 1);
   return true;
 }

@@ -8,11 +8,12 @@
 //   auf der Brücke — Pfeil, Blitz oder Pranke. Weniger Trümmer, dafür gilt
 //                  es als "besonderer Tod" und wirft mehr Gold ab.
 //   verbrannt    — Flamme oder Meteorit. Er zerfällt zu Asche, es bleibt
-//                  ein Häufchen liegen. Zählt ebenfalls als besonderer Tod.
+//                  ein Häufchen liegen und eine Rauchfahne steigt auf.
+//                  Zählt ebenfalls als besonderer Tod.
 //
-// Der Unterschied ist Absicht: Wer nur zusieht, bekommt die Grundbeute.
-// Wer eingreift, bekommt mehr — das ist der Grund, überhaupt Zauber zu
-// kaufen.
+// Der Unterschied ist Absicht, und seit Gold die einzige Währung ist auch
+// der einzige Grund, überhaupt einzugreifen: Wer nur zusieht, bekommt die
+// Grundbeute. Wer eingreift, bekommt mehr.
 //
 // Gutgeschrieben wird sofort in `zustand`. Das war einmal anders: Die
 // Beute wurde gesammelt und erst von der Uhr übertragen. Dadurch bekam
@@ -21,6 +22,11 @@
 
 import { MASSE } from './masse.js';
 import { melden } from './marktschreier.js';
+import { schadensFarbe, BOSS } from '../werkzeuge/wirtschaft.mjs';
+import {
+  artefaktErzeugen, seltenheitAuslosen, seltenheitNach, fundWurf, INVENTAR_PLAETZE, verkaufswert
+} from './artefakte.js';
+import { BOSS_TOD } from './daten/bosse.js';
 import {
   IM_TOR_GESTORBEN, VERBRANNT, ZERMALMT, ERSCHOSSEN, ausListe, mitNamen
 } from './daten/texte.js';
@@ -38,6 +44,34 @@ export function spritzen(szene, x, y, menge, blutmenge) {
     });
   }
   if (szene.spritzer.length > 190) szene.spritzer.splice(0, szene.spritzer.length - 190);
+}
+
+/**
+ * Rauch: kleine Flocken, die langsam hochgleiten und dabei ausfaden.
+ *
+ * Nur Feuer- und Blitzwirkungen qualmen — die Pranke zermalmt, sie brennt
+ * nicht. Absichtlich sparsam und langsam: Rauch soll nachklingen, wo eben
+ * etwas passiert ist, und nicht die Szene zustellen. `art` wählt den
+ * Grundton, `warm` mischt einzelne Glutflocken darunter.
+ */
+export function rauchen(szene, x, y, anzahl, optionen = {}) {
+  const streuung = optionen.streuung != null ? optionen.streuung : 3;
+  const steigen = optionen.steigen != null ? optionen.steigen : 13;
+  const warm = optionen.warm !== false;
+  for (let i = 0; i < anzahl; i++) {
+    const glut = warm && Math.random() < 0.22;
+    szene.rauch.push({
+      x: x + (Math.random() * 2 - 1) * streuung,
+      y: y + (Math.random() * 2 - 1) * 2,
+      vx: (Math.random() * 2 - 1) * 5 + (optionen.drift || 0),
+      vy: -(steigen * (0.6 + Math.random() * 0.7)),
+      lebt: 0,
+      dauer: (optionen.dauer || 1.5) * (0.7 + Math.random() * 0.6),
+      groesse: Math.random() < 0.35 ? 2 : 1,
+      glut
+    });
+  }
+  if (szene.rauch.length > 150) szene.rauch.splice(0, szene.rauch.length - 150);
 }
 
 /** Eine Blutlache auf den Planken — benachbarte wachsen zusammen. */
@@ -67,10 +101,11 @@ export function lacheSetzen(szene, x, breite) {
  * Spieler verliert also nichts, nur die Übersicht bliebe sonst auf der
  * Strecke.
  */
-export function muenzenFallen(szene, x, klasse, besonders, ernteFaktor) {
-  let gesamt = klasse.gold;
-  if (besonders) gesamt = Math.max(1, Math.round(gesamt * ernteFaktor));
-  const stuecke = Math.min(4, gesamt);
+export function muenzenFallen(szene, x, klasse, besonders, ernteFaktor, bossFaktor) {
+  let gesamt = klasse.gold * (bossFaktor || 1);
+  if (besonders) gesamt = Math.round(gesamt * ernteFaktor);
+  gesamt = Math.max(1, Math.round(gesamt));
+  const stuecke = Math.min(bossFaktor ? 8 : 4, gesamt);
   const je = Math.floor(gesamt / stuecke);
   let rest = gesamt - je * stuecke;
   for (let i = 0; i < stuecke; i++) {
@@ -92,50 +127,145 @@ export function muenzenFallen(szene, x, klasse, besonders, ernteFaktor) {
 }
 
 /** Eine Münze einsammeln — von Hand bringt sie mehr als durch den Drachling. */
-export function muenzeAufsammeln(welt, muenze, vonHand, stolzFaktor) {
+export function muenzeAufsammeln(welt, muenze, vonHand, werte) {
   const szene = welt.szene;
   const i = szene.muenzen.indexOf(muenze);
   if (i < 0) return;
-  const wert = Math.max(1, Math.round(muenze.wert * (vonHand ? stolzFaktor : 1)));
+  const faktor = (vonHand ? werte.stolzFaktor : 1) * (werte.muenzFaktor || 1);
+  const wert = Math.max(1, Math.round(muenze.wert * faktor));
   szene.muenzen.splice(i, 1);
   szene.zahlen.push({ x: muenze.x, y: muenze.y - 6, text: '+' + wert, farbe: '#e0b64f', zeit: 0 });
   welt.zustand.gold += wert;
 }
 
+/* ---------------- Artefakte ---------------- */
+
+/**
+ * Ein Fundstück fällt auf die Brücke.
+ *
+ * Anders als eine Münze darf es **nie in den Abgrund rollen** — das wäre
+ * zu bitter. Deshalb wird die Fallstelle auf festen Boden gezogen, und am
+ * Wellenende sammelt sich alles Liegengebliebene von selbst ein.
+ */
+export function fundstueckFallen(welt, x, artefakt) {
+  const szene = welt.szene;
+  const ziel = Math.max(MASSE.KLIPPE + 4, Math.min(MASSE.TOR_RECHTS - 6, x));
+  szene.fundstuecke.push({
+    x: ziel, y: MASSE.DECK - 10 - Math.random() * 6,
+    vx: (Math.random() * 2 - 1) * 12, vy: -(40 + Math.random() * 30),
+    liegt: false, phase: Math.random() * 6.28, artefakt
+  });
+  const s = seltenheitNach(artefakt.seltenheit);
+  szene.zahlen.push({
+    x: ziel, y: MASSE.DECK - 22,
+    text: s.name.toUpperCase() + '!', farbe: s.farbe, gross: true, zeit: 0
+  });
+  melden(szene, 'Ein Fundstück! »' + artefakt.name + '« liegt auf der Brücke — aufsammeln!');
+}
+
+/**
+ * Ein Fundstück ins Inventar legen.
+ *
+ * Ist das Lager voll, zahlt sich der Fund sofort als Gold aus — verlieren
+ * soll man ihn nicht, nur behalten kann man ihn dann nicht.
+ */
+export function fundstueckNehmen(welt, artefakt) {
+  const zustand = welt.zustand;
+  zustand.funde += 1;
+  if (zustand.inventar.length < INVENTAR_PLAETZE) {
+    zustand.inventar.push(artefakt);
+    return true;
+  }
+  const wert = verkaufswert(artefakt);
+  zustand.gold += wert;
+  welt.szene.zahlen.push({
+    x: MASSE.TOR_MITTE, y: MASSE.DECK - 30,
+    text: 'Lager voll: +' + wert, farbe: '#e0b64f', gross: true, zeit: 0
+  });
+  return false;
+}
+
+/** Würfelt beim Tod, ob ein Artefakt fällt. Bosse liefern immer. */
+function fundWuerfeln(welt, x, boss, werte) {
+  const welle = welt.zustand.welle;
+  if (boss) {
+    const k = seltenheitAuslosen(welle, Math.random, 'selten');
+    fundstueckFallen(welt, x, artefaktErzeugen(welle, k));
+    return;
+  }
+  if (!werte || !fundWurf(werte.fundchance)) return;
+  const k = seltenheitAuslosen(welle, Math.random);
+  fundstueckFallen(welt, x, artefaktErzeugen(welle, k));
+}
+
+/* ---------------- Gift und Frost ---------------- */
+
+/**
+ * Gift ist stapelbar: Jeder Treffer legt einen eigenen Eintrag an, und
+ * alle ticken parallel. Genau das macht Giftpfeile bei dichten Reihen so
+ * gut — und deshalb bekommt jeder Stapel seine eigene Uhr.
+ */
+export function vergiften(recke, dps, dauer) {
+  if (!recke.gift) recke.gift = [];
+  if (recke.gift.length >= 8) recke.gift.shift();
+  recke.gift.push({ rest: dauer, takt: 0, dps });
+}
+
+/** Frost verlangsamt. Der stärkste Frost gewinnt, sie stapeln nicht. */
+export function einfrieren(recke, prozent, dauer) {
+  const faktor = 1 - Math.min(0.75, prozent / 100);
+  if (recke.frost && recke.frost.faktor <= faktor && recke.frost.rest >= dauer) return;
+  recke.frost = { faktor, rest: dauer };
+}
+
 /**
  * Beute eines Todes gutschreiben.
  *
- * Schrott fällt in Bruchteilen an (ein Bauer bringt 0,4). Gesammelt wird
- * in `schrottRest`, gutgeschrieben nur in ganzen Stücken — sonst stünden
- * in der Anzeige krumme Zahlen.
+ * Gold liegt nicht hier, sondern in den Münzen auf der Brücke — hier
+ * wandern die Statistiken hoch, der Blutzoll wird abgerechnet und es
+ * wird um ein Artefakt gewürfelt.
  */
-export function verbuchen(welt, klasse) {
+export function verbuchen(welt, klasse, boss, x, werte) {
   const zustand = welt.zustand;
-  zustand.blut += klasse.blut;
+  const liter = klasse.blut * (boss ? 4 : 1);
+  zustand.blut += liter;
   zustand.erledigte += 1;
   zustand.proKlasse[klasse.id] = (zustand.proKlasse[klasse.id] || 0) + 1;
-  welt.schrottRest += klasse.schrott;
-  if (welt.schrottRest >= 1) {
-    const ganz = Math.floor(welt.schrottRest);
-    welt.schrottRest -= ganz;
-    zustand.schrott += ganz;
+  if (boss) zustand.bosse += 1;
+
+  // Blutzoll (legendär): Je 500 vergossene Liter eine Münze.
+  if (werte && werte.wirkung && werte.wirkung.blutzoll) {
+    zustand.blutRest = (zustand.blutRest || 0) + liter;
+    if (zustand.blutRest >= 500) {
+      const muenzen = Math.floor(zustand.blutRest / 500);
+      zustand.blutRest -= muenzen * 500;
+      zustand.gold += muenzen;
+      welt.szene.zahlen.push({
+        x: MASSE.TOR_LINKS - 10, y: MASSE.DECK - 26,
+        text: 'Blutzoll +' + muenzen, farbe: '#c1444f', zeit: 0
+      });
+    }
   }
+
+  fundWuerfeln(welt, x != null ? x : MASSE.TOR_LINKS - 8, boss, werte);
 }
 
 /**
  * Schaden zufügen. Überlebt er, blitzt er kurz weiß auf.
- * `feuer` entscheidet, ob er zu Asche zerfällt oder in Stücke geht.
  *
- * Jeder Treffer zeigt seine Zahl über dem Getroffenen — kritische in Gold
- * und eine Spur größer. Stirbt ein brennender Recke, explodiert er und
- * verletzt seine Nachbarn; die Kette darf sich fortsetzen, weil jeder nur
- * einmal sterben kann.
+ * `art` ist die Schadensart (physisch, feuer, blitz, eis, gift) und
+ * bestimmt zwei Dinge: die Farbe der schwebenden Zahl und — bei Feuer —
+ * ob der Getroffene zu Asche zerfällt statt in Stücke zu gehen.
+ *
+ * Stirbt ein brennender Recke, explodiert er und verletzt seine
+ * Nachbarn; die Kette darf sich fortsetzen, weil jeder nur einmal
+ * sterben kann.
  */
-export function schaden(welt, recke, menge, ursache, feuer, werte, krit) {
+export function schaden(welt, recke, menge, ursache, art, werte, krit) {
   const szene = welt.szene;
   recke.lp -= menge;
   recke.getroffen = 0.18;
-  schadenAnzeigen(szene, recke, menge, krit);
+  schadenAnzeigen(szene, recke, menge, art, krit);
   if (recke.lp > 0) return;
 
   const i = szene.recken.indexOf(recke);
@@ -143,20 +273,20 @@ export function schaden(welt, recke, menge, ursache, feuer, werte, krit) {
   szene.recken.splice(i, 1);
 
   const brannte = !!recke.brand;
-  if (feuer || brannte) verbrennen(welt, recke, ursache);
+  if (art === 'feuer' || brannte) verbrennen(welt, recke, ursache, werte);
   else brueckenTod(welt, recke, ursache, werte);
   if (brannte) explodieren(welt, recke.x + 3, werte);
 }
 
-/** Die schwebende Schadenszahl über dem Getroffenen. */
-export function schadenAnzeigen(szene, recke, menge, krit) {
-  const wert = Math.round(menge * 10) / 10;
+/** Die schwebende Schadenszahl über dem Getroffenen, gefärbt nach Art. */
+export function schadenAnzeigen(szene, recke, menge, art, krit) {
+  const wert = Math.round(menge);
   szene.zahlen.push({
     x: recke.x + 3 + (Math.random() * 4 - 2),
-    y: MASSE.DECK - recke.klasse.hoehe - 7,
-    text: '-' + String(wert).replace('.', ','),
-    farbe: krit ? '#ffd08a' : '#ff8a6a',
-    gross: !!krit,
+    y: MASSE.DECK - recke.klasse.hoehe * (recke.groesse || 1) - 7,
+    text: '-' + wert,
+    farbe: schadensFarbe(art, krit),
+    gross: !!krit || !!recke.boss,
     zeit: 0
   });
 }
@@ -165,89 +295,47 @@ export function schadenAnzeigen(szene, recke, menge, krit) {
  * Die Explosion eines brennenden Recken.
  *
  * Der Schaden ist selbst Feuerschaden — wer daran stirbt, brennt ebenfalls.
- * So kann eine dichte Reihe als Kette hochgehen, genau wie es die
- * Infernale Berührung verspricht.
+ * So kann eine dichte Reihe als Kette hochgehen.
  */
 export function explodieren(welt, x, werte) {
   const szene = welt.szene;
   szene.explosionen.push({ x, zeit: 0 });
   szene.ruettelt = Math.min(5, szene.ruettelt + 1.2);
+  rauchen(szene, x, MASSE.DECK - 6, 5, { dauer: 1.7, steigen: 15 });
   for (let i = szene.recken.length - 1; i >= 0; i--) {
     const r = szene.recken[i];
     if (r.zustand === 'laeuft' && Math.abs(r.x + 3 - x) < 14) {
-      schaden(welt, r, 2, 'explosion', true, werte);
+      schaden(welt, r, 20, 'feuer', werte);
     }
   }
 }
 
-/**
- * Die Midas-Berührung: Statt zu sterben, erstarrt der Recke zu Gold.
- *
- * Blut und Schrott gibt es sofort — gestorben ist er ja. Das Gold aber
- * steckt in der Statue und will abgeholt werden; dafür ist es das
- * Zweieinhalbfache des üblichen Wurfs.
- */
-export function vergolden(welt, recke, werte) {
-  const szene = welt.szene;
-  const k = recke.klasse;
-  const i = szene.recken.indexOf(recke);
-  if (i >= 0) szene.recken.splice(i, 1);
-
-  szene.statuen.push({
-    x: recke.x,
-    klasse: k,
-    wert: Math.max(1, Math.round(k.gold * werte.ernteFaktor * 2.5)),
-    zeit: 0
-  });
-  if (szene.statuen.length > 10) {
-    // Die älteste zahlt sich selbst aus, bevor sie verschwindet.
-    const alt = szene.statuen.shift();
-    welt.zustand.gold += alt.wert;
-  }
-  szene.zahlen.push({
-    x: recke.x + 3, y: MASSE.DECK - k.hoehe - 8,
-    text: 'Gold!', farbe: '#e0b64f', gross: true, zeit: 0
-  });
-
-  // Beute wie bei jedem Tod — nur die Münzen bleiben aus.
-  welt.zustand.blut += k.blut;
-  welt.zustand.erledigte += 1;
-  welt.zustand.proKlasse[k.id] = (welt.zustand.proKlasse[k.id] || 0) + 1;
-  welt.schrottRest += k.schrott;
-  if (welt.schrottRest >= 1) {
-    const ganz = Math.floor(welt.schrottRest);
-    welt.schrottRest -= ganz;
-    welt.zustand.schrott += ganz;
-  }
-}
-
-/** Eine Statue anklicken: Gold kassieren, Statue weg. */
-export function statueEinsammeln(welt, statue) {
-  const szene = welt.szene;
-  const i = szene.statuen.indexOf(statue);
-  if (i < 0) return;
-  szene.statuen.splice(i, 1);
-  welt.zustand.gold += statue.wert;
-  szene.zahlen.push({
-    x: statue.x + 3, y: MASSE.DECK - statue.klasse.hoehe - 6,
-    text: '+' + statue.wert, farbe: '#e0b64f', gross: true, zeit: 0
-  });
-}
-
 /** Er zerfällt zu Asche. Die Beute gibt es erst, wenn er ausgebrannt ist. */
-export function verbrennen(welt, recke, ursache) {
-  welt.szene.brennende.push({ x: recke.x, klasse: recke.klasse, zeit: 0, ursache });
-  verbuchen(welt, recke.klasse);
-  if (Math.random() < 0.5) melden(welt.szene, mitNamen(ausListe(VERBRANNT), recke.name));
+export function verbrennen(welt, recke, ursache, werte) {
+  const szene = welt.szene;
+  szene.brennende.push({
+    x: recke.x, klasse: recke.klasse, zeit: 0, ursache,
+    boss: !!recke.boss, groesse: recke.groesse || 1
+  });
+  // Aschenkrone (legendär): eine Glut bleibt liegen und zündet den
+  // Nächsten an, der darüber läuft.
+  if (werte && werte.wirkung && werte.wirkung.aschenkrone) {
+    szene.gluten.push({ x: recke.x + 3, rest: 9 });
+    if (szene.gluten.length > 12) szene.gluten.shift();
+  }
+  verbuchen(welt, recke.klasse, recke.boss, recke.x + 3, werte);
+  if (recke.boss) melden(szene, mitNamen(ausListe(BOSS_TOD), recke.name));
+  else if (Math.random() < 0.5) melden(szene, mitNamen(ausListe(VERBRANNT), recke.name));
 }
 
 /** Tod auf der Brücke durch Pfeil, Blitz oder Pranke. */
 export function brueckenTod(welt, recke, ursache, werte) {
   const szene = welt.szene;
   const k = recke.klasse;
-  spritzen(szene, recke.x + 3, MASSE.DECK - 6, 7, k.blut);
+  const gross = recke.groesse || 1;
+  spritzen(szene, recke.x + 3, MASSE.DECK - 6, 7 * gross, k.blut);
   const arten = ['arm', 'bein', 'schaedel'];
-  for (let i = 0; i < 2; i++) {
+  for (let i = 0; i < 2 * gross; i++) {
     szene.truemmer.push({
       art: arten[(Math.random() * arten.length) | 0],
       x: recke.x + 3, y: MASSE.DECK - 8,
@@ -257,11 +345,13 @@ export function brueckenTod(welt, recke, ursache, werte) {
       rollt: false, faellt: false
     });
   }
-  lacheSetzen(szene, recke.x + 3, 4);
-  muenzenFallen(szene, recke.x + 3, k, ursache !== 'tor', werte.ernteFaktor);
-  verbuchen(welt, k);
+  lacheSetzen(szene, recke.x + 3, 4 + (gross - 1) * 3);
+  muenzenFallen(szene, recke.x + 3, k, ursache !== 'tor', werte.ernteFaktor,
+    recke.boss ? BOSS.goldFaktor : 0);
+  verbuchen(welt, k, recke.boss, recke.x + 3, werte);
   szene.ruettelt = Math.min(4, szene.ruettelt + 1);
-  if (ursache === 'pfeil' && Math.random() < 0.45) {
+  if (recke.boss) melden(szene, mitNamen(ausListe(BOSS_TOD), recke.name));
+  else if (ursache === 'pfeil' && Math.random() < 0.45) {
     melden(szene, mitNamen(ausListe(ERSCHOSSEN), recke.name));
   }
 }
@@ -278,13 +368,14 @@ export function torTod(welt, opfer, blutmenge, ruetteln, werte) {
   const k = opfer.klasse;
   const maulX = MASSE.TOR_LINKS + 4;
   const maulY = MASSE.DECK - 10;
+  const gross = opfer.groesse || 1;
 
   szene.blitzlicht = 1;
-  szene.ruettelt = Math.min(5, szene.ruettelt + (ruetteln ? 1.6 + k.hoehe / 12 : 0));
-  spritzen(szene, maulX, maulY, 9 + Math.round(k.hoehe / 3), blutmenge);
+  szene.ruettelt = Math.min(5, szene.ruettelt + (ruetteln ? (1.6 + k.hoehe / 12) * gross : 0));
+  spritzen(szene, maulX, maulY, (9 + Math.round(k.hoehe / 3)) * gross, blutmenge);
 
   const teile = [];
-  const anzahl = 2 + Math.round(blutmenge / 3.5) + (k.hoehe > 14 ? 1 : 0);
+  const anzahl = (2 + Math.round(blutmenge / 3.5) + (k.hoehe > 14 ? 1 : 0)) * gross;
   const arten = ['arm', 'bein', 'rumpf', 'arm', 'bein'];
   for (let i = 0; i < anzahl; i++) teile.push(arten[i % arten.length]);
   if (Math.random() < 0.5) teile.push('kopf');
@@ -314,9 +405,17 @@ export function torTod(welt, opfer, blutmenge, ruetteln, werte) {
     }
   }
 
-  muenzenFallen(szene, MASSE.TOR_LINKS - 4, k, false, werte.ernteFaktor);
-  verbuchen(welt, k);
-  if (Math.random() < 0.55) {
+  muenzenFallen(szene, MASSE.TOR_LINKS - 4, k, false, werte.ernteFaktor,
+    opfer.boss ? BOSS.goldFaktor : 0);
+  verbuchen(welt, k, opfer.boss, MASSE.TOR_LINKS - 8, werte);
+
+  // Hungriges Gemäuer (legendär): Jeder Tod im Tor macht schneller satt.
+  if (werte.wirkung && werte.wirkung.hungrigesGemaeuer > 0) {
+    szene.sattStapel = Math.min(10, szene.sattStapel + 1);
+    szene.sattZeit = 6;
+  }
+  if (opfer.boss) melden(szene, mitNamen(ausListe(BOSS_TOD), opfer.name));
+  else if (Math.random() < 0.55) {
     melden(szene, mitNamen(ausListe(IM_TOR_GESTORBEN), opfer.name));
   }
 }
@@ -326,7 +425,7 @@ export function torTod(welt, opfer, blutmenge, ruetteln, werte) {
  *
  * Wer mehr Lebenspunkte hat als die Pranke Schaden macht, wird nur
  * verletzt — deshalb lohnt sich die Schadensachse bei Malvina, sobald
- * Ritter und Paladine kommen.
+ * Ritter und Paladine kommen. Ein Boss wird von ihr nie zermalmt.
  */
 export function zermalmen(welt, werte) {
   const szene = welt.szene;
@@ -338,7 +437,7 @@ export function zermalmen(welt, werte) {
     const r = szene.recken[i];
     if (r.zustand === 'flieht' || r.x < vonX || r.x > MASSE.TOR_LINKS + 6) continue;
     if (r.lp > pranke.schaden) {
-      schaden(welt, r, pranke.schaden, 'pranke', false, werte);
+      schaden(welt, r, pranke.schaden, 'pranke', 'physisch', werte);
       continue;
     }
     szene.recken.splice(i, 1);
@@ -346,8 +445,9 @@ export function zermalmen(welt, werte) {
     if (!name) name = r.name;
     spritzen(szene, r.x + 3, MASSE.DECK - 5, 12, r.klasse.blut);
     lacheSetzen(szene, r.x + 3, 6);
-    muenzenFallen(szene, r.x + 3, r.klasse, true, werte.ernteFaktor);
-    verbuchen(welt, r.klasse);
+    muenzenFallen(szene, r.x + 3, r.klasse, true, werte.ernteFaktor, r.boss ? BOSS.goldFaktor : 0);
+    verbuchen(welt, r.klasse, r.boss, r.x + 3, werte);
+    if (r.boss) melden(szene, mitNamen(ausListe(BOSS_TOD), r.name));
   }
 
   szene.ruettelt = Math.min(6, szene.ruettelt + 4);

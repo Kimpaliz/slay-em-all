@@ -14,24 +14,43 @@ import { MASSE, festerBoden, ausklang } from './masse.js';
 import { reckeAnlegen } from './welt.js';
 import { melden } from './marktschreier.js';
 import {
-  schaden, torTod, zermalmen, lacheSetzen, muenzenFallen, muenzeAufsammeln
+  schaden, torTod, zermalmen, lacheSetzen, muenzenFallen, muenzeAufsammeln, rauchen,
+  vergiften, fundstueckNehmen
 } from './kampf.js';
+import { wirkungAus } from './artefakte.js';
 import { RECKEN } from './daten/recken.js';
-import { welleGewonnen, welleVerloren, niederlageBeenden, welleStarten, RITUAL_WARTEZEIT } from './wellen.js';
+import {
+  welleGewonnen, welleVerloren, niederlageBeenden, welleStarten, bossKlasse, RITUAL_WARTEZEIT
+} from './wellen.js';
 import { NACHTS, ausListe, reckenName } from './daten/texte.js';
-import { werte as werteAus, spawnAbstand } from '../werkzeuge/wirtschaft.mjs';
+import {
+  werte as werteAus, spawnAbstand, wellenSkalierung, BOSS
+} from '../werkzeuge/wirtschaft.mjs';
 
 /** Wie blutig es zugeht: 1 bis 10. */
 const BLUTMENGE = 9;
 
 export function schritt(welt, dt, einstellungen = {}) {
   const { zustand, szene } = welt;
-  const werte = werteAus(zustand.stufenG, zustand.stufenP);
+  // Die Summe des Regals wird jeden Schritt neu gebildet — fünf Plätze mit
+  // je höchstens vier Affixen, das ist billiger als jede Buchhaltung, die
+  // aus dem Takt geraten könnte.
+  const wirkung = wirkungAus(zustand.regal);
+  const werte = werteAus(zustand.stufenG, zustand.stufenP, wirkung);
+  // Hungriges Gemäuer: gestapelte Fressboni, jeder 3 %.
+  if (wirkung.hungrigesGemaeuer > 0 && szene.sattStapel > 0) {
+    werte.angriff *= 1 + 0.03 * szene.sattStapel;
+  }
   const blutmenge = einstellungen.blutmenge != null ? einstellungen.blutmenge : BLUTMENGE;
   const ruetteln = einstellungen.ruetteln !== false;
 
   szene.zeit += dt;
   zustand.spielzeit += dt;
+
+  if (szene.sattZeit > 0) {
+    szene.sattZeit -= dt;
+    if (szene.sattZeit <= 0) szene.sattStapel = 0;
+  }
 
   daemmerungFuehren(szene, dt);
   phaseFuehren(welt, dt, werte);
@@ -39,6 +58,7 @@ export function schritt(welt, dt, einstellungen = {}) {
   abklingzeitenFuehren(szene, dt);
 
   brandFuehren(welt, dt, werte);
+  giftFuehren(welt, dt, werte);
   prankeFuehren(welt, dt, werte);
   schuetzenFuehren(welt, dt, werte);
   pfeileFuehren(welt, dt, werte);
@@ -46,12 +66,15 @@ export function schritt(welt, dt, einstellungen = {}) {
   flammeFuehren(welt, dt, werte);
   meteoreFuehren(welt, dt, werte);
   brennendeFuehren(welt, dt, werte);
+  brandfleckenFuehren(szene, dt);
+  glutenFuehren(welt, dt, werte);
 
   muenzenFuehren(welt, dt, werte);
+  fundstueckeFuehren(welt, dt);
   drachlingFuehren(welt, dt, werte);
-  statuenFuehren(welt, dt);
   truemmerFuehren(szene, dt, blutmenge);
   spritzerFuehren(szene, dt);
+  rauchFuehren(szene, dt);
   lachenFuehren(szene, dt);
   kleinkramFuehren(szene, dt);
   tiereFuehren(szene, dt);
@@ -87,14 +110,10 @@ function phaseFuehren(welt, dt, werte) {
     if (szene.erschienen < szene.wellenGroesse) {
       szene.naechsterRecke -= dt;
       if (szene.naechsterRecke <= 0) {
+        const skala = wellenSkalierung(zustand.welle);
         const abstand = spawnAbstand(zustand.welle);
         szene.naechsterRecke = abstand * (0.7 + Math.random() * 0.6);
-        szene.erschienen++;
-        // Die Aufstellung wurde nachts ausgelost und angekündigt —
-        // gespawnt wird genau diese Liste, nichts anderes.
-        const id = (szene.spawnListe || []).shift();
-        const klasse = RECKEN.find((r) => r.id === id) || RECKEN[0];
-        szene.recken.push(reckeAnlegen(szene, klasse, reckenName(), werte.tempoFaktor));
+        truppSetzen(welt, skala);
       }
     }
 
@@ -116,7 +135,10 @@ function phaseFuehren(welt, dt, werte) {
       && szene.imTor.length === 0
       && szene.brennende.length === 0
       && !szene.pranke;
-    if (fertig) welleGewonnen(welt);
+    if (fertig) {
+      wellenEndeEinsammeln(welt, werte);
+      welleGewonnen(welt);
+    }
   }
 
   if (szene.phase === 'nacht') {
@@ -134,15 +156,83 @@ function phaseFuehren(welt, dt, werte) {
   }
 }
 
+/**
+ * Wellenende: Liegengebliebenes einsammeln.
+ *
+ * Fundstücke gehen **immer** ins Lager — ein Artefakt zu verlieren, weil
+ * man einen Klick verpasst hat, wäre zu bitter. Münzen nur mit dem
+ * Rabenpakt: Dann tragen die Raben ein, was liegen blieb.
+ */
+function wellenEndeEinsammeln(welt, werte) {
+  const szene = welt.szene;
+  while (szene.fundstuecke.length) {
+    const f = szene.fundstuecke.pop();
+    fundstueckNehmen(welt, f.artefakt);
+  }
+  if (werte.wirkung && werte.wirkung.rabenpakt) {
+    for (let i = szene.muenzen.length - 1; i >= 0; i--) {
+      const m = szene.muenzen[i];
+      if (!m.liegt) continue;
+      for (const rabe of szene.raben) {
+        if (rabe.fliegt <= 0 && Math.random() < 0.4) {
+          rabe.fliegt = 1.2 + Math.random();
+          rabe.vx = 30 + Math.random() * 30;
+          rabe.vy = -(20 + Math.random() * 16);
+          rabe.y = 0;
+          break;
+        }
+      }
+      muenzeAufsammeln(welt, m, false, werte);
+    }
+  }
+}
+
+/**
+ * Ein Stoßtrupp erscheint.
+ *
+ * Ab Welle 5 kommen die Recken nicht mehr einzeln, sondern zu mehreren
+ * auf einmal — versetzt, damit man sie noch auseinanderhalten kann. Der
+ * Spawn-Abstand wächst dafür mit, die Gesamtmenge bleibt gleich; nur die
+ * Spitzenlast am Tor steigt. Der Boss kommt zuletzt und immer allein.
+ */
+function truppSetzen(welt, skala) {
+  const { zustand, szene } = welt;
+  const liste = szene.spawnListe || [];
+
+  if (!liste.length && szene.spawnBoss) {
+    const klasse = bossKlasse(zustand.welle);
+    const boss = reckeAnlegen(szene, klasse, szene.spawnBoss, skala, BOSS);
+    szene.spawnBoss = null;
+    szene.erschienen++;
+    szene.recken.push(boss);
+    return;
+  }
+
+  const wieviele = Math.min(skala.truppGroesse, liste.length, szene.wellenGroesse - szene.erschienen);
+  for (let i = 0; i < wieviele; i++) {
+    const id = liste.shift();
+    const klasse = RECKEN.find((r) => r.id === id) || RECKEN[0];
+    const recke = reckeAnlegen(szene, klasse, reckenName(), skala, null);
+    recke.x -= i * 7;
+    szene.erschienen++;
+    szene.recken.push(recke);
+  }
+}
+
 /* ---------------- Recken ---------------- */
 
 function reckenFuehren(welt, dt, werte) {
   const { szene } = welt;
   const prankeVorderkante = szene.pranke ? MASSE.TOR_LINKS - szene.pranke.stand : Infinity;
+  const raureif = werte.wirkung ? werte.wirkung.raureif / 100 : 0;
 
   for (let i = szene.recken.length - 1; i >= 0; i--) {
     const r = szene.recken[i];
     if (r.getroffen > 0) r.getroffen -= dt;
+    if (r.frost) {
+      r.frost.rest -= dt;
+      if (r.frost.rest <= 0) delete r.frost;
+    }
 
     if (r.zustand === 'flieht') {
       r.x -= r.tempo * 1.5 * dt;
@@ -157,10 +247,18 @@ function reckenFuehren(welt, dt, werte) {
       continue;
     }
 
-    r.x += r.tempo * dt;
+    // Frost aus dem Regal bremst, Raureif bremst kurz vor dem Tor.
+    let tempo = r.tempo;
+    if (r.frost) tempo *= r.frost.faktor;
+    if (raureif > 0 && r.x > MASSE.TOR_LINKS - 40) tempo *= 1 - raureif;
+
+    r.x += tempo * dt;
     if (r.x >= MASSE.TOR_EINTRITT) {
       szene.recken.splice(i, 1);
-      szene.imTor.push({ klasse: r.klasse, name: r.name, lp: r.lp, maxLp: r.klasse.lp });
+      szene.imTor.push({
+        klasse: r.klasse, name: r.name, lp: r.lp, maxLp: r.maxLp,
+        boss: !!r.boss, groesse: r.groesse || 1
+      });
       if (szene.imTor.length > werte.kapazitaet) {
         welleVerloren(welt);
         break;
@@ -179,8 +277,9 @@ function abklingzeitenFuehren(szene, dt) {
 /**
  * Brennende Recken verlieren jede volle Sekunde Lebenspunkte.
  *
- * Der Brand kommt von der Infernalen Berührung. Stirbt der Recke daran,
- * läuft in `schaden()` der Feuer-Pfad samt Explosion.
+ * Brand entsteht derzeit nirgends von selbst — die Infernale Berührung
+ * ist gestrichen. Der Pfad bleibt, weil Artefakte ihn wieder anzünden
+ * werden, und weil brennende Recken sichtbar qualmen.
  */
 function brandFuehren(welt, dt, werte) {
   const szene = welt.szene;
@@ -189,28 +288,66 @@ function brandFuehren(welt, dt, werte) {
     if (!r.brand || r.zustand !== 'laeuft') continue;
     r.brand.rest -= dt;
     r.brand.takt += dt;
+    if (Math.random() < dt * 6) {
+      rauchen(szene, r.x + 3, MASSE.DECK - r.klasse.hoehe, 1, { dauer: 1.1, steigen: 15 });
+    }
     if (r.brand.takt >= 1) {
       r.brand.takt -= 1;
-      schaden(welt, r, r.brand.schadenJeSekunde, 'brand', true, werte);
+      schaden(welt, r, r.brand.schadenJeSekunde, 'brand', 'feuer', werte);
       continue;   // schaden() kann den Recken entfernt haben
     }
     if (r.brand.rest <= 0) delete r.brand;
   }
 }
 
-/** Goldstatuen halten nicht ewig — irgendwann zahlen sie sich selbst aus. */
-function statuenFuehren(welt, dt) {
+/**
+ * Gift tickt — und zwar jeder Stapel für sich.
+ *
+ * Das ist der Unterschied zum Brand: Gift ist stapelbar, also darf nicht
+ * eine gemeinsame Uhr laufen. Wer in eine Wolke Giftpfeile läuft, trägt
+ * mehrere Stapel und verliert entsprechend schneller Leben.
+ */
+function giftFuehren(welt, dt, werte) {
   const szene = welt.szene;
-  for (let i = szene.statuen.length - 1; i >= 0; i--) {
-    const st = szene.statuen[i];
-    st.zeit += dt;
-    if (st.zeit > 25) {
-      szene.statuen.splice(i, 1);
-      welt.zustand.gold += st.wert;
-      szene.zahlen.push({
-        x: st.x + 3, y: MASSE.DECK - st.klasse.hoehe - 5,
-        text: '+' + st.wert, farbe: '#e0b64f', zeit: 0
-      });
+  for (let i = szene.recken.length - 1; i >= 0; i--) {
+    const r = szene.recken[i];
+    if (!r.gift || !r.gift.length || r.zustand !== 'laeuft') continue;
+    let summe = 0;
+    for (let j = r.gift.length - 1; j >= 0; j--) {
+      const g = r.gift[j];
+      g.rest -= dt;
+      g.takt += dt;
+      if (g.takt >= 1) { g.takt -= 1; summe += g.dps; }
+      if (g.rest <= 0) r.gift.splice(j, 1);
+    }
+    if (!r.gift.length) delete r.gift;
+    if (summe > 0) schaden(welt, r, summe, 'gift', 'gift', werte);
+  }
+}
+
+/**
+ * Glutflecken der Aschenkrone.
+ *
+ * Sie liegen still, bis jemand darüberläuft — dann brennt der und die
+ * Glut ist verbraucht. Eine Kette ist möglich und gewollt: Wer brennend
+ * stirbt, lässt eine neue Glut liegen.
+ */
+function glutenFuehren(welt, dt, werte) {
+  const szene = welt.szene;
+  const dps = werte.wirkung && werte.wirkung.brandDps > 0 ? werte.wirkung.brandDps : 10;
+  for (let i = szene.gluten.length - 1; i >= 0; i--) {
+    const g = szene.gluten[i];
+    g.rest -= dt;
+    if (Math.random() < dt * 3) {
+      rauchen(szene, g.x, MASSE.DECK - 2, 1, { dauer: 1.6, steigen: 9, streuung: 2 });
+    }
+    if (g.rest <= 0) { szene.gluten.splice(i, 1); continue; }
+    const opfer = szene.recken.find(
+      (r) => r.zustand === 'laeuft' && !r.brand && Math.abs(r.x + 3 - g.x) < 4
+    );
+    if (opfer) {
+      opfer.brand = { rest: 5, takt: 0, schadenJeSekunde: dps };
+      szene.gluten.splice(i, 1);
     }
   }
 }
@@ -293,9 +430,23 @@ function pfeileFuehren(welt, dt, werte) {
       if (treffer) {
         szene.pfeile.splice(i, 1);
         szene.spritzer.push({ x: p.x, y: p.y, vx: -20, vy: -30, lebt: 0.7, farbe: '#a82430' });
+        const a = werte.wirkung;
+        // Glutpfeile zünden an, Giftpfeile vergiften alles im Umkreis.
+        if (a && a.glutpfeilChance > 0 && !treffer.brand
+          && Math.random() * 100 < a.glutpfeilChance) {
+          treffer.brand = { rest: 5, takt: 0, schadenJeSekunde: a.brandDps > 0 ? a.brandDps : 10 };
+        }
+        if (a && a.giftpfeilDps > 0) {
+          const dauer = 4 + a.giftDauer;
+          for (const r of szene.recken) {
+            if (r.zustand === 'laeuft' && Math.abs(r.x + 3 - p.x) < 12) {
+              vergiften(r, a.giftpfeilDps, dauer);
+            }
+          }
+        }
         // Zielwasser: Chance auf einen kritischen Pfeil mit doppeltem Schaden.
         const krit = Math.random() < werte.schuetzenKrit;
-        schaden(welt, treffer, werte.pfeilSchaden * (krit ? 2 : 1), 'pfeil', false, werte, krit);
+        schaden(welt, treffer, werte.pfeilSchaden * (krit ? 2 : 1), 'pfeil', 'physisch', werte, krit);
         continue;
       }
     }
@@ -324,6 +475,9 @@ function blitzeFuehren(szene, dt) {
  * Die Flamme fährt aus und zündet jeden einmal an.
  * `versengt` verhindert, dass derselbe Recke in mehreren Bildschritten
  * mehrfach Schaden nimmt.
+ *
+ * Sie qualmt, solange sie brennt, und noch eine Weile danach — der Rauch
+ * gleitet über die Planken hoch und fadet aus.
  */
 function flammeFuehren(welt, dt, werte) {
   const szene = welt.szene;
@@ -333,13 +487,24 @@ function flammeFuehren(welt, dt, werte) {
   f.zeit += dt;
   f.reichweite = f.zeit < 0.5 ? ausklang(f.zeit / 0.5) * f.wirkbereich : f.wirkbereich;
 
+  // Rauch entsteht über der ganzen Zunge, nach vorn hin dichter.
+  f.qualm += dt;
+  const takt = f.zeit < 1.2 ? 0.045 : 0.11;
+  while (f.qualm >= takt) {
+    f.qualm -= takt;
+    const x = MASSE.TOR_LINKS - Math.random() * f.reichweite;
+    rauchen(szene, x, MASSE.DECK - 8 - Math.random() * 5, 1, {
+      dauer: 1.9, steigen: 12, streuung: 2, drift: -5
+    });
+  }
+
   if (f.zeit < 1.1) {
     for (let i = szene.recken.length - 1; i >= 0; i--) {
       const r = szene.recken[i];
       if (r.zustand !== 'laeuft' || r.versengt) continue;
       if (r.x + 6 > MASSE.TOR_LINKS - f.reichweite && r.x < MASSE.TOR_LINKS) {
         r.versengt = true;
-        schaden(welt, r, f.schaden, 'flamme', true, werte);
+        schaden(welt, r, f.schaden, 'flamme', 'feuer', werte);
       }
     }
   }
@@ -366,19 +531,24 @@ function meteoreFuehren(welt, dt, werte) {
     m.vy += 60 * dt;
     m.x += m.vx * dt;
     m.y += m.vy * dt;
+    // Rauchfahne hinter dem fallenden Stein.
+    if (m.y > 0 && Math.random() < dt * 22) {
+      rauchen(szene, m.x + 1, m.y, 1, { dauer: 1.2, steigen: 5, streuung: 1 });
+    }
     if (m.y < MASSE.DECK - 3) continue;
 
     szene.meteore.splice(i, 1);
     szene.explosionen.push({ x: m.x, zeit: 0 });
     szene.ruettelt = Math.min(5, szene.ruettelt + 1.5);
+    rauchen(szene, m.x, MASSE.DECK - 5, 4, { dauer: 2.1, steigen: 14, streuung: 4 });
     if (m.x > MASSE.KLIPPE - 4 && m.x < MASSE.TOR_RECHTS) {
-      szene.brandflecken.push({ x: m.x, breite: 5 + Math.random() * 4 });
+      szene.brandflecken.push({ x: m.x, breite: 5 + Math.random() * 4, qualm: 3 + Math.random() * 3 });
       if (szene.brandflecken.length > 30) szene.brandflecken.shift();
     }
     for (let j = szene.recken.length - 1; j >= 0; j--) {
       const r = szene.recken[j];
       if (r.zustand === 'laeuft' && Math.abs(r.x + 3 - m.x) < szene.meteorWirkung) {
-        schaden(welt, r, szene.meteorSchaden, 'meteor', true, werte);
+        schaden(welt, r, szene.meteorSchaden, 'meteor', 'feuer', werte);
       }
     }
   }
@@ -389,26 +559,44 @@ function meteoreFuehren(welt, dt, werte) {
   }
 }
 
+/** Frische Brandflecken schwelen noch ein paar Sekunden nach. */
+function brandfleckenFuehren(szene, dt) {
+  for (const f of szene.brandflecken) {
+    if (!(f.qualm > 0)) continue;
+    f.qualm -= dt;
+    if (Math.random() < dt * 4) {
+      rauchen(szene, f.x, MASSE.DECK - 2, 1, { dauer: 2.2, steigen: 8, streuung: 2, warm: false });
+    }
+  }
+}
+
 /** Verbrennende Recken — die Münzen fallen erst, wenn nur noch Asche da ist. */
 function brennendeFuehren(welt, dt, werte) {
   const szene = welt.szene;
   for (let i = szene.brennende.length - 1; i >= 0; i--) {
     const b = szene.brennende[i];
     b.zeit += dt;
-    if (Math.random() < dt * 20) {
+    const gross = b.groesse || 1;
+    if (Math.random() < dt * 14) {
       szene.spritzer.push({
-        x: b.x + Math.random() * 6,
-        y: MASSE.DECK - 4 - Math.random() * b.klasse.hoehe,
+        x: b.x + Math.random() * 6 * gross,
+        y: MASSE.DECK - 4 - Math.random() * b.klasse.hoehe * gross,
         vx: Math.random() * 10 - 5, vy: -(10 + Math.random() * 20),
-        lebt: 0.6, farbe: Math.random() < 0.5 ? '#ff9a3a' : '#5a5650'
+        lebt: 0.6, farbe: '#ff9a3a'
       });
+    }
+    // Der Qualm eines Verbrennenden steigt über ihm auf.
+    if (Math.random() < dt * 16) {
+      rauchen(szene, b.x + 3 * gross, MASSE.DECK - 6 - Math.random() * b.klasse.hoehe * gross,
+        1, { dauer: 1.8, steigen: 14, streuung: 2 });
     }
     if (b.zeit < 1.15) continue;
 
     szene.brennende.splice(i, 1);
     szene.reste.push({ art: 'asche', x: b.x + 1 });
     if (szene.reste.length > 16) szene.reste.shift();
-    muenzenFallen(szene, b.x + 3, b.klasse, true, werte.ernteFaktor);
+    rauchen(szene, b.x + 3 * gross, MASSE.DECK - 4, 3, { dauer: 2.4, steigen: 9, warm: false });
+    muenzenFallen(szene, b.x + 3, b.klasse, true, werte.ernteFaktor, b.boss ? 10 : 0);
   }
 }
 
@@ -416,6 +604,7 @@ function brennendeFuehren(welt, dt, werte) {
 
 function muenzenFuehren(welt, dt, werte) {
   const szene = welt.szene;
+  const magnet = werte.wirkung && werte.wirkung.magnetring;
   for (let i = szene.muenzen.length - 1; i >= 0; i--) {
     const m = szene.muenzen[i];
 
@@ -431,14 +620,22 @@ function muenzenFuehren(welt, dt, werte) {
           m.wert *= 2;
           szene.zahlen.push({ x: m.x, y: m.y - 8, text: 'x2!', farbe: '#fff6c8', gross: true, zeit: 0 });
         }
-        muenzeAufsammeln(welt, m, false, werte.stolzFaktor);
+        muenzeAufsammeln(welt, m, false, werte);
         continue;
       }
       m.x += (dx / weg) * 95 * dt;
       m.y += (dy / weg) * 95 * dt;
       continue;
     }
-    if (m.liegt) continue;
+    if (m.liegt) {
+      // Magnetring: liegende Münzen kriechen langsam Richtung Tor und
+      // werden vor dem Tor von selbst eingezogen.
+      if (magnet) {
+        m.x += 9 * dt;
+        if (m.x >= MASSE.TOR_LINKS - 4) { muenzeAufsammeln(welt, m, false, werte); }
+      }
+      continue;
+    }
 
     m.vy += 200 * dt;
     m.x += m.vx * dt;
@@ -465,6 +662,29 @@ function muenzenFuehren(welt, dt, werte) {
       continue;
     }
     if (m.y > MASSE.HOEHE + 6) szene.muenzen.splice(i, 1);
+  }
+}
+
+/**
+ * Fundstücke fallen und bleiben liegen — nie in den Abgrund.
+ *
+ * Sie haben keine Fallgrenze nach unten und keinen Ablauf: Ein Artefakt
+ * verschwindet nicht, es wartet. Am Wellenende wird es ohnehin
+ * eingesammelt.
+ */
+function fundstueckeFuehren(welt, dt) {
+  const szene = welt.szene;
+  for (const f of szene.fundstuecke) {
+    f.phase += dt * 3;
+    if (f.liegt) continue;
+    f.vy += 200 * dt;
+    f.x += f.vx * dt;
+    f.y += f.vy * dt;
+    if (f.y >= MASSE.DECK - 4) {
+      f.y = MASSE.DECK - 4;
+      if (f.vy > 40) { f.vy *= -0.35; f.vx *= 0.5; }
+      else { f.liegt = true; f.vx = 0; f.vy = 0; }
+    }
   }
 }
 
@@ -561,6 +781,25 @@ function spritzerFuehren(szene, dt) {
       continue;
     }
     if (p.y > MASSE.HOEHE + 6 || p.lebt <= 0) szene.spritzer.splice(i, 1);
+  }
+}
+
+/**
+ * Rauch steigt, wird langsamer, driftet leicht nach links und fadet aus.
+ *
+ * Keine Schwerkraft: Rauch fällt nicht, er verliert nur seinen Auftrieb.
+ * Die Bremse ist absichtlich stark — die Flocken sollen oben stehen
+ * bleiben und dort verschwinden, nicht aus dem Bild fliegen.
+ */
+function rauchFuehren(szene, dt) {
+  for (let i = szene.rauch.length - 1; i >= 0; i--) {
+    const p = szene.rauch[i];
+    p.lebt += dt;
+    p.x += p.vx * dt;
+    p.y += p.vy * dt;
+    p.vy *= 1 - 1.1 * dt;
+    p.vx = p.vx * (1 - 0.7 * dt) - 3 * dt;
+    if (p.lebt >= p.dauer || p.y < -6) szene.rauch.splice(i, 1);
   }
 }
 

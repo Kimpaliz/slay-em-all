@@ -11,14 +11,19 @@
 // Recken gleichzeitig ins Tor, als die Burg fasst, ist das Monster
 // überfordert. Deshalb ist "Tiefere Hallen" bei Grommsch der eigentliche
 // Verteidigungskauf und nicht bloß ein Durchsatzkauf.
+//
+// Jede fünfte Welle ist eine Bosswelle: halbes Gefolge plus ein sehr
+// zäher Recke, der als Letzter anrückt und im Tor lange einen Fressplatz
+// blockiert.
 
 import { MASSE } from './masse.js';
 import { buehneRaeumen } from './welt.js';
 import { melden } from './marktschreier.js';
 import { RECKEN } from './daten/recken.js';
-import { WELLE_GESCHAFFT, WELLE_VERLOREN, ausListe } from './daten/texte.js';
+import { bossName, BOSS_ANKUNFT } from './daten/bosse.js';
+import { WELLE_GESCHAFFT, WELLE_VERLOREN, ausListe, mitNamen } from './daten/texte.js';
 import {
-  wellenStaerke, rueckfall, verfuegbareKlassen, klassenGewichte
+  wellenStaerke, rueckfall, verfuegbareKlassen, klassenGewichte, istBosswelle
 } from '../werkzeuge/wirtschaft.mjs';
 
 /** Wie lange die Dämmerung zwischen zwei Phasen dauert. */
@@ -36,8 +41,8 @@ export const RITUAL_WARTEZEIT = 22;
  * Zustand und überlebt damit auch ein Neuladen.
  */
 export function welleAuslosen(zustand) {
-  const anzahl = wellenStaerke(zustand.welle, zustand.stufenP.lockruf);
-  const moeglich = verfuegbareKlassen(RECKEN, zustand.welle, zustand.stufenP.koeder);
+  const anzahl = wellenStaerke(zustand.welle);
+  const moeglich = verfuegbareKlassen(RECKEN, zustand.welle);
   const gewichte = klassenGewichte(moeglich, zustand.welle);
   const summe = gewichte.reduce((a, b) => a + b, 0);
 
@@ -52,7 +57,14 @@ export function welleAuslosen(zustand) {
     liste.push(gewaehlt.id);
   }
   zustand.anstehend = liste;
+  zustand.anstehenderBoss = istBosswelle(zustand.welle) ? bossName() : null;
   return liste;
+}
+
+/** Die Klasse, aus der der Boss dieser Welle gebaut wird: der höchste Rang. */
+export function bossKlasse(welle) {
+  const moeglich = verfuegbareKlassen(RECKEN, welle);
+  return moeglich[moeglich.length - 1] || RECKEN[0];
 }
 
 function phaseSetzen(szene, phase) {
@@ -67,20 +79,27 @@ export function welleStarten(welt) {
   phaseSetzen(szene, 'tag');
   if (!zustand.anstehend.length) welleAuslosen(zustand);
   szene.spawnListe = zustand.anstehend.slice();
-  szene.wellenGroesse = szene.spawnListe.length;
+  szene.spawnBoss = zustand.anstehenderBoss;
+  // Der Boss zählt als eigener Auftritt und kommt als Letzter.
+  szene.wellenGroesse = szene.spawnListe.length + (szene.spawnBoss ? 1 : 0);
   zustand.anstehend = [];
+  zustand.anstehenderBoss = null;
   szene.erschienen = 0;
   szene.naechsterRecke = 0.9;
   szene.nachtzeit = 0;
+
+  const bossWelle = !!szene.spawnBoss;
   szene.spruchband = {
-    text: 'WELLE ' + zustand.welle,
-    unter: szene.wellenGroesse + ' Recken im Anmarsch',
-    farbe: '#ff9a4a', zeit: 0, dauer: 3
+    text: bossWelle ? 'BOSSWELLE ' + zustand.welle : 'WELLE ' + zustand.welle,
+    unter: bossWelle ? szene.spawnBoss + ' führt an' : szene.wellenGroesse + ' Recken im Anmarsch',
+    farbe: bossWelle ? '#e0b64f' : '#ff9a4a', zeit: 0, dauer: bossWelle ? 4 : 3
   };
-  melden(szene, ausListe([
-    'Welle ' + zustand.welle + '! Frisches Fleisch im Anmarsch!',
-    'Tor auf! Welle ' + zustand.welle + ' will Ruhm — wir nehmen den Rest!'
-  ]));
+  melden(szene, bossWelle
+    ? mitNamen(ausListe(BOSS_ANKUNFT), szene.spawnBoss)
+    : ausListe([
+      'Welle ' + zustand.welle + '! Frisches Fleisch im Anmarsch!',
+      'Tor auf! Welle ' + zustand.welle + ' will Ruhm — wir nehmen den Rest!'
+    ]));
   zustand.phase = 'tag';
   return true;
 }
@@ -123,10 +142,12 @@ export function welleVerloren(welt) {
       phase: Math.random() * 6.28,
       tempo: opfer.klasse.tempo * 1.4,
       lp: opfer.lp,
-      maxLp: opfer.klasse.lp,
+      maxLp: opfer.maxLp || opfer.klasse.lp,
       zustand: 'flieht',
       getroffen: 0,
-      wartet: false
+      wartet: false,
+      boss: !!opfer.boss,
+      groesse: opfer.groesse || 1
     });
   }
   szene.imTor = [];

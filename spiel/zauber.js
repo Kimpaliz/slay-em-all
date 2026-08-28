@@ -9,7 +9,7 @@
 // schlägt beim Klick ein. Deshalb hat er zwei Schritte statt einem.
 
 import { MASSE } from './masse.js';
-import { schaden, spritzen, vergolden } from './kampf.js';
+import { schaden, spritzen, rauchen, einfrieren } from './kampf.js';
 import { ZAUBER, zauberWerte, klickWerte } from '../werkzeuge/wirtschaft.mjs';
 
 export function zauberNach(k) {
@@ -69,7 +69,9 @@ export function ausloesen(welt, k) {
     return true;
   }
   if (k === 'flamme') {
-    szene.flamme = { zeit: 0, reichweite: 0, wirkbereich: w.wirkbereich, schaden: w.schaden };
+    szene.flamme = {
+      zeit: 0, reichweite: 0, wirkbereich: w.wirkbereich, schaden: w.schaden, qualm: 0
+    };
     szene.abklingzeit.flamme = w.abklingzeit;
     return true;
   }
@@ -113,83 +115,80 @@ function prankeAusfahren(szene, w) {
 /**
  * Der eigene Angriff — ein Klick auf einen Recken.
  *
- * Vier Spielarten, alle mit derselben Uhr (`szene.klickAbklingzeit`):
+ * Genau eine Fassung: Schaden auf das Ziel, Chance auf einen Krit,
+ * eigene Abklingzeit. Die drei Spielarten (Midas, Inferno, Titan) sind
+ * gestrichen — der Klick soll einfach bleiben.
  *
- *   normal   — Schaden auf das eine Ziel, Chance auf einen Krit.
- *   midas    — wie normal; stirbt das Ziel daran, wird es zur Goldstatue.
- *   inferno  — Schaden plus Brand; brennende explodieren beim Tod.
- *   titan    — Flächenschlag um die Klickstelle, achtfacher Schaden,
- *              lange eigene Abklingzeit.
+ * Alles Besondere kommt jetzt aus dem Regal: Brennende Berührung zündet
+ * an, Frostgriff verlangsamt, Kettenblitz springt auf Nachbarn über.
  *
  * Gibt zurück, ob geschlagen wurde — die Oberfläche zeichnet nur dann neu.
  */
-export function klickAngriff(welt, ziel, x, werte) {
+export function klickAngriff(welt, ziel, werte) {
   const { zustand, szene } = welt;
-  const w = klickWerte(zustand.klick);
+  const a = werte.wirkung;
+  const w = klickWerte(zustand.klick, a);
   if (!w.gekauft) return false;
   if (szene.phase !== 'tag') return false;
   if (szene.klickAbklingzeit > 0) return false;
+  if (!ziel) return false;
 
   const krit = Math.random() < w.krit;
-  const faktor = krit ? 2 : 1;
-
-  if (w.variante === 'titan') {
-    // Die Faust trifft eine Fläche, nicht ein Ziel.
-    szene.klickAbklingzeit = w.titanAbklingzeit;
-    szene.explosionen.push({ x, zeit: 0 });
-    szene.explosionen.push({ x: x - 10, zeit: -0.08 });
-    szene.explosionen.push({ x: x + 10, zeit: -0.16 });
-    szene.ruettelt = Math.min(6, szene.ruettelt + 4);
-    szene.blitzlicht = 0.6;
-    for (let i = szene.recken.length - 1; i >= 0; i--) {
-      const r = szene.recken[i];
-      if (r.zustand === 'laeuft' && Math.abs(r.x + 3 - x) < w.titanBereich) {
-        schaden(welt, r, w.titanSchaden * faktor, 'titan', false, werte, krit);
-      }
-    }
-    return true;
-  }
-
-  if (!ziel) return false;
   szene.klickAbklingzeit = w.abklingzeit;
 
   // Der sichtbare Hieb: kurzer weißer Blitz am Ziel plus Blutspritzer.
   ziel.getroffen = 0.22;
   spritzen(szene, ziel.x + 3, MASSE.DECK - ziel.klasse.hoehe * 0.6, 3, ziel.klasse.blut);
 
-  const menge = w.schaden * faktor;
-
-  if (w.variante === 'midas' && ziel.lp <= menge) {
-    szene.zahlen.push({
-      x: ziel.x + 3, y: MASSE.DECK - ziel.klasse.hoehe - 7,
-      text: '-' + menge, farbe: krit ? '#ffd08a' : '#ff8a6a', gross: krit, zeit: 0
-    });
-    vergolden(welt, ziel, werte);
-    return true;
+  if (a) {
+    if (a.brandDps > 0 && !ziel.brand) {
+      ziel.brand = { rest: 5, takt: 0, schadenJeSekunde: a.brandDps };
+    }
+    if (a.frostgriff > 0) einfrieren(ziel, a.frostgriff, 3);
+    if (a.kettenblitz > 0) kettenSpringen(welt, ziel, w.schaden * 0.5, a.kettenblitz, werte);
   }
 
-  if (w.variante === 'inferno' && !ziel.brand) {
-    ziel.brand = { rest: w.brandDauer, takt: 0, schadenJeSekunde: w.brandSchaden };
-  }
-
-  schaden(welt, ziel, menge, 'klick', false, werte, krit);
+  schaden(welt, ziel, w.schaden * (krit ? 2 : 1), 'klick', w.art, werte, krit);
   return true;
+}
+
+/**
+ * Kettenblitz: Der Klick springt auf die nächsten Nachbarn über.
+ *
+ * Absichtlich vor dem eigentlichen Treffer abgerechnet — sonst könnte
+ * das Ziel bereits aus der Liste sein, während wir noch seine Nachbarn
+ * suchen.
+ */
+function kettenSpringen(welt, ziel, menge, anzahl, werte) {
+  const szene = welt.szene;
+  const nachbarn = szene.recken
+    .filter((r) => r !== ziel && r.zustand === 'laeuft')
+    .sort((p, q) => Math.abs(p.x - ziel.x) - Math.abs(q.x - ziel.x))
+    .slice(0, anzahl);
+  for (const r of nachbarn) {
+    szene.blitze.push({ x: r.x + 3, zeit: 0.22 });
+    schaden(welt, r, menge, 'kette', 'blitz', werte);
+  }
 }
 
 /** Der Blitz schlägt an der angeklickten Stelle ein. */
 export function blitzSetzen(welt, x, werte) {
   const { zustand, szene } = welt;
   const w = werteVon(zustand, 'donner');
+  // Geladene Klauen aus dem Regal legen auf den Donnerschlag drauf.
+  const bonus = werte.wirkung ? 1 + werte.wirkung.donnerBonus / 100 : 1;
   szene.donnerBereit = false;
   szene.abklingzeit.donner = w.abklingzeit;
   szene.blitze.push({ x, zeit: 0 });
   szene.blitzlicht = 0.8;
   szene.ruettelt = Math.min(5, szene.ruettelt + 2.5);
+  // Verbrannte Luft: ein kleines Wölkchen steigt vom Einschlag auf.
+  rauchen(szene, x, MASSE.DECK - 5, 6, { dauer: 1.6, steigen: 16, streuung: 4, warm: false });
 
   for (let i = szene.recken.length - 1; i >= 0; i--) {
     const r = szene.recken[i];
     if (r.zustand !== 'flieht' && Math.abs(r.x + 3 - x) < w.wirkbereich) {
-      schaden(welt, r, w.schaden, 'blitz', false, werte);
+      schaden(welt, r, w.schaden * bonus, 'blitz', w.art, werte);
     }
   }
 }

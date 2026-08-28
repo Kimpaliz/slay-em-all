@@ -9,6 +9,8 @@
 // gerechnet, damit große und kleine Klassen dieselbe Bauform teilen.
 
 import { MASSE, streu } from './masse.js';
+import { artefaktMalen } from './artefakt-bild.js';
+import { seltenheitNach } from './artefakte.js';
 
 /* ---------------- Recken ---------------- */
 
@@ -108,6 +110,25 @@ export function reckeZeichnen(ctx, r, zeit) {
     }
   }
 
+  // Gift und Frost tragen ihre eigenen Zeichen: grüne Blasen über der
+  // Schulter, blaue Kristalle an den Stiefeln.
+  if (r.gift && r.gift.length) {
+    ctx.fillStyle = '#7fd48a';
+    for (let i = 0; i < Math.min(3, r.gift.length); i++) {
+      const gx = x + 1 + ((streu(i * 5 + zeit * 12) * 5) | 0);
+      const gy = oben + 1 + ((streu(i * 9 + zeit * 8) * 3) | 0);
+      ctx.fillRect(gx, gy, 1, 1);
+    }
+  }
+  if (r.frost) {
+    ctx.fillStyle = '#9ecbff';
+    ctx.fillRect(x + 1, fuesse - 2, 1, 2);
+    ctx.fillRect(x + 4, fuesse - 1, 2, 1);
+    ctx.globalAlpha = 0.3;
+    ctx.fillRect(x + 1, oben + 4, 5, hoehe - 6);
+    ctx.globalAlpha = 1;
+  }
+
   // Trefferblitz
   if (r.getroffen > 0) {
     ctx.globalAlpha = Math.min(0.8, r.getroffen * 4);
@@ -116,19 +137,27 @@ export function reckeZeichnen(ctx, r, zeit) {
     ctx.globalAlpha = 1;
   }
 
-  // Lebensbalken — nur bei Verletzten, sonst wäre das Bild voller Balken
-  if (r.lp < r.maxLp) {
+  // Lebensbalken — bei Verletzten, sonst wäre das Bild voller Balken.
+  // Ein Boss trägt ihn immer, damit man den Fortschritt sieht.
+  if (r.lp < r.maxLp || r.boss) {
     const breite = 6;
     const gefuellt = Math.max(1, Math.round(breite * r.lp / r.maxLp));
     ctx.fillStyle = 'rgba(6,7,12,0.8)';
     ctx.fillRect(x, oben - 6, breite + 1, 2);
-    ctx.fillStyle = '#c1444f';
+    ctx.fillStyle = r.boss ? '#e0b64f' : '#c1444f';
     ctx.fillRect(x, oben - 6, gefuellt, 1);
   }
 }
 
 /** Ein Recke, der gerade zu Asche zerfällt. */
 export function brennendenZeichnen(ctx, b) {
+  const gross = b.groesse || 1;
+  if (gross !== 1) {
+    ctx.save();
+    ctx.translate(b.x, MASSE.DECK);
+    ctx.scale(gross, gross);
+    ctx.translate(-b.x, -MASSE.DECK);
+  }
   const x = Math.round(b.x);
   const k = b.klasse;
   const anteil = Math.min(1, b.zeit / 1.1);
@@ -155,6 +184,7 @@ export function brennendenZeichnen(ctx, b) {
       ctx.fillRect(px, MASSE.DECK - 1 - ((streu(i * 7 + b.zeit * 20) * 3) | 0), 1, 1);
     }
   }
+  if (gross !== 1) ctx.restore();
 }
 
 /* ---------------- Trümmer ---------------- */
@@ -262,43 +292,46 @@ export function restZeichnen(ctx, rest) {
   }
 }
 
+/* ---------------- Beute und Tiere ---------------- */
+
 /**
- * Eine Goldstatue — der vergoldete Recke der Midas-Berührung.
+ * Ein gefallenes Artefakt auf den Planken.
  *
- * Dieselbe Bauform wie ein Recke, aber alles in Gold; kurz vor dem
- * Selbst-Auszahlen beginnt sie zu blinken.
+ * Es funkelt deutlich auffälliger als eine Münze — ein Fund darf nicht
+ * übersehen werden. Der Schein trägt die Seltenheitsfarbe, damit man
+ * schon von weitem sieht, ob es sich lohnt hinzusehen.
  */
-export function statueZeichnen(ctx, st, zeit) {
-  const x = Math.round(st.x);
-  const hoehe = st.klasse.hoehe;
-  const fuesse = MASSE.DECK;
-  const oben = fuesse - hoehe;
-  const blinkt = st.zeit > 20 && Math.sin(zeit * 8) > 0;
+export function fundstueckZeichnen(ctx, f, zeit) {
+  const x = Math.round(f.x) - 4;
+  const y = Math.round(f.y) - 4;
+  const s = seltenheitNach(f.artefakt.seltenheit);
+  const puls = 0.45 + 0.35 * Math.sin(zeit * 4 + f.phase);
 
-  ctx.fillStyle = 'rgba(0,0,0,0.4)';
-  ctx.fillRect(x, fuesse, 6, 1);
+  ctx.globalAlpha = puls;
+  ctx.fillStyle = s.farbe;
+  ctx.fillRect(x - 2, y + 3, 12, 2);
+  ctx.fillRect(x + 3, y - 2, 2, 12);
+  ctx.globalAlpha = 1;
 
-  // Sockelchen
-  ctx.fillStyle = '#a5761f';
-  ctx.fillRect(x, fuesse - 1, 7, 1);
+  artefaktMalen(ctx, x, y, 8, f.artefakt);
 
-  ctx.fillStyle = blinkt ? '#f6d492' : '#e0b64f';
-  ctx.fillRect(x + 1, oben + 4, 5, hoehe - 5);          // Rumpf
-  ctx.fillRect(x + 2, oben + 1, 3, 3);                  // Kopf
-  ctx.fillRect(x + 1, fuesse - 3, 2, 2);                // Beine
-  ctx.fillRect(x + 4, fuesse - 3, 2, 2);
-  ctx.fillStyle = '#a5761f';
-  ctx.fillRect(x + 1, oben + 4, 1, hoehe - 5);          // Schattenkante
-  ctx.fillRect(x + 7, oben + 1, 1, hoehe - 2);          // erstarrte Waffe
-  ctx.fillStyle = '#fff6c8';                            // Glanzpunkte
-  ctx.fillRect(x + 3, oben + 1, 1, 1);
-  ctx.fillRect(x + 5, oben + 6, 1, 1);
-  if (Math.sin(zeit * 3 + st.x) > 0.9) {
-    ctx.fillRect(x + 2, oben + 9, 1, 1);
+  if (Math.sin(zeit * 7 + f.phase) > 0.75) {
+    ctx.fillStyle = '#fff6c8';
+    ctx.fillRect(x + 8, y - 1, 1, 1);
   }
 }
 
-/* ---------------- Beute und Tiere ---------------- */
+/** Eine Glut der Aschenkrone auf den Planken. */
+export function glutZeichnen(ctx, g, zeit) {
+  const x = Math.round(g.x);
+  const flacker = Math.sin(zeit * 9 + x) > 0;
+  ctx.fillStyle = 'rgba(16,14,12,0.8)';
+  ctx.fillRect(x - 3, MASSE.DECK, 6, 2);
+  ctx.fillStyle = flacker ? '#ff7a2a' : '#b32a12';
+  ctx.fillRect(x - 2, MASSE.DECK, 4, 1);
+  ctx.fillStyle = '#ffd08a';
+  ctx.fillRect(x + (flacker ? -1 : 1), MASSE.DECK - 1, 1, 1);
+}
 
 export function muenzeZeichnen(ctx, m, zeit) {
   const x = Math.round(m.x);

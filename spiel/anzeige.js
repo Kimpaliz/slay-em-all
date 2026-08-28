@@ -14,12 +14,17 @@
 // würde jedes Mal neu umbrechen.
 
 import {
-  WAREN_GROMMSCH, WAREN_PIPS, ZAUBER, RITUAL_PREIS, KLICK, KLICK_VARIANTEN,
+  WAREN_GROMMSCH, WAREN_PIPS, ZAUBER, RITUAL_PREIS, KLICK, SCHADENSARTEN,
   werte as werteAus, wellenStaerke, zauberWerte, ausbauPreis,
-  klickWerte, klickAusbauPreis, zahl
+  klickWerte, klickAusbauPreis, istBosswelle, zahl
 } from '../werkzeuge/wirtschaft.mjs';
 import { ACHSEN, KLICK_ACHSEN, wareZustand } from './handel.js';
 import { symbolZeichnen, waehrungZeichnen } from './portraets.js';
+import { artefaktSymbolZeichnen } from './artefakt-bild.js';
+import {
+  wirkungAus, seltenheitNach, affixZeilen, verkaufswert, tagsVon,
+  REGAL_PLAETZE, INVENTAR_PLAETZE, TAG_NAMEN, TAG_FARBEN
+} from './artefakte.js';
 import { RECKEN } from './daten/recken.js';
 import { RITUAL_WARTEZEIT } from './wellen.js';
 
@@ -43,13 +48,15 @@ export function anzeigeAnlegen(wurzel, rueckrufe) {
   const letzte = {};
   let zauberLeisteStand = '';
   let vorschauStand = '';
+  let artefaktStand = '';
+  let gewaehlt = null;       // { ort: 'regal' | 'inventar', index }
   let neustartScharf = false;
   let neustartUhr = null;
 
   /* ---------- Der Tooltip ---------- */
 
-  // Ein einziges Popup für alle Knöpfe der Aktionsleiste. Es wird beim
-  // Überfahren gefüllt und über dem Knopf ausgerichtet.
+  // Ein einziges Popup für alle Knöpfe: Aktionsleiste und Ladenknöpfe.
+  // Es wird beim Überfahren gefüllt und über dem Knopf ausgerichtet.
   const tipp = document.createElement('div');
   tipp.className = 'zaubertipp';
   tipp.hidden = true;
@@ -75,65 +82,86 @@ export function anzeigeAnlegen(wurzel, rueckrufe) {
     return zeile;
   }
 
-  /**
-   * Füllt den Tooltip für einen Zauber oder den Klick.
-   *
-   * Basiswert und Bonus stehen getrennt: "10 +15" heißt Grundwert 10,
-   * dazugekauft 15. So sieht man auf einen Blick, was die Stufen bringen.
-   */
-  function tippFuellen(k, zustand) {
+  function tippKopf(text, unterText) {
     tipp.textContent = '';
     const kopf = document.createElement('div');
     kopf.className = 'tipp-kopf';
-
-    if (k === 'klick') {
-      const w = klickWerte(zustand.klick);
-      const variante = KLICK_VARIANTEN.find((v) => v.k === w.variante);
-      kopf.textContent = variante ? variante.name : KLICK.name;
-      tipp.appendChild(kopf);
+    kopf.textContent = text;
+    tipp.appendChild(kopf);
+    if (unterText) {
       const beschr = document.createElement('div');
       beschr.className = 'tipp-text';
-      beschr.textContent = variante ? variante.text : KLICK.lang;
+      beschr.textContent = unterText;
       tipp.appendChild(beschr);
-
-      const istTitan = w.variante === 'titan';
-      const schadenBasis = istTitan ? KLICK.schaden * 8 + 10 : KLICK.schaden;
-      const schadenJetzt = istTitan ? w.titanSchaden : w.schaden;
-      const abklingBasis = istTitan ? 30 : KLICK.abklingzeit;
-      const abklingJetzt = istTitan ? w.titanAbklingzeit : w.abklingzeit;
-      tipp.appendChild(tippZeile('⚔', 'Schaden', schadenBasis,
-        schadenJetzt > schadenBasis ? '+' + (schadenJetzt - schadenBasis) : '', '', '#ff8a6a'));
-      tipp.appendChild(tippZeile('⏱', 'Abklingzeit', abklingBasis.toFixed(1).replace('.', ','),
-        abklingJetzt < abklingBasis - 0.01 ? '−' + (abklingBasis - abklingJetzt).toFixed(1).replace('.', ',') + ' s' : '',
-        ' s', '#9ecbff'));
-      tipp.appendChild(tippZeile('✛', 'Kritisch', Math.round(KLICK.krit * 100) + ' %',
-        w.krit > KLICK.krit + 0.001 ? '+' + Math.round((w.krit - KLICK.krit) * 100) + ' %' : '', '', '#ffd08a'));
-      if (istTitan) {
-        tipp.appendChild(tippZeile('◎', 'Wirkbereich', w.titanBereich, '', ' px', '#d2cefd'));
-      }
-    } else {
-      const z = ZAUBER.find((e) => e.k === k);
-      const stufe = zustand.zauber[k];
-      const w = zauberWerte(z, stufe);
-      kopf.textContent = z.name + '  ·  Taste ' + z.taste;
-      tipp.appendChild(kopf);
-      const beschr = document.createElement('div');
-      beschr.className = 'tipp-text';
-      beschr.textContent = z.lang;
-      tipp.appendChild(beschr);
-
-      tipp.appendChild(tippZeile('⚔', 'Schaden', z.schaden,
-        stufe.schaden > 0 ? '+' + (w.schaden - z.schaden) : '', '', '#ff8a6a'));
-      tipp.appendChild(tippZeile('⏱', 'Abklingzeit', z.abklingzeit.toFixed(0),
-        stufe.abklingzeit > 0 ? '−' + (z.abklingzeit - w.abklingzeit).toFixed(1).replace('.', ',') + ' s' : '',
-        ' s', '#9ecbff'));
-      tipp.appendChild(tippZeile('◎', 'Wirkbereich', z.wirkbereich,
-        stufe.wirkbereich > 0 ? '+' + (w.wirkbereich - z.wirkbereich) : '', ' px', '#d2cefd'));
     }
   }
 
-  function tippZeigen(knopf, k, zustand) {
-    tippFuellen(k, zustand);
+  /**
+   * Füllt den Tooltip für einen Zauber oder den Klick.
+   *
+   * Basiswert und Bonus stehen getrennt: "100 +150" heißt Grundwert 100,
+   * dazugekauft 150. So sieht man auf einen Blick, was die Stufen bringen.
+   */
+  function tippFuellen(k, zustand) {
+    if (k === 'klick') {
+      const w = klickWerte(zustand.klick, wirkungAus(zustand.regal));
+      tippKopf(KLICK.name, KLICK.lang);
+      tipp.appendChild(tippZeile('⚔', 'Schaden', KLICK.schaden,
+        w.schaden > KLICK.schaden ? '+' + (w.schaden - KLICK.schaden) : '', '', '#ff8a6a'));
+      tipp.appendChild(tippZeile('⏱', 'Abklingzeit', KLICK.abklingzeit.toFixed(1).replace('.', ','),
+        w.abklingzeit < KLICK.abklingzeit - 0.01
+          ? '−' + (KLICK.abklingzeit - w.abklingzeit).toFixed(1).replace('.', ',') + ' s' : '',
+        ' s', '#9ecbff'));
+      tipp.appendChild(tippZeile('✛', 'Kritisch', Math.round(KLICK.krit * 100) + ' %',
+        w.krit > KLICK.krit + 0.001 ? '+' + Math.round((w.krit - KLICK.krit) * 100) + ' %' : '', '', '#ffd08a'));
+      tipp.appendChild(artZeile(KLICK.art));
+      return;
+    }
+
+    const z = ZAUBER.find((e) => e.k === k);
+    const stufe = zustand.zauber[k];
+    const w = zauberWerte(z, stufe);
+    tippKopf(z.name + '  ·  Taste ' + z.taste, z.lang);
+    tipp.appendChild(tippZeile('⚔', 'Schaden', z.schaden,
+      stufe.schaden > 0 ? '+' + (w.schaden - z.schaden) : '', '', '#ff8a6a'));
+    tipp.appendChild(tippZeile('⏱', 'Abklingzeit', z.abklingzeit.toFixed(0),
+      stufe.abklingzeit > 0 ? '−' + (z.abklingzeit - w.abklingzeit).toFixed(1).replace('.', ',') + ' s' : '',
+      ' s', '#9ecbff'));
+    tipp.appendChild(tippZeile('◎', 'Wirkbereich', z.wirkbereich,
+      stufe.wirkbereich > 0 ? '+' + (w.wirkbereich - z.wirkbereich) : '', ' px', '#d2cefd'));
+    tipp.appendChild(artZeile(z.art));
+  }
+
+  /** Die Schadensart als eigene Zeile, in ihrer Farbe. */
+  function artZeile(art) {
+    const a = SCHADENSARTEN[art] || SCHADENSARTEN.physisch;
+    return tippZeile('❖', 'Schadensart', a.name, '', '', a.farbe);
+  }
+
+  /**
+   * Tooltip einer Ladenware: was sie jetzt tut, und was die nächste
+   * Stufe drauflegt. Dieselbe Mechanik wie der Tooltip der Aktionsleiste.
+   */
+  function tippWareFuellen(ware, z, welle) {
+    tippKopf(ware.name + (z.stufe > 0 ? '  ·  Stufe ' + z.stufe : ''), ware.text);
+    if (ware.wertJetzt) {
+      tipp.appendChild(tippZeile('▸', 'Jetzt', ware.wertJetzt(z.stufe), '', '', '#8fd39a'));
+    }
+    if (z.gesperrt) {
+      tipp.appendChild(tippZeile('✕', 'Gesperrt', ware.gesperrtText || 'noch nicht verfügbar',
+        '', '', '#c1444f'));
+    } else if (z.voll) {
+      tipp.appendChild(tippZeile('✓', 'Ausgereizt', 'Höchststufe ' + ware.max, '', '', '#9ecbff'));
+    } else {
+      if (ware.wertNaechste) {
+        tipp.appendChild(tippZeile('▲', 'Nächste Stufe', ware.wertNaechste(z.stufe), '', '', '#d2cefd'));
+      }
+      tipp.appendChild(tippZeile('◆', 'Preis', zahl(z.preis), '', ' Gold', '#e0b64f'));
+    }
+    void welle;
+  }
+
+  function tippAusrichten(knopf) {
     tipp.hidden = false;
     const wr = wurzel.getBoundingClientRect();
     const kr = knopf.getBoundingClientRect();
@@ -141,13 +169,21 @@ export function anzeigeAnlegen(wurzel, rueckrufe) {
     let links = kr.left - wr.left + kr.width / 2 - breite / 2;
     links = Math.max(6, Math.min(links, wr.width - breite - 6));
     tipp.style.left = links + 'px';
-    tipp.style.top = (kr.top - wr.top - tipp.offsetHeight - 8) + 'px';
+    let oben = kr.top - wr.top - tipp.offsetHeight - 8;
+    // Kein Platz darüber? Dann darunter.
+    if (oben < 4) oben = kr.bottom - wr.top + 8;
+    tipp.style.top = oben + 'px';
+  }
+
+  function tippZeigen(knopf, k, zustand) {
+    tippFuellen(k, zustand);
+    tippAusrichten(knopf);
   }
 
   /* ---------- Aufbau der Läden ---------- */
 
-  /** Ein Ladenknopf: Währungszeichen plus Preis. */
-  function preisKnopf(waehrung) {
+  /** Ein Ladenknopf: Goldzeichen plus Preis. */
+  function preisKnopf() {
     const knopf = document.createElement('button');
     knopf.type = 'button';
     knopf.className = 'ware-knopf';
@@ -155,7 +191,7 @@ export function anzeigeAnlegen(wurzel, rueckrufe) {
     zeichen.width = 10;
     zeichen.height = 10;
     zeichen.className = 'waehrung';
-    waehrungZeichnen(zeichen, waehrung);
+    waehrungZeichnen(zeichen, 'gold');
     const preis = document.createElement('span');
     knopf.append(zeichen, preis);
     return { knopf, zeichen, preis };
@@ -163,7 +199,7 @@ export function anzeigeAnlegen(wurzel, rueckrufe) {
 
   const warenZeilen = { grommsch: [], pips: [] };
 
-  function warenAufbauen(name, waren, waehrung, kaufen) {
+  function warenAufbauen(name, waren, kaufen) {
     const liste = listen[name];
     if (!liste) return;
     liste.textContent = '';
@@ -181,20 +217,28 @@ export function anzeigeAnlegen(wurzel, rueckrufe) {
       unter.textContent = ware.text;
       text.append(titel, unter);
 
-      const { knopf, zeichen, preis } = preisKnopf(waehrung);
+      const { knopf, zeichen, preis } = preisKnopf();
       knopf.addEventListener('click', () => kaufen(ware.k));
+      const zeile = { ware, titel, unter, knopf, zeichen, preis, li, stufen: name };
+      knopf.addEventListener('mouseenter', () => {
+        const zustand = rueckrufe.zustand();
+        const stufen = name === 'grommsch' ? zustand.stufenG : zustand.stufenP;
+        tippWareFuellen(ware, wareZustand(ware, stufen, zustand.welle), zustand.welle);
+        tippAusrichten(knopf);
+      });
+      knopf.addEventListener('mouseleave', () => { tipp.hidden = true; });
 
       li.append(text, knopf);
       liste.append(li);
-      warenZeilen[name].push({ ware, titel, knopf, zeichen, preis });
+      warenZeilen[name].push(zeile);
     }
   }
 
   const zauberZeilen = [];
-  const klickTeile = { achsen: [], varianten: [] };
+  const klickTeile = { achsen: [] };
 
   /** Eine Zeile im Stil der Zauberwaren, mit Kopf und Achsenreihe. */
-  function zauberZeile(liste, titelText, beschrText, waehrung) {
+  function zauberZeile(liste, titelText, beschrText) {
     const li = document.createElement('li');
     li.className = 'ware ware-zauber';
     const kopf = document.createElement('div');
@@ -208,7 +252,7 @@ export function anzeigeAnlegen(wurzel, rueckrufe) {
     unter.className = 'ware-beschreibung';
     unter.textContent = beschrText;
     text.append(titel, unter);
-    const { knopf, zeichen, preis } = preisKnopf(waehrung);
+    const { knopf, zeichen, preis } = preisKnopf();
     kopf.append(text, knopf);
     li.append(kopf);
     liste.append(li);
@@ -221,8 +265,10 @@ export function anzeigeAnlegen(wurzel, rueckrufe) {
     liste.textContent = '';
 
     // --- Der Klick: erst lernen, dann auf drei Achsen ausbauen ---
-    const klick = zauberZeile(liste, KLICK.name, KLICK.kurz, 'blut');
+    const klick = zauberZeile(liste, KLICK.name, KLICK.kurz);
     klick.knopf.addEventListener('click', () => rueckrufe.klickKaufen());
+    klick.knopf.addEventListener('mouseenter', () => tippZeigen(klick.knopf, 'klick', rueckrufe.zustand()));
+    klick.knopf.addEventListener('mouseleave', () => { tipp.hidden = true; });
     const klickAchsen = document.createElement('div');
     klickAchsen.className = 'achsen';
     for (const achse of KLICK_ACHSEN) {
@@ -237,17 +283,12 @@ export function anzeigeAnlegen(wurzel, rueckrufe) {
     klickTeile.zeile = klick;
     klickTeile.achsenLeiste = klickAchsen;
 
-    // --- Die drei Spielarten des Klicks ---
-    for (const variante of KLICK_VARIANTEN) {
-      const zeile = zauberZeile(liste, variante.name, variante.text, 'blut');
-      zeile.knopf.addEventListener('click', () => rueckrufe.variante(variante.k));
-      klickTeile.varianten.push({ variante, zeile });
-    }
-
     // --- Die vier Zauber ---
     for (const z of ZAUBER) {
-      const zeile = zauberZeile(liste, z.name, z.kurz, 'blut');
+      const zeile = zauberZeile(liste, z.name, z.kurz);
       zeile.knopf.addEventListener('click', () => rueckrufe.zauberLernen(z.k));
+      zeile.knopf.addEventListener('mouseenter', () => tippZeigen(zeile.knopf, z.k, rueckrufe.zustand()));
+      zeile.knopf.addEventListener('mouseleave', () => { tipp.hidden = true; });
       const achsen = document.createElement('div');
       achsen.className = 'achsen';
       const achsKnoepfe = ACHSEN.map((a) => {
@@ -264,13 +305,13 @@ export function anzeigeAnlegen(wurzel, rueckrufe) {
 
     // --- Das Morgenritual ---
     const ritual = zauberZeile(liste, 'Morgenritual',
-      'Nächste Welle startet nachts von selbst', 'blut');
+      'Nächste Welle startet nachts von selbst');
     ritual.knopf.addEventListener('click', () => rueckrufe.ritual());
     zauberZeilen.ritual = ritual;
   }
 
-  warenAufbauen('grommsch', WAREN_GROMMSCH, 'schrott', (k) => rueckrufe.kaufGrommsch(k));
-  warenAufbauen('pips', WAREN_PIPS, 'gold', (k) => rueckrufe.kaufPips(k));
+  warenAufbauen('grommsch', WAREN_GROMMSCH, (k) => rueckrufe.kaufGrommsch(k));
+  warenAufbauen('pips', WAREN_PIPS, (k) => rueckrufe.kaufPips(k));
   malvinaAufbauen();
 
   /* ---------- Knöpfe ---------- */
@@ -310,9 +351,227 @@ export function anzeigeAnlegen(wurzel, rueckrufe) {
 
   if (seiten) {
     seiten.addEventListener('scroll', () => {
-      const i = seiten.scrollLeft > seiten.clientWidth * 0.4 ? 1 : 0;
+      const i = Math.round(seiten.scrollLeft / Math.max(1, seiten.clientWidth));
       reiterKnoepfe.forEach((b, j) => b.classList.toggle('aktiv', i === j));
     }, { passive: true });
+  }
+
+  /* ---------- Artefakte ---------- */
+
+  // Die Detailkarte liegt über allem und wird nur beim Antippen gefüllt.
+  // Kein Ziehen und Fallenlassen: Antippen geht am Handy genauso gut wie
+  // mit der Maus, und es gibt nichts zu üben.
+  const karteHuelle = document.createElement('div');
+  karteHuelle.className = 'artefaktkarte';
+  karteHuelle.hidden = true;
+  karteHuelle.addEventListener('click', (e) => {
+    if (e.target === karteHuelle) karteSchliessen();
+  });
+  wurzel.appendChild(karteHuelle);
+
+  function karteSchliessen() {
+    gewaehlt = null;
+    karteHuelle.hidden = true;
+    karteHuelle.textContent = '';
+    artefaktStand = '';
+  }
+
+  function artefaktBei(ort, index, zustand) {
+    const liste = ort === 'regal' ? zustand.regal : zustand.inventar;
+    return liste ? liste[index] : null;
+  }
+
+  function karteZeigen(ort, index) {
+    const zustand = rueckrufe.zustand();
+    const artefakt = artefaktBei(ort, index, zustand);
+    if (!artefakt) { karteSchliessen(); return; }
+    gewaehlt = { ort, index };
+
+    const s = seltenheitNach(artefakt.seltenheit);
+    karteHuelle.textContent = '';
+    const karte = document.createElement('div');
+    karte.className = 'karte';
+    karte.style.boxShadow = '0 0 0 1px ' + s.farbe + ', 0 18px 40px rgba(0,0,0,0.7)';
+
+    const kopf = document.createElement('div');
+    kopf.className = 'karte-kopf';
+    const bild = document.createElement('canvas');
+    bild.width = 32;
+    bild.height = 32;
+    artefaktSymbolZeichnen(bild, artefakt);
+    const kopfText = document.createElement('div');
+    const name = document.createElement('div');
+    name.className = 'karte-name';
+    name.textContent = artefakt.name;
+    const marke = document.createElement('div');
+    marke.className = 'karte-marke';
+    marke.style.color = s.farbe;
+    const tags = tagsVon(artefakt).map((t) => TAG_NAMEN[t] || t).join(' · ');
+    marke.textContent = s.name + '  ·  Welle ' + artefakt.fundwelle + (tags ? '  ·  ' + tags : '');
+    kopfText.append(name, marke);
+    kopf.append(bild, kopfText);
+    karte.append(kopf);
+
+    const liste = document.createElement('ul');
+    liste.className = 'karte-affixe';
+    for (const zeile of affixZeilen(artefakt)) {
+      const li = document.createElement('li');
+      li.className = 'karte-affix' + (zeile.einzig ? ' einzig' : '');
+      li.style.borderLeftColor = zeile.einzig ? '#e0b64f' : (TAG_FARBEN[zeile.tag] || '#3f424d');
+      const n = document.createElement('span');
+      n.className = 'karte-affix-name';
+      n.style.color = TAG_FARBEN[zeile.tag] || '#e9e9ed';
+      n.textContent = zeile.name;
+      const t = document.createElement('span');
+      t.className = 'karte-affix-text';
+      t.textContent = zeile.text;
+      li.append(n, t);
+      liste.append(li);
+    }
+    karte.append(liste);
+
+    const knoepfe2 = document.createElement('div');
+    knoepfe2.className = 'karte-knoepfe';
+
+    if (ort === 'inventar') {
+      const frei = zustand.regal.some((a) => !a);
+      const anlegen = document.createElement('button');
+      anlegen.type = 'button';
+      anlegen.className = 'karte-knopf';
+      anlegen.textContent = frei ? 'Anlegen' : 'Regal voll';
+      anlegen.disabled = !frei;
+      anlegen.addEventListener('click', () => { rueckrufe.artefaktAnlegen(index); karteSchliessen(); });
+      knoepfe2.append(anlegen);
+    } else {
+      const platz = zustand.inventar.length < INVENTAR_PLAETZE;
+      const ablegen = document.createElement('button');
+      ablegen.type = 'button';
+      ablegen.className = 'karte-knopf';
+      ablegen.textContent = platz ? 'Ablegen' : 'Lager voll';
+      ablegen.disabled = !platz;
+      ablegen.addEventListener('click', () => { rueckrufe.artefaktAblegen(index); karteSchliessen(); });
+      knoepfe2.append(ablegen);
+    }
+
+    const verkaufen = document.createElement('button');
+    verkaufen.type = 'button';
+    verkaufen.className = 'karte-knopf verkauf';
+    verkaufen.textContent = (ort === 'regal' ? 'Ablegen & verkaufen: ' : 'Verkaufen: ')
+      + zahl(verkaufswert(artefakt));
+    verkaufen.addEventListener('click', () => {
+      rueckrufe.artefaktVerkaufen(ort, index);
+      karteSchliessen();
+    });
+    knoepfe2.append(verkaufen);
+
+    const zurueck = document.createElement('button');
+    zurueck.type = 'button';
+    zurueck.className = 'karte-knopf zurueck';
+    zurueck.textContent = 'Zurück';
+    zurueck.addEventListener('click', karteSchliessen);
+    knoepfe2.append(zurueck);
+
+    karte.append(knoepfe2);
+    karteHuelle.append(karte);
+    karteHuelle.hidden = false;
+  }
+
+  /** Eine Fassung im Regal oder im Lager. */
+  function fassungBauen(artefakt, ort, index) {
+    const knopf = document.createElement('button');
+    knopf.type = 'button';
+    knopf.className = 'fassung' + (artefakt ? '' : ' leer');
+    if (!artefakt) {
+      knopf.disabled = true;
+      knopf.textContent = ort === 'regal' ? '◎' : '';
+      return knopf;
+    }
+    const s = seltenheitNach(artefakt.seltenheit);
+    knopf.title = artefakt.name + ' — ' + s.name;
+    const bild = document.createElement('canvas');
+    bild.width = 16;
+    bild.height = 16;
+    artefaktSymbolZeichnen(bild, artefakt);
+    const punkt = document.createElement('span');
+    punkt.className = 'fassung-punkt';
+    punkt.style.background = s.farbe;
+    knopf.append(bild, punkt);
+    knopf.addEventListener('click', () => karteZeigen(ort, index));
+    return knopf;
+  }
+
+  /**
+   * Regal, Lager und Wirkungsliste neu setzen.
+   *
+   * Nur wenn sich tatsächlich etwas geändert hat — sonst verlöre ein
+   * gerade gedrückter Knopf bei 60 Bildern je Sekunde seinen Fokus.
+   */
+  function artefakteAuffrischen(zustand) {
+    const regalEl = listen.regal;
+    const invEl = listen.inventar;
+    if (!regalEl || !invEl) return;
+
+    const stand = zustand.regal.map((a) => a ? a.name + a.seltenheit : '-').join('|')
+      + '#' + zustand.inventar.map((a) => a.name + a.seltenheit).join('|');
+    if (stand === artefaktStand) return;
+    artefaktStand = stand;
+
+    regalEl.textContent = '';
+    for (let i = 0; i < REGAL_PLAETZE; i++) {
+      regalEl.append(fassungBauen(zustand.regal[i], 'regal', i));
+    }
+
+    invEl.textContent = '';
+    for (let i = 0; i < INVENTAR_PLAETZE; i++) {
+      invEl.append(fassungBauen(zustand.inventar[i] || null, 'inventar', i));
+    }
+
+    if (feld.inventarZahl) {
+      feld.inventarZahl.textContent = zustand.inventar.length + ' / ' + INVENTAR_PLAETZE;
+    }
+
+    if (feld.artefaktHinweis) {
+      const hat = zustand.regal.some(Boolean) || zustand.inventar.length;
+      feld.artefaktHinweis.textContent = hat
+        ? 'Antippen öffnet die Karte. Affixe mit demselben Tag verstärken sich — drei Feuer-Artefakte machen aus jedem Klick einen Flammenwerfer.'
+        : 'Noch nichts gefunden. Recken lassen selten etwas fallen, Bosse immer. Der Schatzjäger bei Pips erhöht die Chance.';
+    }
+
+    wirkungAuffrischen(zustand);
+  }
+
+  /** Die Summe des Regals als Reihe von Chips. */
+  function wirkungAuffrischen(zustand) {
+    const el = listen.wirkung;
+    if (!el) return;
+    el.textContent = '';
+    const w = wirkungAus(zustand.regal);
+
+    const chips = [];
+    for (const tag in w.tags) {
+      if (w.tags[tag] > 0) chips.push({ text: w.tags[tag] + '× ' + TAG_NAMEN[tag], farbe: TAG_FARBEN[tag] });
+    }
+    if (w.fressBonus) chips.push({ text: 'Fressen +' + rund(w.fressBonus) + ' %', farbe: '#b4bac9' });
+    if (w.kapazitaet) chips.push({ text: '+' + w.kapazitaet + ' Platz', farbe: '#b4bac9' });
+    if (w.schlund) chips.push({ text: '+' + w.schlund + ' Schlund', farbe: '#b4bac9' });
+    if (w.muenzWert) chips.push({ text: 'Münzen +' + rund(w.muenzWert) + ' %', farbe: '#e0b64f' });
+    if (w.fundchance) chips.push({ text: 'Fund +' + rund(w.fundchance) + ' %', farbe: '#e0b64f' });
+    if (w.krit) chips.push({ text: 'Krit +' + rund(w.krit) + ' %', farbe: '#ffd08a' });
+    if (w.klickAbkling) chips.push({ text: 'Klick −' + rund(w.klickAbkling) + ' %', farbe: '#9ecbff' });
+    if (w.brandDps) chips.push({ text: 'Klick zündet: ' + w.brandDps + '/s', farbe: '#ff7a2a' });
+
+    for (const chip of chips) {
+      const li = document.createElement('li');
+      const punkt = document.createElement('span');
+      punkt.className = 'vorschau-punkt';
+      punkt.style.background = chip.farbe;
+      li.append(punkt, document.createTextNode(chip.text));
+      el.append(li);
+    }
+  }
+
+  function rund(n) {
+    return (Math.round(n * 100) / 100).toString().replace('.', ',');
   }
 
   /* ---------- Auffrischen ---------- */
@@ -373,12 +632,12 @@ export function anzeigeAnlegen(wurzel, rueckrufe) {
     /** Wird jeden Bildschritt aufgerufen, schreibt aber nur Geändertes. */
     auffrischen(welt) {
       const { zustand, szene } = welt;
-      const w = werteAus(zustand.stufenG, zustand.stufenP);
+      const wirkung = wirkungAus(zustand.regal);
+      const w = werteAus(zustand.stufenG, zustand.stufenP, wirkung);
 
-      setzen('blut', zahl(zustand.blut));
       setzen('gold', zahl(zustand.gold));
-      setzen('schrott', zahl(zustand.schrott));
-      setzen('welle', 'Welle ' + zustand.welle);
+      setzen('blut', zahl(zustand.blut) + ' l');
+      setzen('welle', 'Welle ' + zustand.welle + (istBosswelle(zustand.welle) ? ' · BOSS' : ''));
 
       // Phase und Lagebericht
       let phase;
@@ -389,7 +648,7 @@ export function anzeigeAnlegen(wurzel, rueckrufe) {
         + szene.recken.filter((r) => r.zustand !== 'flieht').length;
 
       if (szene.phase === 'tag') {
-        phase = 'Tag — Welle ' + zustand.welle;
+        phase = (istBosswelle(zustand.welle) ? 'Bosswelle ' : 'Tag — Welle ') + zustand.welle;
         lage = 'Noch ' + uebrig + ' Recken · Burg ' + szene.imTor.length + '/' + w.kapazitaet
           + ' · frisst ' + Math.min(w.schlund, szene.imTor.length) + '/' + w.schlund;
         wellenText = 'Welle läuft…';
@@ -399,8 +658,8 @@ export function anzeigeAnlegen(wurzel, rueckrufe) {
         wellenText = 'Welle läuft…';
       } else {
         phase = 'Nacht — Lager';
-        lage = 'Bereit: ' + (zustand.anstehend.length || wellenStaerke(zustand.welle, zustand.stufenP.lockruf))
-          + ' Recken · Burg fasst ' + w.kapazitaet + ' · frisst ' + w.schlund + ' zugleich';
+        lage = 'Bereit: ' + (zustand.anstehend.length || wellenStaerke(zustand.welle))
+          + ' · Burg ' + w.kapazitaet + ' · Schlund ' + w.schlund;
         const ritualLaeuft = zustand.ritual >= 1 && zustand.ritualAn;
         const rest = Math.max(0, Math.ceil(RITUAL_WARTEZEIT - szene.nachtzeit));
         wellenText = 'Welle ' + zustand.welle + ' starten' + (ritualLaeuft ? ' (' + rest + ' s)' : '');
@@ -411,6 +670,7 @@ export function anzeigeAnlegen(wurzel, rueckrufe) {
       if (knoepfe.welle) {
         if (knoepfe.welle.textContent !== wellenText) knoepfe.welle.textContent = wellenText;
         knoepfe.welle.disabled = wellenAus;
+        knoepfe.welle.classList.toggle('boss', szene.phase === 'nacht' && !!zustand.anstehenderBoss);
       }
 
       vorschauAuffrischen(zustand, szene);
@@ -419,9 +679,10 @@ export function anzeigeAnlegen(wurzel, rueckrufe) {
       setzen('spruchPips', '»' + welt.sprueche.pips + '«');
       setzen('spruchMalvina', '»' + welt.sprueche.malvina + '«');
 
-      warenAuffrischen('grommsch', zustand.stufenG, zustand.schrott);
-      warenAuffrischen('pips', zustand.stufenP, zustand.gold);
-      malvinaAuffrischen(zustand);
+      warenAuffrischen('grommsch', zustand.stufenG, zustand.gold, zustand.welle);
+      warenAuffrischen('pips', zustand.stufenP, zustand.gold, zustand.welle);
+      malvinaAuffrischen(zustand, wirkung);
+      artefakteAuffrischen(zustand);
 
       // Die Aktionsleiste wird nur neu gebaut, wenn sich ihr Besatz ändert.
       const stand = zustand.klick.gekauft + '|' + ZAUBER.map((z) => zustand.zauber[z.k].gelernt).join('');
@@ -450,13 +711,14 @@ export function anzeigeAnlegen(wurzel, rueckrufe) {
   /**
    * Die Nachtvorschau: Welche Recken die nächste Welle bringt.
    * Ein Farbkästchen je Klasse, dazu Name und Anzahl — gebaut nur, wenn
-   * sich die Auslosung tatsächlich geändert hat.
+   * sich die Auslosung tatsächlich geändert hat. Ein angekündigter Boss
+   * bekommt einen eigenen, goldenen Chip.
    */
   function vorschauAuffrischen(zustand, szene) {
     const el = feld.vorschau;
     if (!el) return;
     const nachts = szene.phase === 'nacht';
-    const stand = nachts ? zustand.anstehend.join(',') : '';
+    const stand = nachts ? zustand.anstehend.join(',') + '|' + (zustand.anstehenderBoss || '') : '';
     if (stand === vorschauStand) return;
     vorschauStand = stand;
 
@@ -466,7 +728,7 @@ export function anzeigeAnlegen(wurzel, rueckrufe) {
 
     const marke = document.createElement('span');
     marke.className = 'vorschau-marke';
-    marke.textContent = 'Gleich kommen:';
+    marke.textContent = 'Kommt:';
     el.appendChild(marke);
 
     const anzahl = {};
@@ -481,36 +743,57 @@ export function anzeigeAnlegen(wurzel, rueckrufe) {
       chip.append(punkt, document.createTextNode(anzahl[klasse.id] + '× ' + klasse.name));
       el.appendChild(chip);
     }
+
+    if (zustand.anstehenderBoss) {
+      const chip = document.createElement('span');
+      chip.className = 'vorschau-chip vorschau-boss';
+      // Nur "1× BOSS" — der Name würde die Zeile sprengen und steht beim
+      // Wellenstart ohnehin im Spruchband und beim Marktschreier.
+      chip.title = zustand.anstehenderBoss;
+      const punkt = document.createElement('span');
+      punkt.className = 'vorschau-punkt';
+      punkt.style.background = '#e0b64f';
+      chip.append(punkt, document.createTextNode('1× BOSS'));
+      el.appendChild(chip);
+    }
   }
 
-  function warenAuffrischen(name, stufen, waehrung) {
+  function warenAuffrischen(name, stufen, gold, welle) {
     for (const zeile of warenZeilen[name]) {
-      const z = wareZustand(zeile.ware, stufen);
-      preisSetzen(zeile, z.voll ? 'MAX' : zahl(z.preis), z.voll);
-      const aus = z.voll || z.gesperrt || waehrung < z.preis;
+      const z = wareZustand(zeile.ware, stufen, welle);
+      const text = z.gesperrt
+        ? (zeile.ware.gesperrtText || 'noch nicht verfügbar')
+        : z.voll ? 'MAX' : zahl(z.preis);
+      preisSetzen(zeile, text, z.voll || z.gesperrt);
+      const aus = z.voll || z.gesperrt || gold < z.preis;
       if (zeile.knopf.disabled !== aus) zeile.knopf.disabled = aus;
 
       const stufenText = z.voll ? 'MAX' : z.stufe > 0 ? 'St. ' + z.stufe : '';
       const titel = zeile.ware.name + (stufenText ? ' · ' + stufenText : '');
       if (zeile.titel.textContent !== titel) zeile.titel.textContent = titel;
+
+      // Die Beschreibung zeigt den aktuellen Gesamtwert, nicht die Werbung.
+      const beschreibung = zeile.ware.wertJetzt ? zeile.ware.wertJetzt(z.stufe) : zeile.ware.text;
+      if (zeile.unter.textContent !== beschreibung) zeile.unter.textContent = beschreibung;
+      zeile.li.classList.toggle('gesperrt', z.gesperrt);
     }
   }
 
-  function malvinaAuffrischen(zustand) {
-    const blut = zustand.blut;
+  function malvinaAuffrischen(zustand, wirkung) {
+    const gold = zustand.gold;
 
     // --- Der Klick ---
     const klick = klickTeile.zeile;
     if (klick) {
       const gekauft = zustand.klick.gekauft >= 1;
-      const w = klickWerte(zustand.klick);
+      const w = klickWerte(zustand.klick, wirkung);
       const text = gekauft
         ? Math.round(w.schaden) + ' Schaden · ' + w.abklingzeit.toFixed(1).replace('.', ',')
           + ' s · ' + Math.round(w.krit * 100) + ' % kritisch'
         : KLICK.kurz;
       if (klick.unter.textContent !== text) klick.unter.textContent = text;
       preisSetzen(klick, gekauft ? '✓' : zahl(KLICK.preis), gekauft);
-      klick.knopf.disabled = gekauft || blut < KLICK.preis;
+      klick.knopf.disabled = gekauft || gold < KLICK.preis;
       klick.knopf.classList.toggle('gelernt', gekauft);
 
       klickTeile.achsenLeiste.hidden = !gekauft;
@@ -518,21 +801,8 @@ export function anzeigeAnlegen(wurzel, rueckrufe) {
         const preis = klickAusbauPreis(zustand.klick[achse.k]);
         const beschriftet = achse.zeichen + ' ' + zahl(preis);
         if (knopf.textContent !== beschriftet) knopf.textContent = beschriftet;
-        knopf.disabled = blut < preis;
-        knopf.title = achse.name + ' — ' + zahl(preis) + ' Blut (Stufe ' + zustand.klick[achse.k] + ')';
-      }
-
-      for (const { variante, zeile } of klickTeile.varianten) {
-        const hat = zustand.klick.varianten[variante.k] >= 1;
-        const aktiv = zustand.klick.aktiv === variante.k;
-        const text2 = hat
-          ? (aktiv ? 'Aktiv — dein Klick ist jetzt diese Spielart' : variante.text)
-          : variante.text;
-        if (zeile.unter.textContent !== text2) zeile.unter.textContent = text2;
-        preisSetzen(zeile, hat ? (aktiv ? 'Aktiv' : 'Wählen') : zahl(variante.preis), hat);
-        zeile.knopf.disabled = !hat && (zustand.klick.gekauft < 1 || blut < variante.preis);
-        zeile.knopf.classList.toggle('gelernt', aktiv);
-        zeile.li.hidden = zustand.klick.gekauft < 1;
+        knopf.disabled = gold < preis;
+        knopf.title = achse.name + ' — ' + zahl(preis) + ' Gold (Stufe ' + zustand.klick[achse.k] + ')';
       }
     }
 
@@ -548,7 +818,7 @@ export function anzeigeAnlegen(wurzel, rueckrufe) {
       if (zeile.unter.textContent !== text) zeile.unter.textContent = text;
 
       preisSetzen(zeile, gelernt ? '✓' : zahl(zeile.zauber.preis), gelernt);
-      zeile.knopf.disabled = gelernt || blut < zeile.zauber.preis;
+      zeile.knopf.disabled = gelernt || gold < zeile.zauber.preis;
       zeile.knopf.classList.toggle('gelernt', gelernt);
 
       zeile.achsen.hidden = !gelernt;
@@ -556,8 +826,8 @@ export function anzeigeAnlegen(wurzel, rueckrufe) {
         const preis = ausbauPreis(zeile.zauber, stufe[achse.k]);
         const beschriftet = achse.zeichen + ' ' + zahl(preis);
         if (knopf.textContent !== beschriftet) knopf.textContent = beschriftet;
-        knopf.disabled = blut < preis;
-        knopf.title = achse.name + ' — ' + zahl(preis) + ' Blut (Stufe ' + stufe[achse.k] + ')';
+        knopf.disabled = gold < preis;
+        knopf.title = achse.name + ' — ' + zahl(preis) + ' Gold (Stufe ' + stufe[achse.k] + ')';
       }
     }
 
@@ -570,7 +840,7 @@ export function anzeigeAnlegen(wurzel, rueckrufe) {
       : 'Nächste Welle startet nachts von selbst';
     if (r.unter.textContent !== text) r.unter.textContent = text;
     preisSetzen(r, hat ? (zustand.ritualAn ? 'Aus' : 'An') : zahl(RITUAL_PREIS), hat);
-    r.knopf.disabled = !hat && blut < RITUAL_PREIS;
+    r.knopf.disabled = !hat && gold < RITUAL_PREIS;
   }
 
   /**
@@ -590,9 +860,9 @@ export function anzeigeAnlegen(wurzel, rueckrufe) {
       let scharf = false;
 
       if (k === 'klick') {
-        const w = klickWerte(zustand.klick);
+        const w = klickWerte(zustand.klick, wirkungAus(zustand.regal));
         rest = szene.klickAbklingzeit;
-        gesamt = w.variante === 'titan' ? w.titanAbklingzeit : w.abklingzeit;
+        gesamt = w.abklingzeit;
       } else {
         const z = ZAUBER.find((e) => e.k === k);
         const wert = zauberWerte(z, zustand.zauber[k]);

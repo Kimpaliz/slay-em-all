@@ -26,7 +26,7 @@ import { welleStarten, welleAuslosen } from './wellen.js';
 import { ausloesen } from './zauber.js';
 import {
   beiGrommsch, beiPips, zauberLernen, zauberVerbessern, ritualKaufen, ritualUmschalten,
-  klickKaufen, klickVerbessern, varianteKaufen, varianteWaehlen
+  klickKaufen, klickVerbessern, artefaktAnlegen, artefaktAblegen, artefaktVerkaufen
 } from './handel.js';
 
 /** Feste Schrittweite der Simulation, in Sekunden. */
@@ -65,24 +65,14 @@ export function spielStarten(optionen = {}) {
       anzeige.auffrischen(welt);
     },
     kaufGrommsch: (k) => { if (beiGrommsch(welt, k)) nachKauf(); },
-    kaufPips: (k) => {
-      if (!beiPips(welt, k)) return;
-      // Lockrufe und Köder ändern die kommende Welle — die Ankündigung
-      // im Nachtlager muss dann neu ausgelost werden.
-      if ((k === 'lockruf' || k === 'koeder') && welt.szene.phase === 'nacht') {
-        welleAuslosen(welt.zustand);
-      }
-      nachKauf();
-    },
+    kaufPips: (k) => { if (beiPips(welt, k)) nachKauf(); },
     zauberLernen: (k) => { if (zauberLernen(welt, k)) nachKauf(); },
     zauberVerbessern: (k, achse) => { if (zauberVerbessern(welt, k, achse)) nachKauf(); },
     klickKaufen: () => { if (klickKaufen(welt)) nachKauf(); },
     klickVerbessern: (achse) => { if (klickVerbessern(welt, achse)) nachKauf(); },
-    variante: (k) => {
-      const zustand = welt.zustand;
-      const ok = zustand.klick.varianten[k] >= 1 ? varianteWaehlen(welt, k) : varianteKaufen(welt, k);
-      if (ok) nachKauf();
-    },
+    artefaktAnlegen: (i) => { if (artefaktAnlegen(welt, i)) nachKauf(); },
+    artefaktAblegen: (i) => { if (artefaktAblegen(welt, i)) nachKauf(); },
+    artefaktVerkaufen: (ort, i) => { if (artefaktVerkaufen(welt, ort, i)) nachKauf(); },
     zustand: () => welt.zustand,
     ritual: () => {
       const zustand = welt.zustand;

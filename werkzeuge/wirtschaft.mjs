@@ -6,132 +6,196 @@
 // `pruefe-wirtschaft.mjs` prüfen und mit `balance.mjs` über viele Wellen
 // durchrechnen, ohne dass ein Browser laufen muss.
 //
-// Drei Währungen mit drei verschiedenen Aufgaben:
-//   Blut    — fällt bei jedem Tod an, kauft ausschließlich Zauber (Malvina)
-//   Gold    — fällt als Münze auf die Brücke und muss aufgesammelt werden,
-//             kauft Zulauf und Bequemlichkeit (Pips)
-//   Schrott — fällt anteilig an, kauft die Burg selbst aus (Grommsch)
+// **Eine Währung: Gold.** Blut und Schrott waren einmal Währungen; jetzt
+// ist Blut nur noch eine Statistik (die Seele des Spiels, aber niemand
+// bezahlt damit) und Schrott ganz fort. Gold fällt als Münze auf die
+// Brücke und muss aufgesammelt werden — deshalb ist der einzige Grund,
+// überhaupt einzugreifen, dass besondere Tode mehr Gold abwerfen.
+//
+// **Alle Lebens- und Schadenswerte im Zehnermaßstab.** Das Monster frisst
+// 10 LP je Sekunde, ein Bauer hat 20 — er braucht also weiterhin zwei
+// Sekunden. Die Zeiten sind unverändert, nur die Zahlen sind größer.
+// Grund: Große Zahlen tragen feine Modifikatoren (+1,5 % Klauen, ein
+// 13er-Gift-Tick). Mit 2-LP-Bauern wäre all das nicht zu spüren.
+
+/* ---------------- Schadensarten ---------------- */
+
+/**
+ * Jeder Schaden hat eine Art. Alles ohne besondere Art ist physisch.
+ * Die schwebenden Schadenszahlen färben sich danach.
+ */
+export const SCHADENSARTEN = {
+  physisch: { name: 'Physisch', farbe: '#e9e9ed' },
+  feuer: { name: 'Feuer', farbe: '#ff7a2a' },
+  blitz: { name: 'Blitz', farbe: '#cfc8ff' },
+  eis: { name: 'Eis', farbe: '#9ecbff' },
+  gift: { name: 'Gift', farbe: '#7fd48a' }
+};
+
+/** Farbe einer Schadenszahl — Krits sind immer golden. */
+export function schadensFarbe(art, krit) {
+  if (krit) return '#ffd08a';
+  return (SCHADENSARTEN[art] || SCHADENSARTEN.physisch).farbe;
+}
 
 /* ---------------- Händlerwaren ---------------- */
 
+/** Ab dieser Welle lassen sich Tiefere Hallen überhaupt kaufen. */
+export const HALLEN_AB_WELLE = 8;
+
+const prozent = (n) => (Math.round(n * 10) / 10).toString().replace('.', ',') + ' %';
+const prozentFein = (n) => (Math.round(n * 100) / 100).toString().replace('.', ',') + ' %';
+
 /**
- * Grommsch, Zeugmeister — bezahlt wird in Schrott.
+ * Grommsch, Zeugmeister — bezahlt wird in Gold.
  * Er baut die Burg aus: schneller fressen, mehr Platz, Schützen auf die Zinnen.
+ *
+ * `wertJetzt` und `wertNaechste` liefern die Wirkung als Text. Die
+ * Warenbeschreibung zeigt den aktuellen Gesamtwert, der Tooltip am
+ * Kaufknopf den Zugewinn der nächsten Stufe.
  */
 export const WAREN_GROMMSCH = [
   {
     k: 'klauen', name: 'Scharfe Klauen',
-    text: 'Das Monster frisst 28 % schneller',
-    preis: (st) => Math.round(6 * Math.pow(1.75, st))
+    text: 'Das Monster frisst schneller',
+    // Flach und ohne Deckel: die verlässliche Dauersenke für Gold, die
+    // ein Idle-Spiel braucht.
+    preis: (st) => Math.round(6 * Math.pow(1.35, st)),
+    wertJetzt: (st) => st > 0 ? 'frisst ' + prozent(st * 1.5) + ' schneller' : 'frisst mit Grundtempo',
+    wertNaechste: (st) => '+' + prozent(1.5) + ' → ' + prozent((st + 1) * 1.5)
   },
   {
     k: 'hallen', name: 'Tiefere Hallen',
     text: '+1 Recke passt in die Burg',
-    preis: (st) => Math.round(10 * Math.pow(1.85, st))
-  },
-  {
-    k: 'schuetze', name: 'Goblin-Bogenschütze',
-    text: '+1 Schütze auf den Zinnen',
-    preis: (st) => Math.round(12 * Math.pow(2.1, st)), max: 4
-  },
-  {
-    k: 'pfeile', name: 'Widerhaken-Pfeile',
-    text: '+1 Pfeilschaden (braucht Schützen)',
-    preis: (st) => Math.round(24 * Math.pow(2.2, st)),
-    bedingung: (stufen) => stufen.schuetze > 0
+    preis: (st) => Math.round(400 * Math.pow(2.5, st)),
+    bedingung: (stufen, welle) => (welle || 1) >= HALLEN_AB_WELLE,
+    gesperrtText: 'ab Welle ' + HALLEN_AB_WELLE,
+    wertJetzt: (st) => 'Burg fasst ' + (3 + st) + ' Recken',
+    wertNaechste: (st) => '+1 Platz → ' + (4 + st) + ' Recken'
   },
   {
     k: 'schlund', name: 'Zweiter Schlund',
     text: '+1 Recke wird gleichzeitig gefressen',
-    preis: (st) => Math.round(18 * Math.pow(2.15, st)), max: 4
+    preis: (st) => Math.round(25 * Math.pow(2.3, st)), max: 4,
+    wertJetzt: (st) => 'frisst ' + (1 + st) + ' zugleich',
+    wertNaechste: (st) => '+1 Maul → ' + (2 + st) + ' zugleich'
+  },
+  {
+    k: 'schuetze', name: 'Goblin-Bogenschütze',
+    text: '+1 Schütze auf den Zinnen',
+    preis: (st) => Math.round(15 * Math.pow(2.1, st)), max: 4,
+    wertJetzt: (st) => st > 0 ? st + ' Schütze' + (st > 1 ? 'n' : '') + ' auf den Zinnen' : 'keine Schützen',
+    wertNaechste: (st) => '+1 Schütze → ' + (st + 1)
+  },
+  {
+    k: 'pfeile', name: 'Widerhaken-Pfeile',
+    text: '+10 Pfeilschaden (braucht Schützen)',
+    preis: (st) => Math.round(30 * Math.pow(2.2, st)),
+    bedingung: (stufen) => stufen.schuetze > 0,
+    gesperrtText: 'braucht Schützen',
+    wertJetzt: (st) => 'Pfeile machen ' + (10 + st * 10) + ' Schaden',
+    wertNaechste: (st) => '+10 → ' + (20 + st * 10) + ' Schaden'
   },
   {
     k: 'krit', name: 'Zielwasser',
-    text: '+6 % kritische Treffer für Schützen (braucht Schützen)',
-    preis: (st) => Math.round(15 * Math.pow(1.9, st)), max: 5,
-    bedingung: (stufen) => stufen.schuetze > 0
+    text: 'Kritische Pfeile (braucht Schützen)',
+    preis: (st) => Math.round(20 * Math.pow(1.9, st)), max: 5,
+    bedingung: (stufen) => stufen.schuetze > 0,
+    gesperrtText: 'braucht Schützen',
+    wertJetzt: (st) => st > 0 ? prozent(st * 6) + ' kritische Pfeile' : 'keine kritischen Pfeile',
+    wertNaechste: (st) => '+' + prozent(6) + ' → ' + prozent((st + 1) * 6)
   }
 ];
 
 /**
  * Pips, Hortdrachling — bezahlt wird in Gold.
- * Er sorgt für Nachschub und dafür, dass weniger Beute liegen bleibt.
+ * Er sorgt dafür, dass weniger Beute liegen bleibt und mehr davon zählt.
+ *
+ * Lockrufe, Marschmusik und Edler Köder sind ersatzlos gestrichen: Menge,
+ * Tempo und Rangfolge steigern die Wellen jetzt von selbst (siehe
+ * `wellenSkalierung`) — ein Kauf, der dasselbe täte, wäre doppelt.
  */
 export const WAREN_PIPS = [
   {
-    k: 'lockruf', name: 'Lockrufe im Tal',
-    text: '+8 % Recken pro Welle — mehr Beute',
-    preis: (st) => Math.round(12 * Math.pow(1.7, st))
-  },
-  {
-    k: 'marsch', name: 'Marschmusik',
-    text: 'Recken laufen 13 % schneller',
-    preis: (st) => Math.round(10 * Math.pow(1.7, st))
-  },
-  {
-    k: 'koeder', name: 'Edler Köder',
-    text: 'Hohe Ränge erscheinen eine Welle früher',
-    preis: (st) => Math.round(25 * Math.pow(1.95, st)), max: 3
-  },
-  {
     k: 'sammler', name: 'Sammel-Drachling',
-    text: 'Fliegt nachts, zieht Gold an — je Stufe +1 % Chance auf doppeltes Gold',
-    preis: (st) => Math.round(40 * Math.pow(2.3, st)), max: 10
+    text: 'Fliegt nachts und zieht Gold an',
+    preis: (st) => Math.round(40 * Math.pow(2.3, st)), max: 10,
+    wertJetzt: (st) => st > 0
+      ? 'sammelt nachts ein, ' + prozent(st) + ' Chance auf doppeltes Gold'
+      : 'du sammelst noch selbst',
+    wertNaechste: (st) => st === 0
+      ? 'er fliegt nachts und sammelt für dich'
+      : '+1 % doppelt → ' + prozent(st + 1) + ', größerer Radius'
+  },
+  {
+    k: 'schatzjaeger', name: 'Schatzjäger',
+    text: 'Höhere Chance, dass ein Artefakt fällt',
+    preis: (st) => Math.round(50 * Math.pow(2.0, st)), max: 10,
+    wertJetzt: (st) => 'Fundchance ' + prozentFein(0.05 + 0.1 * st),
+    wertNaechste: (st) => '+' + prozentFein(0.1) + ' → ' + prozentFein(0.05 + 0.1 * (st + 1))
   },
   {
     k: 'stolz', name: 'Sammlerstolz',
-    text: '+25 % Gold beim Selbst-Aufsammeln',
-    preis: (st) => Math.round(20 * Math.pow(1.8, st))
+    text: 'Mehr Gold beim Selbst-Aufsammeln',
+    preis: (st) => Math.round(25 * Math.pow(1.8, st)),
+    wertJetzt: (st) => st > 0 ? '+' + prozent(st * 25) + ' beim Aufsammeln von Hand' : 'Münzen zählen einfach',
+    wertNaechste: (st) => '+' + prozent(25) + ' → +' + prozent((st + 1) * 25)
   },
   {
     k: 'ernte', name: 'Makabre Ernte',
-    text: '+50 % Gold aus besonderen Toden',
-    preis: (st) => Math.round(30 * Math.pow(1.9, st))
+    text: 'Mehr Gold aus besonderen Toden',
+    preis: (st) => Math.round(35 * Math.pow(1.9, st)),
+    wertJetzt: (st) => 'besondere Tode werfen ×' + faktorText(1.5 * (1 + 0.5 * st)) + ' Gold ab',
+    wertNaechste: (st) => '×' + faktorText(1.5 * (1 + 0.5 * st)) + ' → ×' + faktorText(1.5 * (1 + 0.5 * (st + 1)))
   }
 ];
+
+function faktorText(f) {
+  return (Math.round(f * 100) / 100).toString().replace('.', ',');
+}
 
 /* ---------------- Zauber ---------------- */
 
 /**
- * Malvinas Zauber — bezahlt wird in Blut.
+ * Malvinas Zauber — bezahlt wird in Gold.
  *
  * `schadenSchritt` ist der Zuwachs je Stufe der Schadensachse. Die drei
  * Achsen (Schaden, Abklingzeit, Wirkbereich) kosten alle nach derselben
- * Formel, siehe `ausbauPreis`.
+ * Formel, siehe `ausbauPreis`. `art` ist die Schadensart.
  */
 export const ZAUBER = [
   {
-    k: 'pranke', name: 'Drachenpranke', taste: '1',
-    preis: 30, schaden: 10, abklingzeit: 22, wirkbereich: 70,
-    schadenSchritt: 5, einheit: 'px Brücke',
+    k: 'pranke', name: 'Drachenpranke', taste: '1', art: 'physisch',
+    preis: 40, schaden: 100, abklingzeit: 22, wirkbereich: 70,
+    schadenSchritt: 50, einheit: 'px Brücke',
     kurz: 'Pranke stößt aus dem Tor',
     lang: 'Stößt aus dem Tor, zermalmt alles auf der Brücke und schleift die Reste hinein.'
   },
   {
-    k: 'donner', name: 'Donnerschlag', taste: '2',
-    preis: 80, schaden: 6, abklingzeit: 16, wirkbereich: 15,
-    schadenSchritt: 3, einheit: 'px Umkreis',
+    k: 'donner', name: 'Donnerschlag', taste: '2', art: 'blitz',
+    preis: 90, schaden: 60, abklingzeit: 16, wirkbereich: 15,
+    schadenSchritt: 30, einheit: 'px Umkreis',
     kurz: 'Blitz auf Mausklick',
     lang: 'Blitz auf Mausklick — trifft alles im Umkreis des Einschlags.'
   },
   {
-    k: 'flamme', name: 'Flammenstoß', taste: '3',
-    preis: 260, schaden: 9, abklingzeit: 30, wirkbereich: 112,
-    schadenSchritt: 4, einheit: 'px Reichweite',
+    k: 'flamme', name: 'Flammenstoß', taste: '3', art: 'feuer',
+    preis: 250, schaden: 90, abklingzeit: 30, wirkbereich: 112,
+    schadenSchritt: 40, einheit: 'px Reichweite',
     kurz: 'Feuerzunge aus dem Tor',
-    lang: 'Feuerzunge über die Brücke. Getroffene verbrennen zu Asche.'
+    lang: 'Feuerzunge über die Brücke. Getroffene verbrennen zu Asche und qualmen nach.'
   },
   {
-    k: 'meteor', name: 'Meteoritenschauer', taste: '4',
-    preis: 700, schaden: 5, abklingzeit: 50, wirkbereich: 11,
-    schadenSchritt: 3, einheit: 'px Einschlag',
+    k: 'meteor', name: 'Meteoritenschauer', taste: '4', art: 'feuer',
+    preis: 600, schaden: 50, abklingzeit: 50, wirkbereich: 11,
+    schadenSchritt: 30, einheit: 'px Einschlag',
     kurz: '6 Sekunden Steinregen',
     lang: 'Sechs Sekunden Steinregen über der Brücke. Getroffene verbrennen zu Asche.'
   }
 ];
 
 /** Preis des Morgenrituals — startet die Welle nachts von selbst. */
-export const RITUAL_PREIS = 420;
+export const RITUAL_PREIS = 400;
 
 /** Kürzeste erreichbare Abklingzeit, als Anteil des Grundwerts. */
 const ABKLING_BODEN = 0.35;
@@ -139,7 +203,7 @@ const ABKLING_BODEN = 0.35;
 /* ---------------- Leere Stufen ---------------- */
 
 export const STUFEN_GROMMSCH_LEER = { klauen: 0, hallen: 0, schuetze: 0, pfeile: 0, schlund: 0, krit: 0 };
-export const STUFEN_PIPS_LEER = { lockruf: 0, marsch: 0, koeder: 0, sammler: 0, stolz: 0, ernte: 0 };
+export const STUFEN_PIPS_LEER = { sammler: 0, schatzjaeger: 0, stolz: 0, ernte: 0 };
 
 export function zauberStufenLeer() {
   const o = {};
@@ -149,28 +213,63 @@ export function zauberStufenLeer() {
 
 /* ---------------- Abgeleitete Werte ---------------- */
 
+/** Grundgeschwindigkeit des Fressens, in Lebenspunkten je Sekunde. */
+export const FRESSTEMPO = 10;
+
 /**
  * Alles, was sich aus den gekauften Stufen ergibt.
  *
- * `angriff` ist der Faktor auf die Fressgeschwindigkeit; `kapazitaet` die
- * Zahl der Recken, die gleichzeitig in der Burg sein dürfen. Wird sie
- * überschritten, ist die Welle verloren.
+ * `angriff` ist die Fressgeschwindigkeit in Lebenspunkten je Sekunde;
+ * `kapazitaet` die Zahl der Recken, die gleichzeitig in der Burg sein
+ * dürfen. Wird sie überschritten, ist die Welle verloren.
+ *
+ * `wirkung` ist die Summe der ausgerüsteten Artefakte (siehe
+ * `spiel/artefakte.js`) und optional — ohne Regal rechnet alles wie
+ * vorher.
  */
-export function werte(stufenG, stufenP) {
+export function werte(stufenG, stufenP, wirkung) {
+  const a = wirkung || null;
+  const fress = 1 + 0.015 * stufenG.klauen + (a ? a.fressBonus / 100 : 0);
   return {
-    angriff: Math.pow(1.28, stufenG.klauen),
-    kapazitaet: 3 + stufenG.hallen,
+    angriff: FRESSTEMPO * fress,
+    kapazitaet: 3 + stufenG.hallen + (a ? a.kapazitaet : 0),
     // Wie viele Recken gleichzeitig gefressen werden. Der Rest wartet in
     // der Schlange — Kapazität ist der Puffer, der Schlund der Durchsatz.
-    schlund: 1 + (stufenG.schlund || 0),
+    schlund: 1 + (stufenG.schlund || 0) + (a ? a.schlund : 0),
     schuetzen: stufenG.schuetze,
-    pfeilSchaden: 1 + stufenG.pfeile,
+    pfeilSchaden: 10 + 10 * stufenG.pfeile,
     schuetzenKrit: 0.06 * (stufenG.krit || 0),
-    tempoFaktor: 1 + 0.13 * stufenP.marsch,
     stolzFaktor: 1 + 0.25 * stufenP.stolz,
     ernteFaktor: 1.5 * (1 + 0.5 * stufenP.ernte),
     // Chance des Drachlings, eine Münze doppelt zu werten.
-    doppelGold: 0.01 * stufenP.sammler
+    doppelGold: 0.01 * stufenP.sammler,
+    // Gierschimmer macht jede Münze mehr wert.
+    muenzFaktor: 1 + (a ? a.muenzWert / 100 : 0),
+    // Chance in Prozent, dass ein Toter ein Artefakt fallen lässt.
+    fundchance: 0.05 + 0.1 * (stufenP.schatzjaeger || 0) + (a ? a.fundchance : 0),
+    wirkung: a
+  };
+}
+
+/* ---------------- Wie die Wellen von selbst wachsen ---------------- */
+
+/** Deckel, damit das Spiel nicht mechanisch unspielbar wird. */
+export const TEMPO_DECKEL = 1.5;
+
+/**
+ * Was die Welle selbst mitbringt — ohne dass der Spieler etwas kauft.
+ *
+ * Vier Schrauben zugleich: mehr Gegner, zäher, schneller, und alle fünf
+ * Wellen kommen sie im Trupp statt einzeln. Die Truppgröße ist die
+ * eigentliche Härte und hat **keinen Deckel**: Der Spawn-Abstand wächst
+ * mit, die Gesamtmenge bleibt also gleich — aber die Spitzenlast am Tor
+ * steigt ohne Ende. Genau das macht Schlund und Kapazität wertvoll.
+ */
+export function wellenSkalierung(welle) {
+  return {
+    lpFaktor: Math.pow(1.05, welle - 1),
+    tempoFaktor: Math.min(TEMPO_DECKEL, 1 + 0.01 * (welle - 1)),
+    truppGroesse: 1 + Math.floor(welle / 5)
   };
 }
 
@@ -179,20 +278,24 @@ export function werte(stufenG, stufenP) {
  *
  * Wächst um 16 % je Welle und ist bei 80 gedeckelt — sonst würde die
  * Bildfläche irgendwann sinnlos volllaufen, ohne dass das Spiel dadurch
- * interessanter wird.
+ * interessanter wird. In einer Bosswelle kommt nur halbes Gefolge, dafür
+ * der Boss.
  */
-export function wellenStaerke(welle, stufeLockruf = 0) {
-  return Math.min(80, Math.round(5 * Math.pow(1.16, welle - 1) * (1 + 0.08 * stufeLockruf)));
+export function wellenStaerke(welle) {
+  const roh = Math.min(80, Math.round(5 * Math.pow(1.16, welle - 1)));
+  return istBosswelle(welle) ? Math.max(2, Math.round(roh / 2)) : roh;
 }
 
-/** Abstand zwischen zwei Recken derselben Welle, in Sekunden. */
+/** Abstand zwischen zwei Trupps derselben Welle, in Sekunden. */
 export function spawnAbstand(welle) {
-  return Math.max(0.85, 2.7 - welle * 0.06);
+  const grund = Math.max(0.85, 2.7 - welle * 0.06);
+  // Der Abstand wächst mit der Truppgröße, damit die Gesamtmenge stimmt.
+  return grund * wellenSkalierung(welle).truppGroesse;
 }
 
 /** Welche Klassen in dieser Welle überhaupt auftauchen können. */
-export function verfuegbareKlassen(recken, welle, stufeKoeder = 0) {
-  return recken.filter((c) => c.abWelle <= 1 || welle >= Math.max(2, c.abWelle - stufeKoeder));
+export function verfuegbareKlassen(recken, welle) {
+  return recken.filter((c) => welle >= c.abWelle);
 }
 
 /**
@@ -206,10 +309,35 @@ export function klassenGewichte(klassen, welle) {
   return klassen.map((_, i) => Math.pow(1.32 + welle * 0.012, i));
 }
 
+/* ---------------- Bosse ---------------- */
+
+/** Jede fünfte Welle bringt einen Boss. */
+export function istBosswelle(welle) {
+  return welle >= 5 && welle % 5 === 0;
+}
+
+/**
+ * Der Boss: ein aufgewerteter Recke des höchsten verfügbaren Rangs.
+ *
+ * Er ist nicht schnell und hat keine Sonderfähigkeit — er ist einfach
+ * zäh und blockiert lange einen Fressplatz. Damit ist jede fünfte Welle
+ * automatisch eine Kapazitäts- und Schlundprüfung, ohne eine einzige
+ * Sonderregel.
+ */
+export const BOSS = {
+  lpFaktor: 25,
+  tempoFaktor: 0.6,
+  goldFaktor: 10,
+  groesse: 2
+};
+
+/* ---------------- Zauberwerte ---------------- */
+
 /** Werte eines Zaubers auf seinen aktuellen Stufen. */
 export function zauberWerte(zauber, stufe) {
   return {
     gelernt: stufe.gelernt >= 1,
+    art: zauber.art,
     schaden: zauber.schaden + zauber.schadenSchritt * stufe.schaden,
     abklingzeit: Math.max(
       zauber.abklingzeit * ABKLING_BODEN,
@@ -234,14 +362,16 @@ export function rueckfall(welle) {
 /**
  * Der eigene Angriff: ein Klick auf einen Recken.
  *
- * Er wird bei Malvina gekauft und verhält sich wie ein Zauber — mit
- * Abklingzeit, Schaden und einer Trefferchance für kritische Schläge.
- * Drei Achsen: Schaden, Abklingzeit, kritische Treffer.
+ * Genau eine Fassung, keine Spielarten mehr. Er wird bei Malvina gekauft
+ * und verhält sich wie ein Zauber — Abklingzeit, Schaden, kritische
+ * Treffer. Drei Achsen: Schaden, Abklingzeit, Krit.
  */
 export const KLICK = {
   name: 'Berührung des Bösen',
-  preis: 15,
-  schaden: 1,        // je Schadensstufe +1
+  preis: 10,
+  art: 'physisch',
+  schaden: 10,       // je Schadensstufe +10
+  schadenSchritt: 10,
   abklingzeit: 2,
   krit: 0.05,        // je Kritstufe +4 %
   kritSchritt: 0.04,
@@ -249,63 +379,29 @@ export const KLICK = {
   lang: 'Ein Klick auf einen Recken verwundet ihn. Kritische Treffer machen doppelten Schaden.'
 };
 
-/**
- * Die drei kaufbaren Spielarten des Klicks. Gekaufte lassen sich
- * jederzeit umschalten; es ist immer genau eine aktiv.
- */
-export const KLICK_VARIANTEN = [
-  {
-    k: 'midas', name: 'Midas-Berührung', preis: 350,
-    text: 'Stirbt ein Recke am Klick, wird er zur Goldstatue — aufsammeln lohnt sich'
-  },
-  {
-    k: 'inferno', name: 'Infernale Berührung', preis: 500,
-    text: 'Das Ziel brennt (1 Schaden je Sekunde); stirbt es brennend, explodiert es'
-  },
-  {
-    k: 'titan', name: 'Faust des Titanen', preis: 900,
-    text: 'Flächenschlag mit massivem Schaden und langer Abklingzeit'
-  }
-];
-
 export function klickStufenLeer() {
-  return {
-    gekauft: 0,
-    schaden: 0, abklingzeit: 0, krit: 0,
-    varianten: { midas: 0, inferno: 0, titan: 0 },
-    aktiv: 'normal'
-  };
+  return { gekauft: 0, schaden: 0, abklingzeit: 0, krit: 0 };
 }
 
 /** Die Werte des Klicks auf seinen aktuellen Stufen. */
-export function klickWerte(klick) {
-  const schaden = KLICK.schaden + klick.schaden;
+export function klickWerte(klick, wirkung) {
+  const a = wirkung || null;
   const abkling = Math.max(
-    KLICK.abklingzeit * 0.35,
+    KLICK.abklingzeit * ABKLING_BODEN,
     KLICK.abklingzeit * Math.pow(0.88, klick.abklingzeit)
-  );
-  const werte = {
+  ) * (a ? 1 - Math.min(0.6, a.klickAbkling / 100) : 1);
+  return {
     gekauft: klick.gekauft >= 1,
-    variante: klick.aktiv,
-    schaden,
+    art: KLICK.art,
+    schaden: KLICK.schaden + KLICK.schadenSchritt * klick.schaden,
     abklingzeit: abkling,
-    krit: Math.min(0.6, KLICK.krit + KLICK.kritSchritt * klick.krit),
-    // Nur die Faust weicht ab: achtfacher Schaden plus Sockel, dafür
-    // eine lange eigene Abklingzeit und ein Wirkbereich.
-    titanSchaden: schaden * 8 + 10,
-    titanAbklingzeit: Math.max(30 * 0.35, 30 * Math.pow(0.88, klick.abklingzeit)),
-    titanBereich: 36,
-    brandSchaden: 1,
-    brandDauer: 4,
-    explosionSchaden: 2,
-    explosionBereich: 14
+    krit: Math.min(0.9, KLICK.krit + KLICK.kritSchritt * klick.krit + (a ? a.krit / 100 : 0))
   };
-  return werte;
 }
 
 /** Preis der nächsten Stufe auf einer Klick-Achse. */
 export function klickAusbauPreis(stufe) {
-  return Math.round(KLICK.preis * 0.4 * Math.pow(1.6, stufe));
+  return Math.round(4 * Math.pow(1.6, stufe));
 }
 
 /* ---------------- Anzeige ---------------- */

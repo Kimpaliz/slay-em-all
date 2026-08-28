@@ -16,12 +16,15 @@ import { schritt } from '../spiel/simulation.js';
 import { welleStarten } from '../spiel/wellen.js';
 import { muenzeAufsammeln } from '../spiel/kampf.js';
 import {
-  beiGrommsch, beiPips, zauberLernen, zauberVerbessern, ritualKaufen, klickKaufen
+  beiGrommsch, beiPips, zauberLernen, zauberVerbessern, ritualKaufen,
+  klickKaufen, klickVerbessern
 } from '../spiel/handel.js';
 import { ausloesen, klickAngriff } from '../spiel/zauber.js';
 import {
-  werte as werteAus, wellenStaerke, WAREN_GROMMSCH, WAREN_PIPS, ZAUBER, zahl
+  werte as werteAus, wellenStaerke, WAREN_GROMMSCH, WAREN_PIPS, ZAUBER, zahl,
+  KLICK, istBosswelle
 } from './wirtschaft.mjs';
+import { wirkungAus, REGAL_PLAETZE } from '../spiel/artefakte.js';
 
 const TAKT = 1 / 60;
 const WELLEN = Number(process.argv[2] || 30);
@@ -34,40 +37,50 @@ const GEDULD = 400;
  * Kapazität zuerst, weil Überlauf die einzige Art ist zu verlieren.
  * Danach Fressgeschwindigkeit, dann Schützen, dann Gold-Bequemlichkeit.
  */
-const ORDNUNG_SCHROTT = ['hallen', 'schlund', 'klauen', 'schuetze', 'krit', 'pfeile'];
-const ORDNUNG_GOLD = ['sammler', 'stolz', 'marsch', 'ernte', 'lockruf', 'koeder'];
+// Seit 0.7.0 kostet alles Gold. Lockruf, Marschmusik und Koeder sind
+// gestrichen; Schatzjaeger ist dazugekommen.
+const ORDNUNG_BURG = ['schlund', 'klauen', 'hallen', 'schuetze', 'krit', 'pfeile'];
+const ORDNUNG_PIPS = ['sammler', 'stolz', 'ernte', 'schatzjaeger'];
 
 function einkaufen(welt) {
   const zustand = welt.zustand;
   let gekauft = 0;
 
   // Der Klick zuerst — er ist billig und die wichtigste Fruehhilfe.
-  if (zustand.klick.gekauft < 1 && zustand.blut >= 15) {
+  if (zustand.klick.gekauft < 1 && zustand.gold >= KLICK.preis) {
     if (klickKaufen(welt)) gekauft++;
+  }
+  // Danach den Klick ausbauen, solange er guenstig ist.
+  for (const achse of ['schaden', 'abklingzeit', 'krit']) {
+    if (zustand.klick.gekauft >= 1 && zustand.gold > 300) {
+      if (klickVerbessern(welt, achse)) gekauft++;
+    }
   }
 
   // Zauber: sobald bezahlbar, in der Reihenfolge ihres Preises
   for (const z of ZAUBER) {
-    if (zustand.zauber[z.k].gelernt < 1 && zustand.blut >= z.preis * 2) {
+    if (zustand.zauber[z.k].gelernt < 1 && zustand.gold >= z.preis * 2) {
       if (zauberLernen(welt, z.k)) gekauft++;
     }
   }
-  // Pranke verbessern, solange reichlich Blut da ist
+  // Pranke verbessern, solange reichlich Gold da ist
   for (const achse of ['schaden', 'abklingzeit', 'wirkbereich']) {
-    if (zustand.zauber.pranke.gelernt >= 1 && zustand.blut > 600) {
+    if (zustand.zauber.pranke.gelernt >= 1 && zustand.gold > 600) {
       if (zauberVerbessern(welt, 'pranke', achse)) gekauft++;
     }
   }
-  if (zustand.ritual < 1 && zustand.blut > 1200) {
+  if (zustand.ritual < 1 && zustand.gold > 1200) {
     if (ritualKaufen(welt)) gekauft++;
   }
 
-  for (const k of ORDNUNG_SCHROTT) {
+  for (const k of ORDNUNG_BURG) {
     const ware = WAREN_GROMMSCH.find((w) => w.k === k);
+    if (!ware) continue;
     while (beiGrommsch(welt, ware.k)) gekauft++;
   }
-  for (const k of ORDNUNG_GOLD) {
+  for (const k of ORDNUNG_PIPS) {
     const ware = WAREN_PIPS.find((w) => w.k === k);
+    if (!ware) continue;
     while (beiPips(welt, ware.k)) gekauft++;
   }
   return gekauft;
@@ -79,7 +92,12 @@ function spielen(welt, werte) {
 
   for (let i = szene.muenzen.length - 1; i >= 0; i--) {
     const m = szene.muenzen[i];
-    if (m.liegt) muenzeAufsammeln(welt, m, true, werte.stolzFaktor);
+    // Das GANZE Werte-Objekt, nicht eine Zahl: muenzeAufsammeln() greift
+    // intern auf werte.stolzFaktor und werte.muenzFaktor zu. Wurde hier eine
+    // Zahl übergeben, war beides undefined — und das Gold wurde stillschweigend
+    // NaN. Dann verglich `zustand.gold < preis` immer falsch, der Einkauf
+    // kaufte endlos weiter, und der Rechner blieb ab Welle 2 hängen.
+    if (m.liegt) muenzeAufsammeln(welt, m, true, werte);
   }
 
   // Zaubern, sobald mehr als die halbe Burg belegt ist
@@ -107,14 +125,15 @@ let gesamtzeit = 0;
 let steckengeblieben = null;
 
 for (let n = 1; n <= WELLEN; n++) {
-  const werte = werteAus(welt.zustand.stufenG, welt.zustand.stufenP);
+  const werte = werteAus(welt.zustand.stufenG, welt.zustand.stufenP,
+    wirkungAus(welt.zustand.regal));
   const gekauft = einkaufen(welt);
   const wellenNummer = welt.zustand.welle;
-  const staerke = wellenStaerke(wellenNummer, welt.zustand.stufenP.lockruf);
+  const staerke = wellenStaerke(wellenNummer);
 
   const vorBlut = welt.zustand.blut;
   const vorGold = welt.zustand.gold;
-  const vorSchrott = welt.zustand.schrott;
+  const vorFunde = welt.zustand.funde || 0;
 
   welleStarten(welt);
   let zeit = 0;
@@ -125,7 +144,8 @@ for (let n = 1; n <= WELLEN; n++) {
     zeit += TAKT;
     gesamtzeit += TAKT;
     if (welt.szene.phase === 'niederlage') verloren = true;
-    spielen(welt, werteAus(welt.zustand.stufenG, welt.zustand.stufenP));
+    spielen(welt, werteAus(welt.zustand.stufenG, welt.zustand.stufenP,
+      wirkungAus(welt.zustand.regal)));
   }
 
   if (zeit >= GEDULD) { steckengeblieben = wellenNummer; break; }
@@ -140,7 +160,8 @@ for (let n = 1; n <= WELLEN; n++) {
     verloren,
     blut: welt.zustand.blut - vorBlut,
     gold: welt.zustand.gold - vorGold,
-    schrott: welt.zustand.schrott - vorSchrott
+    funde: (welt.zustand.funde || 0) - vorFunde,
+    boss: istBosswelle(wellenNummer)
   });
 }
 
@@ -150,8 +171,8 @@ const z = welt.zustand;
 console.log('');
 console.log('Slay\'Em All — Gleichgewicht über ' + verlauf.length + ' Wellen');
 console.log('');
-console.log('  Welle  Recken  Dauer   Kap.  Käufe   Blut     Gold    Schrott');
-console.log('  ' + '-'.repeat(60));
+console.log('  Welle  Recken  Dauer   Kap.  Käufe    Blut     Gold   Funde');
+console.log('  ' + '-'.repeat(62));
 for (const e of verlauf) {
   if (e.welle % 5 !== 0 && e.welle !== 1 && !e.verloren) continue;
   console.log(
@@ -160,9 +181,10 @@ for (const e of verlauf) {
     + (e.dauer.toFixed(0) + ' s').padStart(8)
     + String(e.kapazitaet).padStart(6)
     + String(e.gekauft).padStart(7)
-    + zahl(e.blut).padStart(8)
+    + zahl(e.blut).padStart(9)
     + zahl(e.gold).padStart(9)
-    + zahl(e.schrott).padStart(10)
+    + String(e.funde).padStart(8)
+    + (e.boss ? '  BOSS' : '')
     + (e.verloren ? '   VERLOREN' : '')
   );
 }
@@ -180,7 +202,12 @@ console.log('  Dauer je Welle           ' + kuerzeste.toFixed(0) + ' bis ' + lae
   + ' s (Schnitt ' + schnitt.toFixed(0) + ' s)');
 console.log('  Niederlagen              ' + niederlagen);
 console.log('  Erledigte Recken         ' + z.erledigte);
-console.log('  Blut / Gold / Schrott    ' + zahl(z.blut) + ' / ' + zahl(z.gold) + ' / ' + zahl(z.schrott));
+console.log('  Gold am Ende             ' + zahl(z.gold));
+console.log('  Blut vergossen           ' + zahl(z.blut) + ' Liter');
+console.log('  Artefakte gefunden       ' + (z.funde || 0)
+  + ' (Regal ' + (z.regal || []).filter(Boolean).length + '/' + REGAL_PLAETZE
+  + ', Lager ' + (z.inventar || []).length + ')');
+console.log('  Bosse erlegt             ' + (z.bosse || 0));
 console.log('  Kapazität am Ende        ' + werteAus(z.stufenG, z.stufenP).kapazitaet);
 console.log('  Gelernte Zauber          ' + ZAUBER.filter((s) => z.zauber[s.k].gelernt >= 1).length + ' von 4');
 console.log('');
@@ -197,7 +224,9 @@ allesGut = urteil(schnitt > 15 && schnitt < 180, 'Eine Welle dauert im Schnitt z
 allesGut = urteil(laengste < GEDULD, 'Keine Welle zieht sich endlos') && allesGut;
 allesGut = urteil(niederlagen <= verlauf.length * 0.25, 'Höchstens jede vierte Welle geht verloren') && allesGut;
 allesGut = urteil(z.erledigte > 0, 'Es wird überhaupt etwas erledigt') && allesGut;
-allesGut = urteil(z.blut >= 0 && z.gold >= 0 && z.schrott >= 0, 'Keine Währung wird negativ') && allesGut;
+allesGut = urteil(z.gold >= 0 && z.blut >= 0, 'Gold wird nie negativ') && allesGut;
+allesGut = urteil(z.schrott === undefined, 'Schrott ist keine Währung mehr') && allesGut;
+allesGut = urteil((z.bosse || 0) > 0 || WELLEN < 5, 'Bosse tauchen auf und werden erlegt') && allesGut;
 allesGut = urteil(
   ZAUBER.filter((s) => z.zauber[s.k].gelernt >= 1).length >= 2,
   'Mindestens zwei Zauber sind erreichbar'

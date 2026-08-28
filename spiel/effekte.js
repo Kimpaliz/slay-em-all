@@ -138,6 +138,35 @@ export function blitzZeichnen(ctx, b) {
   ctx.globalAlpha = 1;
 }
 
+/* ---------------- Rauch ---------------- */
+
+/**
+ * Eine Rauchflocke.
+ *
+ * Sie fadet erst schnell ein und dann langsam aus, wird dabei größer und
+ * heller — so wirkt sie wie Qualm, der sich in der Luft verteilt, und
+ * nicht wie ein grauer Punkt, der verschwindet. Glutflocken glühen die
+ * erste Drittelsekunde orange nach, bevor sie zu Asche vergrauen.
+ *
+ * Bewusst mit `globalAlpha` und ganzen Bildpunkten: Alles andere würde
+ * in der Pixelgrafik wie ein Fremdkörper aussehen.
+ */
+export function rauchZeichnen(ctx, p) {
+  const k = Math.max(0, Math.min(1, p.lebt / p.dauer));
+  const deckkraft = k < 0.15
+    ? (k / 0.15) * 0.55
+    : 0.55 * (1 - (k - 0.15) / 0.85);
+  if (deckkraft <= 0.01) return;
+
+  ctx.globalAlpha = deckkraft;
+  if (p.glut && k < 0.3) ctx.fillStyle = k < 0.15 ? '#ffd08a' : '#ff7a2a';
+  else ctx.fillStyle = k < 0.5 ? '#5d5a68' : '#7d798a';
+
+  const gross = p.groesse + (k > 0.55 ? 1 : 0);
+  ctx.fillRect(Math.round(p.x), Math.round(p.y), gross, gross);
+  ctx.globalAlpha = 1;
+}
+
 /* ---------------- Einblendungen ---------------- */
 
 /**

@@ -1,5 +1,329 @@
 # Änderungsprotokoll
 
+## 0.8.1 — 28.08.2026
+
+Kein neuer Spielinhalt. Diese Fassung holt die Pruefungen nach, die seit dem
+grossen Umbau nicht mehr liefen — und dabei kamen zwei echte Fehler heraus.
+
+### Die Pruefwerkzeuge laufen wieder
+
+`pruefe-wirtschaft.mjs` und `balance.mjs` kannten noch Blut und Schrott als
+Waehrungen, die drei gestrichenen Klick-Spielarten und Waren, die es nicht
+mehr gibt. Sie starteten seit 0.7.0 gar nicht mehr. Jetzt pruefen sie die
+heutigen Regeln: eine Waehrung, ein Klick, Wellenskalierung, Bosswellen,
+Schadensarten und die Artefaktwirkung.
+
+**2.203 Pruefungen, 0 Fehler.**
+
+### Neu: `pruefe-artefakte.mjs`
+
+Das Artefaktsystem war bis jetzt ungeprueft. Das neue Skript setzt den
+Zufall auf einen festen Startwert — derselbe Wurf ergibt also immer dasselbe
+Artefakt, und ein Fehlschlag ist nachstellbar. Geprueft werden Seltenheits-
+verteilung ueber die Wellen, Bossgarantie, Gueteskalierung, Affix-Regeln,
+das Ableiten der Tags, die Regalsumme und das Retten beschaedigter
+Spielstaende.
+
+**15.108 Pruefungen, 0 Fehler.**
+
+### Zwei gefundene Fehler
+
+**1. Der Balance-Rechner blieb ab Welle 2 stehen — seit Monaten.**
+Er reichte an `muenzeAufsammeln()` eine Zahl, wo die Funktion das ganze
+Werte-Objekt erwartet. Innen wurde daraus `undefined`, und das Gold des
+Spielers wurde stillschweigend `NaN`. Danach war jeder Preisvergleich falsch,
+der Einkauf kaufte endlos weiter, und das Werkzeug haengte sich auf. Der
+Fehler stammt nicht aus dem Umbau — er stand schon vorher so da und ist
+niemandem aufgefallen, weil das Werkzeug ohnehin nicht mehr startete.
+
+**2. Ein schwarzes Loch auf dem Handy.**
+Auf 375 x 812 Bildpunkten gemessen: Die Buehne dehnte sich auf 689 Pixel,
+darin die Leinwand mit 147 und die Steuerung mit 147 — dazwischen
+**395 Pixel schwarzes Nichts** mitten auf dem Bildschirm. Es sah aus wie ein
+Ladefehler. Ursache: Die Szene ist mit 480 x 200 breiter als hoch, auf einem
+Hochkant-Handy also nur 147 Pixel hoch, waehrend die Buehne trotzdem alles
+fuellen wollte. Behoben; am Desktop aendert sich nichts.
+
+### Geprueft
+
+Alle 21 Module syntaktisch fehlerfrei. Im Browser am Handyformat
+durchgespielt: alle drei Reiter erreichbar und gefuellt, Haendlerseite
+scrollt bis Malvina, Regal mit fuenf Fassungen und Lager 0/20 vorhanden,
+Welle gestartet und beendet, Spielstand ueberlebt das Neuladen. Keine
+Konsolenmeldung, weder am Handy noch am Desktop.
+
+### Offen
+
+- **Das Gleichgewicht stimmt noch nicht.** Der Balance-Rechner kommt ueber
+  30 Wellen nur bis Welle 7: vier Niederlagen, Kapazitaet bleibt bei 3, nur
+  ein Zauber wird gelernt, das Gold reicht nie. Zwei Urteile stehen auf
+  "nein". Die Zahlen liegen jetzt vor — die Entscheidung, an welcher
+  Schraube gedreht wird, steht aus.
+- **Der Platz auf dem Handy ist noch nicht genutzt.** Unter der Karte
+  bleiben rund 400 Pixel leer, weil eine 2,4:1-Szene ein Hochformat nicht
+  fuellen kann. Was dort stehen soll, ist eine Gestaltungsfrage.
+- Kein Ton.
+
+## 0.8.0 — 28.08.2026
+
+**Artefakte.** Abschnitt 6 des Entwurfs ist gebaut — der dritte Reiter, das
+Regal, das Lager, der Generator, die Drops. Damit ist `docs/ENTWURF.md`
+vollständig umgesetzt.
+
+### Entscheidungen von Jannik
+
+- **Midas und Faust des Titanen bleiben endgültig weg.** Der vierte,
+  einzigartige Affix-Platz der legendären Stufe bekommt stattdessen fünf
+  neue Affixe im Ton des Hauses.
+- Seltenheitsnamen klassisch: **Gewöhnlich / Selten / Episch / Legendär**.
+- **Verkaufspreise ×4** der Vorschläge: 100 / 400 / 1.600 / 6.400 Gold.
+- **Fundchance 0,05 %** je getötetem Recken — sehr selten. Dafür:
+- **Bosswellen lassen garantiert ein Artefakt fallen**, mindestens Selten.
+  Damit sind Bosse der verlässliche Weg zu Ausrüstung, und die 0,05 % sind
+  der Glücksfall obendrauf.
+- **Kettenblitz nur über Artefakte**, nicht als Grundverhalten der Art.
+- **Truppgröße ohne Deckel** (bisher 4): `1 + ⌊w/5⌋` wächst weiter. Der
+  Spawn-Abstand wächst mit, die Gesamtmenge bleibt gleich — die
+  Spitzenlast am Tor steigt ohne Ende.
+
+### Regal und Lager
+
+Dritter Reiter neben Schlachtfeld und Händler, auf dem Handy die dritte
+Wischseite. Oben ein Brett mit **fünf Fassungen** — was dort liegt, wirkt.
+Darunter ein **Lager mit 20 Plätzen** — wartet. Zwischen beidem eine Reihe
+Chips, die die Summe des Regals zeigt („2× Feuer · Fressen +6,3 % · Klick
+zündet: 20/s").
+
+**Antippen öffnet eine Detailkarte** mit Name, Seltenheit, Fundwelle, Tags
+und jedem Affix in seiner Tagfarbe, dazu **Anlegen / Ablegen /
+Verkaufen**. Kein Ziehen und Fallenlassen — antippen geht am Handy genauso
+gut wie mit der Maus, und es gibt nichts zu üben. Verkaufen geht auch
+direkt vom Regal; der Knopf heißt dann „Ablegen & verkaufen", damit
+niemand versehentlich seine Ausrüstung verscherbelt.
+
+Ist das Lager voll, **zahlt sich ein neuer Fund sofort als Gold aus** —
+verlieren soll man ihn nicht.
+
+### Was ein Artefakt ist
+
+`{ name, seltenheit, fundwelle, affixe: [{ k, wert }] }` — nichts weiter.
+**Tags werden nie gespeichert**, sondern beim Laden aus den Affixen
+abgeleitet; sonst könnten Stand und Regel auseinanderlaufen.
+
+Der Name wird aus Teilen gesetzt („Schlundkette des Vorbesitzers"), das
+Symbol aus Rechtecken: **Grundform nach dem vorherrschenden Tag** (Flamme,
+Tropfen, Kristall, Blitz, Münze, Turm), **Rahmenfarbe nach Seltenheit**.
+Damit ist ein Artefakt schon im Gitter lesbar.
+
+**Güte:** Jedes Artefakt merkt sich seine Fundwelle; die Wertspannen
+wachsen mit `1 + 0,35 × ⌊Fundwelle/5⌋`. Ein „+8 % Goldfund" von Welle 3
+kann auf Welle 40 als „+31 %" fallen — alte Funde veralten, die Drops
+bleiben interessant.
+
+### Fünfzehn Affixe
+
+Feuer: Brennende Berührung (Klick zündet an, **10 Schaden/s je
+ausgerüstetem Feuer-Artefakt** — der Kern des Systems), Glutpfeile ·
+Gift: Giftpfeile (stapelbar!), Zähes Gift · Eis: Frostgriff, Raureif ·
+Blitz: Kettenblitz, Geladene Klauen · Gold: Gierschimmer, Spürnase,
+Magnetring · Burg: Eisenmagen, Weite Hallen, Kalte Präzision, Schnelle
+Hand.
+
+Damit haben **Eis und Gift endlich eine Quelle** — die zwei Schadensarten
+aus 0.7.0 waren bis jetzt leer. Gift stapelt: Jeder Treffer legt einen
+eigenen Eintrag mit eigener Uhr an, alle ticken parallel. Frost stapelt
+nicht, der stärkste gewinnt.
+
+### Fünf legendäre Affixe
+
+- **Der Zweite Schlund** — dauerhaft +1 Maul.
+- **Blutzoll** — je 500 vergossene Liter eine Münze. Blut ist wieder etwas
+  wert, ohne wieder Währung zu sein.
+- **Rabenpakt** — am Wellenende tragen die Raben alles liegengebliebene
+  Gold ein.
+- **Hungriges Gemäuer** — jeder Tod im Tor macht 3 % schneller satt, 6 s
+  lang, bis zehnfach gestapelt.
+- **Aschenkrone** — wer verbrennt, lässt eine Glut liegen; der Nächste, der
+  darüberläuft, brennt. Ketten sind möglich und gewollt.
+
+### Neu bei Pips
+
+**Schatzjäger** (50 Gold, ×2,0, max 10): je Stufe +0,1 % Fundchance.
+
+### Kleinigkeiten
+
+- Gefallene Artefakte funkeln in ihrer Seltenheitsfarbe und **rollen nie in
+  den Abgrund** — die Fallstelle wird auf festen Boden gezogen. Wer den
+  Klick verpasst, bekommt sie am Wellenende trotzdem.
+- Neue Klick-Rangfolge: Blitz → **Fundstück** → Gegner → Münze.
+- Vergiftete Recken tragen grüne Blasen, gefrostete blaue Kristalle.
+- Die Nachtzeile ist kürzer („Bereit: 5 · Burg 4 · Schlund 1"), weil sie
+  mit dem Boss-Chip sonst umbrach und die Steuerung aus der Bühne schob.
+
+### Technisch
+
+- Neu: `spiel/artefakte.js` (reine Logik, austauschbarer Zufall — mit
+  gesetztem Startwert ergibt derselbe Wurf dasselbe Artefakt) und
+  `spiel/artefakt-bild.js` (ein Symbol, zwei Größen).
+- `werte()` nimmt die Regalsumme als drittes Argument; `klickWerte()` als
+  zweites. Ohne Regal rechnet alles wie vorher.
+- `verbuchen()` würfelt den Drop und rechnet den Blutzoll ab — es ist die
+  eine Stelle, die bei jedem Tod genau einmal läuft.
+- Neuer Speicherschlüssel **`slayemall.wellen.v3`**; v1, v2 und alle
+  `burgtor.*` werden beim Start entfernt. Artefakte werden beim Laden
+  geprüft (nur echte Affixe, nur echte Stufen).
+- Neu in der Szene: `fundstuecke`, `gluten`, `sattStapel`/`sattZeit`.
+
+### Geprüft
+
+Im Browser: Regal mit Legendär/Episch/Selten und sieben Stücken im Lager,
+Detailkarte mit vier Affixen und Ablegen/Verkaufen, Bosswelle 10 mit
+garantiertem Drop, Giftschaden in Grün (−12), Magnetring zieht die Münzen
+zum Tor, Aschenkrone legt Gluten, Blutzoll zahlt aus, alle drei Reiter
+umschaltbar. Keine Konsolenmeldung.
+
+### Weiter offen
+
+- **`pruefe-wirtschaft.mjs` und `balance.mjs` sind weiter nicht
+  nachgezogen** und laufen gegen die neue `wirtschaft.mjs` nicht durch.
+  Dazu fehlt `pruefe-artefakte.mjs` ganz — `artefakte.js` ist genau dafür
+  gebaut (seedbarer Zufall), aber das Skript existiert noch nicht.
+- **Unvermessen:** ob 0,05 % Fundchance plus Bossgarantie sich richtig
+  anfühlt, und ob die Truppgröße ohne Deckel irgendwann eine Wand ist.
+- Kein Ton.
+
+## 0.7.0 — 28.08.2026
+
+**Die große Vereinfachung — und die Wellen beißen zurück.** Der Umbau aus
+`docs/ENTWURF.md` ist umgesetzt, Abschnitte 1 bis 5, 7 und 8. Die
+Artefakte (Abschnitt 6) fehlen noch; dazu stehen Fragen offen.
+
+### Eine Währung
+
+**Blut und Schrott sind keine Währungen mehr.** Alles kostet Gold — Zauber,
+Klick und Burgausbau. Gold fällt weiterhin als Münze auf die Brücke und
+muss aufgesammelt werden; damit ist „besondere Tode werfen mehr ab" der
+einzige Grund geblieben, überhaupt einzugreifen.
+
+Blut bleibt als **Bilanz des Hauses** in der Kopfzeile stehen — vergossene
+Liter, kleiner gesetzt, kein Zahlungsmittel. Der Schrottzähler und der
+Bruchteilsrest sind fort.
+
+### Der Klick wird wieder einfach
+
+Midas-Berührung, Infernale Berührung und Faust des Titanen sind
+**gestrichen**, mit ihnen die Goldstatuen. Es bleibt eine Fassung des
+Klicks mit den drei Achsen Schaden / Abklingzeit / Krit.
+
+**Neue Rangfolge:** Blitz → **Gegner** → Münze. Läuft die Klick-Abklingzeit
+oder steht kein Recke unter dem Zeiger, fällt der Klick auf die Münze
+durch. Kein Modus-Knopf nötig.
+
+### Drei Waren fort
+
+Lockrufe im Tal, Marschmusik und Edler Köder entfallen ersatzlos — was sie
+taten, tut das Spiel jetzt selbst. Pips behält Sammel-Drachling,
+Sammlerstolz und Makabre Ernte.
+
+### Zahlen mal zehn
+
+Alle Lebenspunkte und alle Schadenswerte sind verzehnfacht, **die Zeiten
+sind unverändert**: Das Monster frisst 10 LP je Sekunde, ein Bauer hat 20 —
+er braucht also weiterhin zwei Sekunden. Der Grund ist Auflösung: Große
+Zahlen tragen feine Modifikatoren (+1,5 % Klauen, ein 13er-Gift-Tick), mit
+2-LP-Bauern wäre nichts davon zu spüren.
+
+### Fünf Schadensarten
+
+Jeder Schaden trägt jetzt eine Art, und die schwebende Zahl färbt sich
+danach: Physisch (weiß), Feuer (orange), Blitz (lila-weiß), Eis (blau),
+Gift (grün). Eis und Gift existieren noch ohne Quelle — sie warten auf die
+Artefakte. Krits bleiben golden und größer.
+
+### Die Wellen wachsen von selbst
+
+Pro Welle steigen passiv: Menge (wie bisher, Deckel 80), **Lebenspunkte**
+×1,05, **Tempo** +1 % (Deckel +50 %) und alle fünf Wellen die
+**Truppgröße** (1 + ⌊w/5⌋, Deckel 4). Der Spawn-Abstand wächst mit der
+Truppgröße, die Gesamtmenge bleibt also gleich — nur die Spitzenlast am Tor
+steigt. Genau das macht Schlund und Kapazität wertvoll.
+
+### Alle fünf Wellen ein Boss
+
+Welle 5, 10, 15 … bringt halbes Gefolge plus einen Boss: höchster
+verfügbarer Rang, **25-faches Leben**, 0,6-faches Tempo, doppelt so groß
+gezeichnet, dauerhafter Lebensbalken in Gold, eigener Name aus Rang +
+Rufname + Beiname („Marschall Kunibert der Sattmacher"). Keine
+Sonderfähigkeit — die Blockade des Fressplatzes trägt allein. Er wirft
+zehnfaches Gold ab, der Marktschreier hat eigene Zeilen für Ankunft und
+Tod, die Nachtvorschau zeigt ihn als goldenen Chip, und der Startknopf
+färbt sich golden.
+
+### Rauch (Wunsch Jannik)
+
+Flammenstoß, Meteoritenschauer, Donnerschlag, Explosionen, frische
+Brandflecken und verbrennende Recken lassen jetzt **kleine Rauchflocken
+hochgleiten und ausfaden**. Sie steigen, verlieren ihren Auftrieb, driften
+leicht nach links, werden größer und heller und verschwinden — keine
+Schwerkraft, weil Rauch nicht fällt. Einzelne Glutflocken glühen die
+erste Drittelsekunde orange nach, bevor sie vergrauen. Gedeckelt bei 150
+Flocken, gezeichnet in ganzen Bildpunkten, damit es in der Pixelgrafik
+nicht wie ein Fremdkörper aussieht.
+
+### Balance-Korrekturen
+
+- **Scharfe Klauen: +1,5 % je Stufe** statt +28 %, dafür ohne Deckel und
+  mit flachem Preis (×1,35) — die Dauersenke für Gold.
+- **Tiefere Hallen: 400 Gold, ×2,5, erst ab Welle 8** — vorher ausgegraut
+  mit dem Hinweis „ab Welle 8". Der Puffer ist damit früh knapp; Schlund
+  und Klick müssen es richten.
+- **Werttexte überall:** Die Warenbeschreibung zeigt den aktuellen
+  Gesamtwert („frisst 4,5 % schneller"), der Tooltip am Kaufknopf den
+  Zugewinn der nächsten Stufe („+1,5 % → 6,0 %") und den Preis. Jede Ware
+  hat dafür `wertJetzt(stufe)` und `wertNaechste(stufe)` in
+  `wirtschaft.mjs`.
+
+### Technisch
+
+- Neuer Speicherschlüssel **`slayemall.wellen.v2`**; v1 und alle
+  `burgtor.*` werden beim Start entfernt. Blut- und Schrott-Guthaben
+  werden **nicht** umgetauscht — das Spiel ist jung, ein sauberer Start ist
+  ehrlicher als eine Umrechnung, die niemand prüfen kann.
+- `schaden()` nimmt die Schadensart statt eines `feuer`-Schalters.
+- Neu: `spiel/daten/bosse.js` (Namen und Marktschreier-Zeilen).
+- Fort: `vergolden()`, `statueEinsammeln()`, `statueZeichnen()`,
+  `KLICK_VARIANTEN`, `szene.statuen`, `welt.schrottRest`.
+- Neu in der Szene: `szene.rauch`, `szene.spawnBoss`,
+  `zustand.anstehenderBoss`, `zustand.bosse`.
+- Recken tragen `boss` und `groesse`; die doppelte Größe entsteht durch
+  eine Skalierung um den Fußpunkt in `szene.js`, nicht durch eine zweite
+  Zeichenfunktion.
+
+### Geprüft
+
+Im Browser durchgespielt: Bosswelle 5 und 10 (Ankündigung, goldener Chip,
+goldener Startknopf, Boss erscheint als Letzter, wird verschluckt und
+blockiert den Fressplatz), Trupp-Spawn zu zweit, Flammenstoß und
+Meteoritenschauer samt Rauch, Schadenszahlen in Artfarbe, Waren-Tooltip
+mit Jetzt-/Nächste-Werten, Tiefere Hallen gesperrt bei Welle 5 und
+kaufbar bei Welle 10, alle Ladenknöpfe mit Goldzeichen, Kopfzeile mit Gold
+und Blutbilanz. Keine Konsolenmeldung.
+
+### Nicht geprüft — offen
+
+- **`pruefe-wirtschaft.mjs` und `balance.mjs` sind nicht nachgezogen.**
+  Sie kennen Blut, Schrott und die Spielarten noch als Währungen und Waren
+  und laufen gegen die neue `wirtschaft.mjs` nicht mehr durch. Erster
+  Schritt der nächsten Runde.
+- **Die neue Kostenkurve ist unvermessen.** Verdacht: Scharfe Klauen laufen
+  bei ×1,35 irgendwann aus dem Preis (Stufe 40 kostet schon 660 k),
+  während die Lebenspunkte mit ×1,05 je Welle weitersteigen. Ob das die
+  gewollte Härte ist oder eine Wand, sagt erst der Rechner.
+- **Artefakte (Abschnitt 6 des Entwurfs) fehlen ganz** — samt drittem
+  Reiter, Regal, Inventar, Generator und Schatzjäger. Dazu stehen
+  Designfragen offen (Legendär-Affixe, Verkaufspreise,
+  Seltenheits-Namen).
+
 ## 0.6.0 — 27.08.2026
 
 **Der Klick wird eine Waffe, die Burg bekommt eine Warteschlange.** Sieben

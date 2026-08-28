@@ -23,16 +23,12 @@
     <div class="beutel">
       <div class="wellenmarke" data-feld="welle">Welle 1</div>
       <div class="beute">
-        <div class="beute-name">Blut</div>
-        <div class="beute-wert wert-blut" data-feld="blut">0</div>
-      </div>
-      <div class="beute">
         <div class="beute-name">Gold</div>
         <div class="beute-wert wert-gold" data-feld="gold">0</div>
       </div>
-      <div class="beute">
-        <div class="beute-name">Schrott</div>
-        <div class="beute-wert wert-schrott" data-feld="schrott">0</div>
+      <div class="beute beute-deko" title="Kein Zahlungsmittel &mdash; nur die Bilanz des Hauses">
+        <div class="beute-name">Blut</div>
+        <div class="beute-wert wert-blut" data-feld="blut">0 l</div>
       </div>
       <button type="button" class="knopf-neustart" data-knopf="neustart">Neustart</button>
     </div>
@@ -76,13 +72,13 @@
           <header class="haendlerkopf">
             <canvas class="portraet" data-portraet="grommsch" width="28" height="32" aria-hidden="true"></canvas>
             <div>
-              <div class="vorspann">Waffenkammer &middot; Schrott</div>
+              <div class="vorspann">Waffenkammer &middot; Gold</div>
               <h2>Grommsch, Zeugmeister</h2>
               <p class="haendlerspruch">&raquo;Gute Ware, kaum benutzt. Der Vorbesitzer braucht sie nimmer.&laquo;</p>
             </div>
           </header>
           <ul class="waren" data-liste="grommsch"></ul>
-          <p class="haendlerfuss" data-feld="spruchGrommsch">&raquo;Schrott her, dann reden wir.&laquo;</p>
+          <p class="haendlerfuss" data-feld="spruchGrommsch">&raquo;Gold her, dann reden wir.&laquo;</p>
         </article>
 
         <article class="haendler">
@@ -102,14 +98,36 @@
           <header class="haendlerkopf">
             <canvas class="portraet" data-portraet="malvina" width="28" height="32" aria-hidden="true"></canvas>
             <div>
-              <div class="vorspann">Hexenturm &middot; Blut</div>
+              <div class="vorspann">Hexenturm &middot; Gold</div>
               <h2>Malvina, Hexenmeisterin</h2>
-              <p class="haendlerspruch">&raquo;F&uuml;r frisches Blut zeig ich dir Wunder, Sch&auml;tzchen.&laquo;</p>
+              <p class="haendlerspruch">&raquo;Gold klimpert h&uuml;bsch, Sch&auml;tzchen. Zeig es her, dann zeig ich dir Wunder.&laquo;</p>
             </div>
           </header>
           <ul class="waren warenzauber" data-liste="malvina"></ul>
-          <p class="haendlerfuss" data-feld="spruchMalvina">&raquo;Blut f&uuml;r Wunder. Faires Gesch&auml;ft.&laquo;</p>
+          <p class="haendlerfuss" data-feld="spruchMalvina">&raquo;Gold f&uuml;r Wunder. Faires Gesch&auml;ft.&laquo;</p>
         </article>
+
+      </div>
+    </section>
+
+    <section class="seite seite-artefakte" aria-label="Artefakte">
+      <div class="artefakte">
+
+        <header class="artefaktkopf">
+          <div class="vorspann">Regal &middot; ausger&uuml;stet</div>
+          <h2>Artefakte</h2>
+          <p class="haendlerspruch">Was hier im Regal liegt, wirkt. Was im Lager liegt, wartet.</p>
+        </header>
+
+        <div class="regal" data-liste="regal"></div>
+        <p class="artefakthinweis" data-feld="artefaktHinweis"></p>
+        <ul class="wirkungsliste" data-liste="wirkung"></ul>
+
+        <div class="inventarkopf">
+          <div class="vorspann">Lager</div>
+          <span class="inventarzahl" data-feld="inventarZahl">0 / 20</span>
+        </div>
+        <div class="inventar" data-liste="inventar"></div>
 
       </div>
     </section>
@@ -119,6 +137,7 @@
   <nav class="reiter" data-reiter>
     <button type="button" data-reiterknopf="0" class="aktiv">Schlachtfeld</button>
     <button type="button" data-reiterknopf="1">H&auml;ndler</button>
+    <button type="button" data-reiterknopf="2">Artefakte</button>
   </nav>
 
 </div>

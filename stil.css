@@ -138,6 +138,12 @@ h1 {
 .wert-gold { color: var(--gold); }
 .wert-schrott { color: var(--schrott); }
 
+/* Blut ist kein Zahlungsmittel mehr, sondern die Bilanz des Hauses:
+   kleiner gesetzt, damit das Gold die Kopfzeile führt. */
+.beute-deko { min-width: 46px; opacity: 0.7; }
+.beute-deko .beute-name { white-space: nowrap; }
+.beute-deko .beute-wert { font-size: clamp(13px, 1.5vw, 16px); }
+
 .knopf-neustart {
   align-self: center;
   font: inherit;
@@ -183,6 +189,11 @@ canvas[data-szene] {
   height: auto;
   image-rendering: pixelated;
   touch-action: manipulation;
+  /* Wächst die Steuerung (Umbruch bei schmalen Fenstern), nimmt sie dem
+     Bild Platz statt aus der Bühne herauszulaufen — `overflow:hidden`
+     würde den Startknopf sonst wegschneiden. */
+  flex-shrink: 1;
+  min-height: 0;
 }
 
 .steuerung {
@@ -190,6 +201,7 @@ canvas[data-szene] {
   align-items: center;
   gap: 14px;
   flex-wrap: wrap;
+  flex-shrink: 0;
   padding: 11px 14px;
   background: var(--flaeche);
   border-top: 1px solid var(--linie);
@@ -228,6 +240,13 @@ canvas[data-szene] {
   white-space: nowrap;
 }
 .knopf-welle:hover:not(:disabled) { background: #ff9550; }
+/* Steht ein Boss an, färbt sich der Startknopf golden. */
+.knopf-welle.boss {
+  background: var(--gold);
+  border-color: var(--gold);
+  color: #241a06;
+}
+.knopf-welle.boss:hover:not(:disabled) { background: #f0ca63; }
 .knopf-welle:disabled {
   color: var(--schwach);
   background: transparent;
@@ -546,9 +565,22 @@ canvas[data-szene] {
   overflow: hidden;
 }
 
-.wurzel.schmal .buehne { flex: 1 1 auto; min-height: 0; }
+/* Die Bühne ist am Handy nur so hoch wie ihr Inhalt.
+   Vorher stand hier `flex: 1 1 auto`, damit die Leinwand schrumpfen kann,
+   wenn die Steuerung umbricht. Am Hochkant-Handy hatte das eine
+   Nebenwirkung: Die Szene ist 480 × 200 breit zu hoch (2,4 : 1), auf
+   375 px Breite also nur 147 px hoch. Die Bühne dehnte sich trotzdem auf
+   volle Höhe — gemessen am 28.08.2026 auf 375 × 812: Bühne 689 px,
+   davon Leinwand 147 und Steuerung 147, macht **395 px schwarzes Nichts**
+   mitten auf dem Bildschirm. Es sah aus wie ein Ladefehler.
+   `min-height: 0` bleibt, damit die Leinwand weiterhin nachgeben kann. */
+.wurzel.schmal .buehne { flex: 0 0 auto; min-height: 0; }
+.wurzel.schmal .seite-schlacht { justify-content: flex-start; }
 
 .wurzel.schmal .haendlergitter { grid-template-columns: 1fr; }
+.wurzel.schmal .inventar { grid-template-columns: repeat(5, minmax(0, 42px)); }
+.wurzel.schmal .regal { grid-template-columns: repeat(5, minmax(0, 52px)); }
+.wurzel.schmal .artefakte { padding: 12px 13px 14px; gap: 10px; }
 
 .wurzel.schmal .reiter {
   display: flex;
@@ -575,12 +607,12 @@ canvas[data-szene] {
   box-shadow: 0 0 0 1px var(--akzent);
 }
 
-/* ---------------- Tooltip der Aktionsleiste ---------------- */
+/* ---------------- Tooltip der Aktionsleiste und der Waren ---------------- */
 
 .zaubertipp {
   position: absolute;
   z-index: 40;
-  width: 218px;
+  width: 262px;
   padding: 9px 11px 10px;
   background: #14151f;
   border-radius: var(--rundung-klein);
@@ -612,10 +644,185 @@ canvas[data-szene] {
   font-variant-numeric: tabular-nums;
 }
 
-.tipp-name { color: var(--gedaempft); }
-.tipp-wert { font-weight: 600; }
+.tipp-name { color: var(--gedaempft); white-space: nowrap; }
+.tipp-wert { font-weight: 600; text-align: right; text-wrap: pretty; }
 .tipp-bonus { color: #7fd48a; font-weight: 600; }
 .tipp-bonus.schlecht { color: var(--blut); }
+
+/* ---------------- Artefakte ---------------- */
+
+.artefakte {
+  background: var(--flaeche);
+  border-radius: var(--rundung);
+  box-shadow: var(--schatten);
+  padding: 16px 18px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.artefaktkopf h2 {
+  font-size: 17px;
+  font-weight: 500;
+  margin: 2px 0 3px;
+}
+
+/* Das Regal: fünf Fassungen auf einem Brett. Bewusst breiter als das
+   Lager — was hier liegt, wirkt, und soll sich wichtiger anfühlen. */
+.regal {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 62px));
+  justify-content: start;
+  gap: 8px;
+  padding: 9px;
+  background: linear-gradient(180deg, #241d17, #171310);
+  border-radius: var(--rundung-klein);
+  box-shadow: inset 0 0 0 1px #3a2e23, 0 2px 0 #100d0a;
+}
+
+.inventarkopf {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.inventarzahl {
+  font-size: 10.5px;
+  color: var(--gedaempft);
+  font-variant-numeric: tabular-nums;
+}
+
+.inventar {
+  display: grid;
+  grid-template-columns: repeat(10, minmax(0, 42px));
+  justify-content: start;
+  gap: 6px;
+}
+
+.fassung {
+  position: relative;
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  background: rgba(6, 7, 12, 0.5);
+  border: 0;
+  border-radius: var(--rundung-klein);
+  box-shadow: inset 0 0 0 1px var(--linie);
+  padding: 0;
+  cursor: pointer;
+  color: var(--gedaempft);
+}
+.fassung:hover:not(:disabled) { box-shadow: inset 0 0 0 1px var(--akzent); }
+.fassung:disabled { cursor: default; }
+.fassung.gewaehlt { box-shadow: inset 0 0 0 2px var(--akzent-hell); }
+.fassung.leer { opacity: 0.55; }
+
+.fassung canvas {
+  width: 76%;
+  height: 76%;
+  image-rendering: pixelated;
+}
+
+/* Ein Punkt in der Ecke zeigt die Seltenheit auch dann, wenn das Symbol
+   selbst im Gitter klein wird. */
+.fassung-punkt {
+  position: absolute;
+  right: 3px;
+  top: 3px;
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+}
+
+.artefakthinweis {
+  font-size: 11px;
+  color: var(--gedaempft);
+  text-wrap: pretty;
+  margin: 0;
+}
+
+.wirkungsliste {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.wirkungsliste:empty { display: none; }
+
+.wirkungsliste li {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10.5px;
+  padding: 2px 8px 2px 6px;
+  background: var(--flaeche-hoch);
+  border-radius: 999px;
+  box-shadow: 0 0 0 1px var(--linie);
+  white-space: nowrap;
+}
+
+/* ---------------- Detailkarte ---------------- */
+
+.artefaktkarte {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(6, 7, 12, 0.72);
+}
+.artefaktkarte[hidden] { display: none; }
+
+.karte {
+  width: min(340px, 100%);
+  background: #14151f;
+  border-radius: var(--rundung);
+  box-shadow: 0 0 0 1px #3f424d, 0 18px 40px rgba(0, 0, 0, 0.7);
+  padding: 15px 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.karte-kopf { display: flex; align-items: flex-start; gap: 11px; }
+.karte-kopf canvas { width: 42px; height: 42px; image-rendering: pixelated; flex: none; }
+.karte-name { font-size: 14px; font-weight: 500; line-height: 1.2; text-wrap: pretty; }
+.karte-marke { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; margin-top: 3px; }
+
+.karte-affixe { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 7px; }
+
+.karte-affix {
+  font-size: 11px;
+  padding-left: 9px;
+  border-left: 2px solid var(--linie);
+  text-wrap: pretty;
+}
+.karte-affix.einzig { border-left-color: var(--gold); }
+.karte-affix-name { font-weight: 600; display: block; }
+.karte-affix-text { color: var(--gedaempft); }
+
+.karte-knoepfe { display: flex; gap: 7px; flex-wrap: wrap; }
+
+.karte-knopf {
+  font: inherit;
+  font-size: 11.5px;
+  flex: 1 1 auto;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--akzent);
+  border-radius: var(--rundung-klein);
+  padding: 7px 12px;
+  cursor: pointer;
+}
+.karte-knopf:hover:not(:disabled) { background: rgba(145, 132, 217, 0.18); }
+.karte-knopf:disabled { opacity: 0.45; cursor: default; }
+.karte-knopf.verkauf { border-color: color-mix(in oklch, var(--gold) 70%, transparent); }
+.karte-knopf.verkauf:hover:not(:disabled) { background: rgba(224, 182, 79, 0.15); }
+.karte-knopf.zurueck { border-color: var(--linie); flex: 0 0 auto; }
 
 /* ---------------- Nachtvorschau ---------------- */
 
@@ -646,6 +853,17 @@ canvas[data-szene] {
   box-shadow: 0 0 0 1px var(--linie);
   white-space: nowrap;
 }
+
+/* Der angekündigte Boss steht golden zwischen den grauen Chips. */
+.vorschau-boss {
+  color: var(--gold);
+  box-shadow: 0 0 0 1px color-mix(in oklch, var(--gold) 55%, transparent);
+  font-weight: 600;
+}
+
+/* Eine noch nicht freigeschaltete Ware bleibt lesbar, aber zurückgenommen. */
+.ware.gesperrt { opacity: 0.5; }
+.ware.gesperrt .ware-knopf { font-size: 10px; letter-spacing: 0.04em; }
 
 .vorschau-punkt {
   width: 7px;

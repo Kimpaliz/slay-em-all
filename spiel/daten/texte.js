@@ -29,7 +29,7 @@ export const FUELLER = [
 export const NACHTS = [
   'Feierabend! Der Hof zählt Münzen, die Raben zählen Reste.',
   'Nachtlager: einkaufen, aufrüsten, Blutflecken bewundern.',
-  'Der Zeugmeister hat geöffnet. Zahlung in Schrott, Beschwerden in Schweigen.'
+  'Der Zeugmeister hat geöffnet. Zahlung in Gold, Beschwerden in Schweigen.'
 ];
 
 /** Ein Recke ist im Tor verschwunden. */
@@ -99,9 +99,9 @@ export const SPRUCH_MALVINA = [
 
 /** Steht am Stand, solange nichts gekauft wurde. */
 export const RUHESPRUCH = {
-  grommsch: 'Schrott her, dann reden wir.',
+  grommsch: 'Gold her, dann reden wir.',
   pips: 'Wirf mit Gold, ich fange es auf!',
-  malvina: 'Blut für Wunder. Faires Geschäft.'
+  malvina: 'Gold für Wunder. Faires Geschäft.'
 };
 
 /** Zufälliger Eintrag aus einer Liste. */

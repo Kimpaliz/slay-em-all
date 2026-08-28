@@ -14,11 +14,11 @@ import { NACHT_PALETTEN, TAG_PALETTE } from './daten/paletten.js';
 import {
   reckeZeichnen, brennendenZeichnen, truemmerZeichnen, restZeichnen,
   muenzeZeichnen, rabeZeichnen, schuetzeZeichnen, drachlingZeichnen,
-  fackelZeichnen, ketteZeichnen, statueZeichnen
+  fackelZeichnen, ketteZeichnen, fundstueckZeichnen, glutZeichnen
 } from './figuren.js';
 import {
   prankeZeichnen, flammeZeichnen, meteorZeichnen, explosionZeichnen,
-  blitzZeichnen, belegungZeichnen, spruchbandZeichnen, zahlZeichnen
+  blitzZeichnen, belegungZeichnen, spruchbandZeichnen, zahlZeichnen, rauchZeichnen
 } from './effekte.js';
 
 /** Oberkante der Burgmauer. */
@@ -56,10 +56,21 @@ export function zeichnen(ctx, welt, einstellungen = {}) {
   plankenZeichnen(ctx, DECK);
   bodenZeichnen(ctx, szene, DECK);
 
-  for (const st of szene.statuen) statueZeichnen(ctx, st, zeit);
+  for (const g of szene.gluten) glutZeichnen(ctx, g, zeit);
   for (const m of szene.muenzen) muenzeZeichnen(ctx, m, zeit);
   for (const rabe of szene.raben) rabeZeichnen(ctx, rabe);
-  for (const r of szene.recken) reckeZeichnen(ctx, r, zeit);
+  // Ein Boss ist derselbe Recke, nur doppelt so groß gezeichnet — die
+  // Skalierung sitzt an seinen Füßen, damit er auf den Planken steht.
+  for (const r of szene.recken) {
+    const s = r.groesse || 1;
+    if (s === 1) { reckeZeichnen(ctx, r, zeit); continue; }
+    ctx.save();
+    ctx.translate(r.x, DECK);
+    ctx.scale(s, s);
+    ctx.translate(-r.x, -DECK);
+    reckeZeichnen(ctx, r, zeit);
+    ctx.restore();
+  }
   for (const b of szene.brennende) brennendenZeichnen(ctx, b);
 
   if (szene.pranke) prankeZeichnen(ctx, szene.pranke);
@@ -85,6 +96,10 @@ export function zeichnen(ctx, welt, einstellungen = {}) {
     ctx.fillRect(Math.round(t.x), Math.round(t.y), 1, 2);
     ctx.globalAlpha = 1;
   }
+  // Rauch liegt vor den Wirkungen, aber hinter Licht und Zahlen.
+  for (const p of szene.rauch) rauchZeichnen(ctx, p);
+  // Fundstücke ganz vorn — sie sollen nichts verdecken können.
+  for (const f of szene.fundstuecke) fundstueckZeichnen(ctx, f, zeit);
   if (szene.phase === 'nacht' && zustand.stufenP.sammler > 0) {
     drachlingZeichnen(ctx, szene.drachling, zeit);
   }
