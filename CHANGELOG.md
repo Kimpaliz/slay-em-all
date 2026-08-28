@@ -68,12 +68,20 @@ Mit echten Zeigerereignissen am 915 × 412-Fenster durchgespielt:
 - Wischen zwischen den drei Seiten rastet weiter korrekt ein.
 - 2.203 Wirtschafts- und 15.108 Artefaktprüfungen grün.
 
-**Nicht prüfbar in dieser Umgebung:** Der eingebettete Testbrowser lässt
-Service Worker grundsätzlich nicht zu (`An unknown error occurred when
-fetching the script`, obwohl die Datei mit HTTP 200 und korrektem Typ
-ausgeliefert wird). Manifest, Symbole und Verknüpfungen sind geprüft; das
-Anmelden des Dienstes und der Installationsvorgang selbst müssen am
-echten Gerät bestätigt werden.
+**Am veröffentlichten Stand nachgeprüft.** Über die lokale Testadresse
+verweigerte der Browser den Dienst (`An unknown error occurred when
+fetching the script`) — das lag an `http://127.0.0.1`, nicht am Code. Auf
+der echten Seite ist er **angemeldet, aktiv und steuert die Seite**;
+Bereich `…/slay-em-all/`. Nach dem zweiten Aufruf liegen **31 Dateien im
+Vorrat**, darunter alle 23 Spielmodule — offline spielbar ist damit
+belegt, nicht nur behauptet.
+
+Beim ersten Aufruf sind es erst sieben: Die Spielmodule werden geladen,
+bevor der Dienst die Kontrolle übernimmt. Das ist normal und heilt sich
+beim nächsten Öffnen von selbst.
+
+**Noch offen:** Der Installationsvorgang selbst („Zum Startbildschirm
+hinzufügen") lässt sich nur am echten Gerät auslösen.
 
 
 ## 0.8.2 — 28.08.2026
