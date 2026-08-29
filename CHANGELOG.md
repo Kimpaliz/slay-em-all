@@ -1,5 +1,39 @@
 # Änderungsprotokoll
 
+## 0.14.1 — 29.08.2026
+
+**Das Übergabeprotokoll war sechs Fassungen veraltet.**
+
+`docs/UEBERGABE.md` stand noch auf **0.8.0** vom 28.08.2026 — dieselbe
+Fassung, die auch im Werkbank-Export `Heldenschlacht Burg-Idle.zip`
+steckt. Jannik hat es aus dieser Quelle in einen Chat eingefügt, und es
+beschrieb Regeln, die längst nicht mehr gelten:
+
+| Im alten Protokoll | Tatsächlich seit |
+| --- | --- |
+| „Blut ist keine Währung" | 0.13.0 wieder Zahlungsmittel bei Malvina |
+| „Bosswellen alle fünf Wellen" | 0.11.0 alle zehn |
+| „Boss blockiert einen Fressplatz" | 0.10.0 sofortige Niederlage am Tor |
+| „Es gibt keinen Ton" | 0.13.0 siebzehn gerechnete Klänge |
+| „Marktschreier" als Modul | 0.11.0 entfernt |
+| Bühne 480 breit | 0.11.0 achthundert, scrollend |
+| Tempo +1 %, Deckel +50 % | 0.14.0 Schwelle bei Welle 10, Deckel +160 % |
+| „Prüfskripte laufen nicht durch" | alle drei grün: 2.351 / 15.108 / 26 |
+| `pruefe-artefakte.mjs` fehlt | seit 0.9.0 vorhanden |
+
+**Der Export wurde nicht eingespielt.** Er ist Stand 0.8.0 und enthält
+nichts, was das Repository nicht hat — dafür fehlt ihm alles aus 0.9.0
+bis 0.14.0: Ton, Titelbild, Blutkreislauf mit Putzgoblins, Napalmwurf,
+Edelsteine, installierbare App, Vollbildknopf, Wellen-Steckbrief,
+Boss-Widerstand, die breitere Bühne und die drei Prüfskripte.
+Einspielen hätte sechs Fassungen Arbeit gelöscht.
+
+Das Protokoll ist jetzt auf dem Stand von 0.14.0 und trägt oben eine
+Warnung, damit dieselbe Verwechslung nicht wieder passiert.
+
+Kein Programmcode geändert.
+
+
 ## 0.14.0 — 29.08.2026
 
 **Ab Welle 10 ziehen die Recken an, das Wellensymbol verrät die Werte,
