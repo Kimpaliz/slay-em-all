@@ -26,9 +26,29 @@ export function reckeZeichnen(ctx, r, zeit) {
   const oben = fuesse - hoehe - wippen;
   const vorne = schritt > 0;
 
+  // Die Heilaura liegt unter allem anderen — ein pulsierender grüner
+  // Schein, dessen Radius genau der Reichweite entspricht. Wer ihn
+  // sieht, weiß, wen er zuerst umlegen sollte.
+  if (k.heilt) {
+    const puls = 0.72 + 0.28 * Math.sin(zeit * 2.4 + r.phase);
+    const rw = k.heilt.reichweite;
+    const mitte = x + 3;
+    const schein = ctx.createRadialGradient(mitte, fuesse - 8, 2, mitte, fuesse - 8, rw);
+    schein.addColorStop(0, 'rgba(126, 214, 150, ' + (0.26 * puls).toFixed(3) + ')');
+    schein.addColorStop(0.6, 'rgba(90, 190, 130, ' + (0.10 * puls).toFixed(3) + ')');
+    schein.addColorStop(1, 'rgba(90, 190, 130, 0)');
+    ctx.fillStyle = schein;
+    ctx.fillRect(mitte - rw, fuesse - 8 - rw, rw * 2, rw * 2);
+    // Ein flacher Ring auf den Planken zeigt die Reichweite hart.
+    ctx.globalAlpha = 0.30 * puls;
+    ctx.fillStyle = '#8fd39a';
+    ctx.fillRect(mitte - rw, fuesse, rw * 2, 1);
+    ctx.globalAlpha = 1;
+  }
+
   // Schatten
   ctx.fillStyle = 'rgba(0,0,0,0.4)';
-  ctx.fillRect(x, fuesse, 6, 1);
+  ctx.fillRect(x, fuesse, k.breit ? 8 : 6, 1);
 
   if (k.umhang) {
     ctx.fillStyle = k.umhang;
@@ -46,9 +66,19 @@ export function reckeZeichnen(ctx, r, zeit) {
     ctx.fillRect(x + 4, fuesse - 3, 2, 3);
   }
 
-  // Rumpf
+  // Rumpf. Der Panzerritter ist zwei Punkte breiter — man soll ihn im
+  // Getümmel sofort erkennen, denn er ist der, der das Tor verstopft.
+  const breite = k.breit ? 7 : 5;
   ctx.fillStyle = k.rumpf;
-  ctx.fillRect(x + 1, oben + 4, 5, hoehe - 6);
+  ctx.fillRect(x + 1, oben + 4, breite, hoehe - 6);
+  if (k.breit) {
+    // Schulterplatten und ein Gürtel aus Metall
+    ctx.fillStyle = k.metall;
+    ctx.fillRect(x, oben + 4, 9, 2);
+    ctx.fillRect(x + 1, oben + Math.round(hoehe * 0.6), breite, 1);
+    ctx.fillStyle = 'rgba(255,255,255,0.14)';
+    ctx.fillRect(x, oben + 4, 9, 1);
+  }
   ctx.fillStyle = 'rgba(0,0,0,0.35)';
   ctx.fillRect(x + 1, oben + 4, 1, hoehe - 6);
   ctx.fillStyle = k.arm;
@@ -75,6 +105,14 @@ export function reckeZeichnen(ctx, r, zeit) {
     ctx.fillRect(x + 1, oben, 5, 2);
   }
 
+  // Wer gerade geheilt wurde, schimmert kurz grün auf.
+  if (r.geheilt > 0) {
+    ctx.globalAlpha = Math.min(0.7, r.geheilt * 2);
+    ctx.fillStyle = '#8fd39a';
+    ctx.fillRect(x + 1, oben, breite, hoehe - 2);
+    ctx.globalAlpha = 1;
+  }
+
   // Waffe — je höher der Rang, desto länger die Klinge
   ctx.fillStyle = '#4a3a26';
   ctx.fillRect(x + 7, oben + 1, 1, hoehe - 2);
@@ -86,6 +124,23 @@ export function reckeZeichnen(ctx, r, zeit) {
   } else if (k.id === 'soeldner') {
     ctx.fillRect(x + 7, oben - 3, 1, 4);
     ctx.fillRect(x + 6, oben + 1, 3, 1);
+  } else if (k.heilt) {
+    // Kein Schwert, sondern ein Stab mit leuchtendem Knauf.
+    ctx.fillStyle = '#5c4a32';
+    ctx.fillRect(x + 7, oben - 4, 1, hoehe + 2);
+    const glut = 0.6 + 0.4 * Math.sin(zeit * 3.6 + r.phase);
+    ctx.fillStyle = '#8fd39a';
+    ctx.fillRect(x + 6, oben - 6, 3, 3);
+    ctx.globalAlpha = glut;
+    ctx.fillStyle = '#dff5e4';
+    ctx.fillRect(x + 7, oben - 5, 1, 1);
+    ctx.globalAlpha = 1;
+  } else if (k.breit) {
+    // Ein wuchtiger Streitkolben statt einer Klinge.
+    ctx.fillRect(x + 9, oben - 2, 1, hoehe);
+    ctx.fillRect(x + 8, oben - 5, 3, 3);
+    ctx.fillStyle = 'rgba(255,255,255,0.18)';
+    ctx.fillRect(x + 8, oben - 5, 3, 1);
   } else {
     ctx.fillRect(x + 7, oben - 4, 1, 5);
     ctx.fillRect(x + 6, oben - 4, 3, 1);
@@ -292,6 +347,56 @@ export function restZeichnen(ctx, rest) {
   }
 }
 
+/**
+ * Ein Putzgoblin.
+ *
+ * Klein, gruen, mit Eimer. Beim Wischen beugt er sich vor und der Lappen
+ * wischt hin und her — damit man auf einen Blick sieht, ob er arbeitet
+ * oder nur unterwegs ist.
+ */
+export function wischerZeichnen(ctx, g) {
+  const x = Math.round(g.x);
+  const fuss = MASSE.DECK;
+  const wischt = g.tun === 'wischt';
+  const buecken = wischt ? 2 : 0;
+  const oben = fuss - 9 + buecken;
+
+  ctx.fillStyle = 'rgba(0,0,0,0.4)';
+  ctx.fillRect(x - 1, fuss, 6, 1);
+
+  // Beine
+  const schritt = g.tun !== 'wischt' && Math.sin(g.phase) > 0;
+  ctx.fillStyle = '#2c3d1c';
+  ctx.fillRect(x + (schritt ? 3 : 0), fuss - 3, 2, 3);
+  ctx.fillRect(x + (schritt ? 0 : 3), fuss - 2, 2, 2);
+
+  // Rumpf und Kopf
+  ctx.fillStyle = '#5d7a3a';
+  ctx.fillRect(x, oben + 3, 5, 5);
+  ctx.fillStyle = '#82a054';
+  ctx.fillRect(x + 1, oben, 4, 4);
+  ctx.fillStyle = '#42582a';
+  ctx.fillRect(x, oben + 1, 1, 2);       // Ohr links
+  ctx.fillRect(x + 5, oben + 1, 1, 2);   // Ohr rechts
+  ctx.fillStyle = '#17130f';
+  ctx.fillRect(x + 2, oben + 2, 1, 1);
+
+  // Eimer
+  ctx.fillStyle = '#6a6f7d';
+  ctx.fillRect(x + 5, fuss - 4, 4, 4);
+  ctx.fillStyle = '#8d1f26';
+  ctx.fillRect(x + 6, fuss - 3, 2, 2);
+
+  // Lappen: beim Wischen hin und her
+  if (wischt) {
+    const hin = Math.sin(g.phase * 2) > 0 ? 0 : 3;
+    ctx.fillStyle = '#c8b8a0';
+    ctx.fillRect(x - 3 + hin, fuss - 2, 4, 2);
+    ctx.fillStyle = '#8d1f26';
+    ctx.fillRect(x - 3 + hin, fuss - 1, 4, 1);
+  }
+}
+
 /* ---------------- Beute und Tiere ---------------- */
 
 /**
@@ -336,6 +441,28 @@ export function glutZeichnen(ctx, g, zeit) {
 export function muenzeZeichnen(ctx, m, zeit) {
   const x = Math.round(m.x);
   const y = Math.round(m.y);
+
+  /*
+    Ein Edelstein statt Kleingeld.
+
+    Er ist groesser, hat eine geschliffene Silhouette und funkelt in
+    einem eigenen Takt — man soll ihn quer ueber die Bruecke von einer
+    Muenze unterscheiden koennen, ohne die Zahl daneben zu lesen.
+  */
+  if (m.stein) {
+    ctx.fillStyle = '#6b3f8f'; ctx.fillRect(x - 2, y - 3, 6, 6);
+    ctx.fillStyle = '#9a5fc4'; ctx.fillRect(x - 1, y - 4, 4, 7);
+    ctx.fillStyle = '#c98fe8'; ctx.fillRect(x - 1, y - 3, 2, 3);
+    ctx.fillStyle = '#e8cbff'; ctx.fillRect(x, y - 3, 1, 1);
+    ctx.fillStyle = '#4a2a63'; ctx.fillRect(x + 2, y, 1, 2);
+    if (Math.sin(zeit * 4 + m.phase) > 0.86) {
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(x + 1, y - 4, 1, 1);
+      ctx.fillRect(x - 2, y + 1, 1, 1);
+    }
+    return;
+  }
+
   ctx.fillStyle = '#a5761f'; ctx.fillRect(x - 1, y - 1, 4, 3);
   ctx.fillStyle = '#e0b64f'; ctx.fillRect(x - 1, y - 1, 3, 2);
   ctx.fillStyle = '#f6d492'; ctx.fillRect(x - 1, y - 1, 1, 1);

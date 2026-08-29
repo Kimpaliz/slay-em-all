@@ -14,9 +14,10 @@ import { NACHT_PALETTEN, TAG_PALETTE } from './daten/paletten.js';
 import {
   reckeZeichnen, brennendenZeichnen, truemmerZeichnen, restZeichnen,
   muenzeZeichnen, rabeZeichnen, schuetzeZeichnen, drachlingZeichnen,
-  fackelZeichnen, ketteZeichnen, fundstueckZeichnen, glutZeichnen
+  fackelZeichnen, ketteZeichnen, fundstueckZeichnen, glutZeichnen, wischerZeichnen
 } from './figuren.js';
 import {
+  brandbodenZeichnen, napalmZielZeichnen,
   prankeZeichnen, flammeZeichnen, meteorZeichnen, explosionZeichnen,
   blitzZeichnen, belegungZeichnen, spruchbandZeichnen, zahlZeichnen, rauchZeichnen
 } from './effekte.js';
@@ -24,7 +25,17 @@ import {
 /** Oberkante der Burgmauer. */
 const MAUER_OBEN = 30;
 
-export function zeichnen(ctx, welt, einstellungen = {}) {
+
+/**
+ * Zeichnet die ganze Bühne.
+ *
+ * `sicht` sagt, welcher Ausschnitt gerade zu sehen ist — `{ x, breite }`
+ * in Bühnenpunkten. Nur die Einblendungen richten sich danach
+ * (Spruchband, Dämmerung, Randabdunklung); sie sollen dort stehen, wo
+ * der Spieler hinschaut, und nicht am linken Weltrand hängen bleiben.
+ * Ohne Angabe wird die ganze Bühne als sichtbar angenommen.
+ */
+export function zeichnen(ctx, welt, einstellungen = {}, sicht = null) {
   if (!ctx) return;
   const { zustand, szene } = welt;
   const P = szene.sichtbarTag
@@ -61,6 +72,8 @@ export function zeichnen(ctx, welt, einstellungen = {}) {
   for (const rabe of szene.raben) rabeZeichnen(ctx, rabe);
   // Ein Boss ist derselbe Recke, nur doppelt so groß gezeichnet — die
   // Skalierung sitzt an seinen Füßen, damit er auf den Planken steht.
+  // Die Putzgoblins laufen hinter den Recken her.
+  for (const g of szene.wischer) wischerZeichnen(ctx, g);
   for (const r of szene.recken) {
     const s = r.groesse || 1;
     if (s === 1) { reckeZeichnen(ctx, r, zeit); continue; }
@@ -74,7 +87,12 @@ export function zeichnen(ctx, welt, einstellungen = {}) {
   for (const b of szene.brennende) brennendenZeichnen(ctx, b);
 
   if (szene.pranke) prankeZeichnen(ctx, szene.pranke);
+  for (const b of szene.brandboden) brandbodenZeichnen(ctx, b, zeit);
   if (szene.flamme) flammeZeichnen(ctx, szene.flamme);
+  // Zielvorschau des Napalm-Wurfs, solange er noch nicht gesetzt ist.
+  if (szene.flammeBereit && szene.zielX != null) {
+    napalmZielZeichnen(ctx, szene.zielX, szene.zielBereich || 112, zeit);
+  }
   for (const m of szene.meteore) meteorZeichnen(ctx, m);
   for (const e of szene.explosionen) explosionZeichnen(ctx, e);
 
@@ -110,6 +128,12 @@ export function zeichnen(ctx, welt, einstellungen = {}) {
 
   ctx.restore();
 
+  // Ab hier die Einblendungen: Sie gehören zum Blick des Spielers, nicht
+  // zur Welt, und richten sich deshalb nach dem sichtbaren Ausschnitt.
+  const sx = sicht ? sicht.x : 0;
+  const sb = sicht ? sicht.breite : W;
+  const mitte = sx + sb / 2;
+
   // Dämmerung und Randabdunklung liegen über allem und wackeln nicht mit
   if (szene.daemmerung > 0) {
     ctx.globalAlpha = Math.sin(Math.PI * Math.max(0, Math.min(1, szene.daemmerung / 1.1))) * 0.72;
@@ -117,13 +141,13 @@ export function zeichnen(ctx, welt, einstellungen = {}) {
     ctx.fillRect(0, 0, W, H);
     ctx.globalAlpha = 1;
   }
-  if (szene.spruchband) spruchbandZeichnen(ctx, szene.spruchband);
+  if (szene.spruchband) spruchbandZeichnen(ctx, szene.spruchband, mitte);
 
-  const rand = ctx.createRadialGradient(W * 0.5, H * 0.52, H * 0.34, W * 0.5, H * 0.52, H * 1.05);
+  const rand = ctx.createRadialGradient(mitte, H * 0.52, H * 0.34, mitte, H * 0.52, H * 1.05);
   rand.addColorStop(0, 'rgba(0,0,0,0)');
   rand.addColorStop(1, 'rgba(0,0,0,0.55)');
   ctx.fillStyle = rand;
-  ctx.fillRect(0, 0, W, H);
+  ctx.fillRect(sx, 0, sb, H);
 }
 
 /* ---------------- Hintergrund ---------------- */
@@ -235,15 +259,23 @@ function klippeZeichnen(ctx, P, H, DECK) {
   const K = MASSE.KLIPPE;
   ctx.fillStyle = P.stein[0]; ctx.fillRect(0, DECK, K, H - DECK);
   ctx.fillStyle = P.stein[1]; ctx.fillRect(0, DECK, K, 3);
-  for (let i = 0; i < 26; i++) {
+  // Die Felsstruktur wächst mit der Breite mit — bei fester Zahl wäre
+  // die längere Klippe kahl.
+  const flecken = Math.round(K / 4.5);
+  for (let i = 0; i < flecken; i++) {
     const hx = Math.floor(streu(i) * K);
     const hy = DECK + 4 + Math.floor(streu(i + 40) * (H - DECK - 6));
     ctx.fillStyle = streu(i + 9) > 0.5 ? P.stein[2] : P.abgrund;
     ctx.fillRect(hx, hy, 2 + Math.floor(streu(i + 3) * 4), 1);
   }
+  // Der Boden steigt erst kurz vor der Abbruchkante an. Die Schwelle
+  // hängt an der Klippenbreite, sonst wäre aus dem sanften Buckel auf
+  // der breiteren Bühne eine Rampe geworden.
+  const anstieg = K - 18;
   ctx.fillStyle = P.huegelFern;
   for (let x = 0; x < K; x++) {
-    const y = DECK - 1 - Math.round(Math.max(0, Math.sin(x * 0.06) * 2 + (x > 100 ? (x - 100) * 0.05 : 0)));
+    const y = DECK - 1 - Math.round(Math.max(0,
+      Math.sin(x * 0.06) * 2 + (x > anstieg ? (x - anstieg) * 0.05 : 0)));
     ctx.fillRect(x, y, 1, DECK - y);
   }
 }
@@ -281,7 +313,7 @@ function mauerZeichnen(ctx, P, zustand, szene, W, H, DECK, zeit) {
   ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.fillRect(M - 1, MAUER_OBEN - 6, 1, DECK - MAUER_OBEN + 6);
 
   for (let a = 0; a < zustand.stufenG.schuetze; a++) {
-    schuetzeZeichnen(ctx, 306 + a * 24, MAUER_OBEN, a, zeit);
+    schuetzeZeichnen(ctx, MASSE.SCHUETZE_X + a * 24, MAUER_OBEN, a, zeit);
   }
   void szene;
 }
@@ -402,14 +434,15 @@ function bodenZeichnen(ctx, szene, DECK) {
 /** Tagsüber brennen die Fackeln nicht — es bleiben die Halterungen. */
 function fackelnZeichnen(ctx, szene, zeit) {
   if (!szene.sichtbarTag) {
-    fackelZeichnen(ctx, 356, 104, zeit);
-    fackelZeichnen(ctx, 402, 96, zeit + 1.3);
-    fackelZeichnen(ctx, 448, 104, zeit + 2.6);
+    const [f1, f2, f3] = MASSE.FACKELN;
+    fackelZeichnen(ctx, f1, 104, zeit);
+    fackelZeichnen(ctx, f2, 96, zeit + 1.3);
+    fackelZeichnen(ctx, f3, 104, zeit + 2.6);
   } else {
     ctx.fillStyle = '#3a2c1c';
-    ctx.fillRect(356, 106, 2, 5);
-    ctx.fillRect(402, 98, 2, 5);
-    ctx.fillRect(448, 106, 2, 5);
+    ctx.fillRect(MASSE.FACKELN[0], 106, 2, 5);
+    ctx.fillRect(MASSE.FACKELN[1], 98, 2, 5);
+    ctx.fillRect(MASSE.FACKELN[2], 106, 2, 5);
   }
 }
 

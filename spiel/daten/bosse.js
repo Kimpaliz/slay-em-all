@@ -27,18 +27,3 @@ export function bossName() {
   return ausListe(RANG) + ' ' + ausListe(RUFNAME) + ' ' + ausListe(BEINAME);
 }
 
-/** Der Marktschreier kündigt ihn an. */
-export const BOSS_ANKUNFT = [
-  'Ein Großer kommt! {n} führt die Welle — der passt kaum durchs Tor!',
-  'Achtung, Herrschaften: {n} hat sich angemeldet. Zweimal kauen!',
-  '{n} im Anmarsch — heute wird es eng in der Halle!',
-  'Der Hof putzt das Besteck: {n} ist unterwegs!'
-];
-
-/** Und meldet seinen Tod. */
-export const BOSS_TOD = [
-  '{n} ist Geschichte! Und was für eine sättigende.',
-  'Runter mit {n} — das war eine ganze Mahlzeit auf einmal!',
-  '{n} hat seinen Rang verloren, sein Gewicht und alles andere.',
-  'Es hat gedauert, aber {n} ist durch. Buchstäblich.'
-];

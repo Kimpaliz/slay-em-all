@@ -1,73 +1,759 @@
 # Änderungsprotokoll
 
-## 0.8.1 — 29.08.2026
+## 0.14.2 — 29.08.2026
 
-**Der Werkbank-Zweig ist jetzt der Stand von `main`, komplett
-durchgetestet.** Entscheidung Jannik: Die in der Design-Werkbank
-weiterentwickelte Fassung 0.8.0 ist die maßgebliche Version. Der zuvor
-im Repository entstandene Zweig (0.9.0–0.14.1: Ton, Titelbild,
-installierbare App, Blutkreislauf, 800er-Bühne, Boss als Frist) liegt
-vollständig unter dem Etikett `v0.14.1-eigener-zweig` — nichts ist
-verloren, es ist nur nicht mehr der Stand von `main`.
+**Der Zweigwechsel ist zurückgenommen — dieser Stand gilt wieder.**
 
-### Der geerbte Zombie-Arbeiter
+Für gut eine Stunde stand auf `main` der Werkbank-Export 0.8.0 (Jannik
+hatte ihn per Übergabeprotokoll zur maßgeblichen Version erklärt und die
+Entscheidung kurz darauf zurückgenommen: „das war dumm von mir"). Der
+Ausflug ist vollständig dokumentiert und nichts davon verloren:
 
-Der einzige echte Fehler des Zweigwechsels selbst: Der alte Zweig hatte
-einen Dienst-Arbeiter (`sw.js`), und **jeder Browser, der die Seite
-schon besucht hat, trägt ihn noch in sich** — auf der Live-Seite war er
-nachweislich aktiv, mit 31 Dateien im Vorrat. Eine gelöschte `sw.js`
-meldet 404, und ein 404 lässt den alten Arbeiter unangetastet ewig
-weiterlaufen; offline servierte er den alten Spielstand.
+- **Dieser Stand** (0.9.0–0.14.1: Ton, Titelbild, installierbare App,
+  Blutkreislauf mit Putzgoblins, 800er-Bühne, Boss als Frist,
+  Tempo-Schwelle, Wellen-Steckbrief) ist wieder `main` — Stück für
+  Stück aus dem Etikett `v0.14.1-eigener-zweig` wiederhergestellt, das
+  genau für diesen Fall gesetzt worden war.
+- **Der Werkbank-Stand** bleibt unter `v0.8.1-zweigwechsel` erreichbar,
+  samt dem dort durchgeführten Volltest (Bossgarantie, Artefaktkarte,
+  Regalwirkung — alles gemessen, nichts davon war umsonst: Es ist die
+  bisher gründlichste Prüfung dieses Zweigs).
+- Die **echte `sw.js`** (Netz zuerst, Vorrat als Rückhalt) ersetzt den
+  zwischenzeitlichen Selbstabschalter wieder. Wer in der Stunde den
+  Abschalter bekommen hat, registriert beim nächsten Besuch einfach
+  neu — kein Schaden.
 
-Deshalb liegt jetzt bewusst wieder eine `sw.js` da — als
-**Selbstabschalter**: Der Browser prüft die Adresse beim nächsten
-Besuch, tauscht die Fassung ein, und die neue leert alle Vorratslager,
-meldet sich ab und lädt offene Fenster neu.
+**Lehre, in `CLAUDE.md` festgeschrieben:** Werkbank-Exporte
+(`Heldenschlacht Burg-Idle.zip`) werden nicht mehr eingespielt, auch
+nicht auf Zuruf mit Übergabeprotokoll — erst nachfragen, ob wirklich
+der ganze Zweig gemeint ist. Vor jedem Zweigwechsel ein Rückhol-Etikett;
+diesmal hat genau das die Rückkehr zu einem Fünf-Minuten-Handgriff
+gemacht.
 
-### Durchgetestet (UI und Gameplay, Janniks Auftrag)
+Kein Programmcode gegenüber 0.14.1 geändert.
 
-Alle 23 Module laden (nicht nur Syntax — Importe wirklich aufgelöst).
-Im Browser mit echten Klicks:
 
-- **Neustart** zweistufig, löscht den Spielstand wirklich.
-- **Welle 1:** 5 Erledigte → 5 Münzen liegen, eingesammelt → 5 Gold.
-  Liegengebliebenes Gold bleibt über die Nacht liegen (Regel, kein
-  Fehler: ohne Rabenpakt sammelt das Wellenende nicht ein).
-- **Klick kaufen:** bei 5 Gold korrekt gesperrt, bei 18 gekauft;
-  Angriff aufs Ziel 26 → 16 LP, Abklingzeit 2 s, Schadenszahl schwebt.
-- **Bosswelle 5:** Ansage mit Namen („Marschall Wolfram die Schwerste
-  Mahlzeit"), Boss doppelt groß mit 1.216 LP, Welle gewonnen,
-  **Bossgarantie erfüllt** — „Aschenkette des Zeugmeisters" (Selten,
-  2 Affixe, Fundwelle 5) landete im Lager.
-- **Artefakte:** Karte öffnet mit Name, Seltenheit, Tags, Affixen und
-  drei Knöpfen; Anlegen verschiebt ins Regal; die **Regalsumme wirkt**
-  (Gierschimmer +7,05 % Münzwert, Giftpfeile 9 Schaden/s in
-  `wirkungAus`).
-- **Zauber:** Drachenpranke gekauft (158 → 118 Gold), in der Leiste,
-  Tooltip mit Werten und Schadensart.
-- **Speicher-Umlauf:** sichern → laden hält Welle, Gold, Klick, Zauber
-  und das Regal-Artefakt samt Namen.
-- **Handy quer (916 × 412):** alles im Bild, Brückenboden sichtbar,
-  Reiter erreichbar. **Hochkant (390 × 844):** kein seitlicher
-  Überlauf, alle drei Wischseiten mit allen Knöpfen erreichbar, Reiter
-  schalten exklusiv.
+## 0.14.1 — 29.08.2026
 
-### Beobachtungen, keine Fehler
+**Das Übergabeprotokoll war sechs Fassungen veraltet.**
 
-- Ohne Eingreifen gehen frühe Wellen verloren (der Vorspul-Test ohne
-  Klicks blieb bei Welle 2–3 hängen). Das Spiel verlangt Gegenwehr —
-  Regel, kein Fehler.
-- Handy quer nutzt 58 % des Bildschirms. Der ersetzte Zweig hatte mit
-  aufgelegter Steuerung 90 % erreicht; wenn das gewünscht ist, wäre es
-  auf diesem Zweig neu zu bauen.
+`docs/UEBERGABE.md` stand noch auf **0.8.0** vom 28.08.2026 — dieselbe
+Fassung, die auch im Werkbank-Export `Heldenschlacht Burg-Idle.zip`
+steckt. Jannik hat es aus dieser Quelle in einen Chat eingefügt, und es
+beschrieb Regeln, die längst nicht mehr gelten:
 
-### Offen (unverändert aus der Übergabe)
+| Im alten Protokoll | Tatsächlich seit |
+| --- | --- |
+| „Blut ist keine Währung" | 0.13.0 wieder Zahlungsmittel bei Malvina |
+| „Bosswellen alle fünf Wellen" | 0.11.0 alle zehn |
+| „Boss blockiert einen Fressplatz" | 0.10.0 sofortige Niederlage am Tor |
+| „Es gibt keinen Ton" | 0.13.0 siebzehn gerechnete Klänge |
+| „Marktschreier" als Modul | 0.11.0 entfernt |
+| Bühne 480 breit | 0.11.0 achthundert, scrollend |
+| Tempo +1 %, Deckel +50 % | 0.14.0 Schwelle bei Welle 10, Deckel +160 % |
+| „Prüfskripte laufen nicht durch" | alle drei grün: 2.351 / 15.108 / 26 |
+| `pruefe-artefakte.mjs` fehlt | seit 0.9.0 vorhanden |
 
-`pruefe-wirtschaft.mjs` bricht am fehlenden `BOSS_ABSTAND` — die
-Skripte stammen vom 0.6.0-Stand und kennen den heutigen nicht.
-`balance.mjs` läuft dagegen an. Nachziehen bleibt der erste offene
-Schritt, dazu ein neues `pruefe-artefakte.mjs`.
+**Der Export wurde nicht eingespielt.** Er ist Stand 0.8.0 und enthält
+nichts, was das Repository nicht hat — dafür fehlt ihm alles aus 0.9.0
+bis 0.14.0: Ton, Titelbild, Blutkreislauf mit Putzgoblins, Napalmwurf,
+Edelsteine, installierbare App, Vollbildknopf, Wellen-Steckbrief,
+Boss-Widerstand, die breitere Bühne und die drei Prüfskripte.
+Einspielen hätte sechs Fassungen Arbeit gelöscht.
 
+Das Protokoll ist jetzt auf dem Stand von 0.14.0 und trägt oben eine
+Warnung, damit dieselbe Verwechslung nicht wieder passiert.
+
+Kein Programmcode geändert.
+
+
+## 0.14.0 — 29.08.2026
+
+**Ab Welle 10 ziehen die Recken an, das Wellensymbol verrät die Werte,
+und Bosse schütteln Beeinträchtigungen ab.**
+
+### Ab Welle 10 wird es schnell
+
+Bisher wuchs das Tempo um ein Prozent je Welle und war bei +50 %
+gedeckelt — Untermalung, kein Druck. Jetzt gibt es eine **Schwelle bei
+Welle 10**: dort einmalig **+12 %**, danach **+5 % je Welle**. Der
+Deckel steigt auf +160 %.
+
+| Welle | Tempo | Zuwachs | Bauer über die Brücke |
+| --- | --- | --- | --- |
+| 9 | +8 % | +0,9 % | 29,4 s |
+| **10** | **+21 %** | **+12,0 %** | 26,2 s |
+| 11 | +26 % | +4,1 % | 25,2 s |
+| 15 | +46 % | | 21,7 s |
+| 20 | +71 % | | 18,6 s |
+| 40 | +160 % | am Anschlag | 12,2 s |
+
+Der Deckel ist nicht willkürlich: Bei 2,6 braucht ein Bauer noch gut
+zwölf Sekunden über die Brücke. Schneller wäre nicht mehr schwer,
+sondern unfair — Zielen und Zaubern brauchen eine Mindestzeit. Eine
+Prüfung hält genau das fest.
+
+Gemessen mit dem Balance-Rechner über 25 Wellen: Der Bot kommt weiterhin
+bis Welle 20–26 bei 0–1 Niederlagen, die Wellen dauern im Schnitt 60–81
+Sekunden statt vorher deutlich länger.
+
+### Das Wellensymbol verrät, was kommt
+
+Halten (am Handy) oder Überfahren (mit der Maus) auf **Welle N** oben
+zeigt jetzt den Steckbrief der Welle:
+
+- **Tempo** — Aufschlag gegenüber Welle 1, und was die nächste bringt
+- **Leben** — Faktor auf die Lebenspunkte
+- **Trupp** — wie viele gleichzeitig erscheinen
+- **Artefakt je Toter** — die tatsächliche Fundchance in Prozent
+- **Gold je Recke** — Mittelwert der **wirklich ausgelosten** Welle,
+  nicht eine Schätzung über alle Klassen. Nachts weiß das Spiel ja
+  genau, wer kommt.
+
+Vor Welle 10 steht dort zusätzlich, wie viele Wellen es noch bis zur
+Schwelle sind; am Anschlag, dass das Tempo ausgereizt ist. Bosswellen
+bekommen einen eigenen Kopf und die Warnung, dass sofort Schluss ist,
+wenn der Boss das Tor erreicht.
+
+Nachgemessen: Welle 1 → ~1 Gold, Welle 12 → ~6, Bosswelle 20 → ~20.
+
+**Dabei ein Platzierungsfehler behoben.** Das Wellensymbol sitzt ganz
+oben; über dem Finger ist dort kein Platz. Der gehaltene Tooltip klebte
+deshalb bei y = 4 und lag damit **unter der Fingerkuppe** — gemessen
+ragte er 148 Punkte über den Druckpunkt hinaus. Jetzt rutscht er in
+diesem Fall unter das *Element* statt an den Bildrand (gemessen:
+Symbol 10–30, Tooltip 40–204, zehn Punkte Abstand).
+
+### Bosse lassen sich nicht festhalten
+
+Ein Boss ist eine Frist, kein Sandsack — er muss auf der Brücke sterben,
+sonst ist sofort Schluss. Dauerhaft einfrierbar wäre er mit einem
+einzigen Artefakt entschärft, und die Frist wäre keine mehr.
+
+Deshalb zwei Bremsen zugleich:
+
+1. **Dauer auf ein Zehntel** — drei Sekunden Frost werden 0,3.
+2. **Danach zehn Sekunden nichts** — jede weitere Beeinträchtigung
+   prallt ab.
+
+Betroffen sind nur echte Beeinträchtigungen: **Frost und Raureif**, also
+alles, was das Gehen behindert. **Gift und Brand bleiben unberührt** —
+sie richten Schaden an und sind das Mittel, das gegen einen Boss
+überhaupt wirken soll.
+
+Nachgemessen: gewöhnlicher Recke 3,0 s Frost, Boss 0,3 s, Sperre 10,3 s;
+sofortiger zweiter Versuch prallt ab, nach fünf Sekunden immer noch,
+nach elf wieder möglich. Gift auf den Boss weiterhin volle vier
+Sekunden.
+
+
+## 0.13.0 — 29.08.2026
+
+**Ton, ein Titelbild, und Blut wird wieder Währung.**
+
+### Arbeitsanweisung im Repository
+
+Neu: **`CLAUDE.md`** im Wurzelverzeichnis. Sie wird beim Start jeder
+Sitzung automatisch gelesen und hält fest, was Jannik angeordnet hat:
+
+- **Vorher hier nachschauen** — `CHANGELOG.md` (Patchnotes),
+  `docs/ENTWURF.md` (Design), `README.md` (Aufbau). Der Chatverlauf ist
+  nicht die Quelle der Wahrheit, das Repository ist es.
+- **Jede Änderung wird notiert** — was, warum, womit geprüft. Mit
+  gemessenen Zahlen, und Fehler ehrlich mit Ursache.
+- Dazu die Prüfbefehle und die Regel, **am Handy nachzumessen**, die in
+  0.11.0 gefehlt hat.
+
+Ebenfalls neu: **`docs/ROADMAP.md`** mit Janniks Wunschliste
+(Bannerträger, weitere Einheiten und Kulturen, andere Burglayouts,
+Musik, Prestige, Zauber als Fundstücke mit gemeinsamen Werten).
+
+### Töne — ohne eine einzige Tondatei
+
+`spiel/klang.js` rechnet jeden Klang beim Abspielen aus Schwingungen,
+Rauschen und Hüllkurven. Kein Byte wird nachgeladen, nichts kommt von
+fremden Servern. **17 Klänge**, alle nachgemessen: Tod im Tor und auf
+der Brücke, Klick und Krit, Pfeil, Blitz, Flamme, Meteor, Pranke,
+Münze, Kauf, Ablehnung, Fund, Wellenstart, Sieg, Niederlage, Boss.
+
+Zwei Dinge, die Browser erzwingen und den Aufbau bestimmen:
+
+- **Ton braucht eine Nutzergeste.** Der Tonapparat wird deshalb genau
+  im „Spielen"-Knopf des Titelbilds geweckt — dem Knopf, den man ohnehin
+  drückt.
+- **Zu viele Töne übersteuern.** Bei einer großen Welle sterben leicht
+  zehn Recken je Sekunde. Jeder Klang hat eine Mindestpause; was zu dicht
+  kommt, fällt aus.
+
+Ein Tonknopf in der Kopfzeile schaltet stumm, die Wahl wird gemerkt.
+
+### Das Titelbild
+
+„Slay'Em All!" steht jetzt beim Start groß in Serifenschrift, **Blut
+läuft aus den Buchstaben** — fünf Tropfen mit eigenen Takten, damit nie
+ein Muster entsteht. Darunter „erstellt von **Kimpaliz**". Aus der
+Kopfzeile ist der Titel verschwunden; sie zeigt nur noch Welle, Gold,
+Blut und die Knöpfe.
+
+Zur Schrift: Das Spiel bringt nur Inter mit, und eine zweite Datei
+nachzuladen widerspricht der eigenen Regel. Elegant wird der Titel
+deshalb über eine Serifenschrift des Systems und über Satz — weite
+Sperrung, hohes Gewicht, tiefer Schatten.
+
+### Blut ist wieder Währung — aber es liegt am Boden
+
+Der neue Kreislauf:
+
+1. Wer stirbt, hinterlässt eine **Blutlache** — seit jetzt überall auf
+   festem Boden, auch auf der Ebene vor der Zugbrücke, wo Pfeile und
+   Zauber die meisten Recken erwischen.
+2. Diese Lache ist **noch kein Geld**.
+3. **Putzgoblins** laufen aus dem Tor, wischen sie auf und bringen das
+   Blut heim. Erst dann steht es im Konto.
+4. **Blut stapelt sich nicht:** Eine Lache fasst 60 Liter. Alles, was
+   daneben vergossen wird, während niemand abträgt, versickert.
+
+Damit lohnt sich regelmäßiges Saubermachen, und der **Putztrupp** bei
+Grommsch (bis Stufe 5) ist ein echter Kauf: mehr Goblins, schneller
+unterwegs. Ein Goblin sucht immer die **vollste** erreichbare Lache,
+nicht die nächste — sonst wischte er an Tropfen herum, während die große
+Pfütze überläuft.
+
+**Malvina kassiert wieder Blut.** Zauber, Klick und Morgenritual werden
+in Litern bezahlt, nicht in Gold.
+
+Nachgemessen: Lache links der Klippe bei x 120 angelegt, dreimal
+befüllt → bei 60 gedeckelt, Rest versickert. Ein Goblin trägt sie in
+40 Sekunden ab und schreibt 60 Liter gut. Putztrupp Stufe 3 ergibt vier
+Goblins.
+
+### Flammenstoß ist jetzt ein Napalmwurf
+
+Der erste Druck **bewaffnet nur den Zeiger**, wie beim Donnerschlag. Der
+Klick auf die Brücke legt das Zielgebiet fest, und dort gehen über gut
+zwei Sekunden Brocken nieder. Danach **brennt der Boden drei Sekunden
+weiter** und zündet jeden an, der hindurchläuft.
+
+Das macht aus einem Notknopf eine Entscheidung: Man legt das Feuer
+**vor** die Recken, nicht auf sie. Eine Zielvorschau zeigt beim Anvisieren
+das Gebiet; die Abklingzeit läuft erst beim Einschlag an, damit
+Entschärfen nichts kostet.
+
+Nachgemessen: Gebiet 264–376, 19 brennende Stellen, drei Recken tot, ein
+später hinzugekommener fing am Brandboden Feuer.
+
+### Edelsteine statt Kleingeld
+
+Ab 40 Gold je Stück fällt Beute als **Edelstein** — größer, geschliffen,
+in eigenem Takt funkelnd. Späte Recken warfen bisher dreistellige
+Beträge in vier Münzen ab, die aussahen wie am Anfang. Nachgemessen:
+Bauer → eine Münze zu 1, Großmeister als Boss → drei Edelsteine zu 160.
+
+### Blitztote platzen
+
+Wer vom Blitz erwischt wird, geht anders zu Boden als andere: **dreimal
+so viele Blutspritzer, dreimal so viele Einzelteile** (auch Rumpf, Kopf
+und Helm), und alles fliegt **steil nach oben** statt zur Seite. Dazu
+Rauch und ein Ruck im Bild. Nachgemessen: 6 Teile und 15 Spritzer gegen
+2 und 5 beim Pfeiltod, alle sechs Teile mit Aufwärtsschwung.
+
+
+## 0.12.1 — 29.08.2026
+
+**Notreparatur: Das Handy war unbenutzbar.** Zwei Wunden aus dem
+Entfernen des Marktschreiers in 0.11.0, beide von derselben Operation.
+
+### Die Seite war strukturell zerbrochen
+
+Beim Herausschneiden des Laufbands aus `index.html` blieb ein `</div>`
+zu viel stehen. Das schloss den Seitencontainer zu früh — **Händler und
+Artefakte rutschten aus `.seiten` heraus** und wurden Geschwister davon.
+
+Die Folge am Handy quer, gemessen auf 916 × 412: `.seiten` hatte Höhe
+**0**, die **Leinwand war 0 × 0**, die Steuerung saß bei y = −67
+außerhalb des Bildes, die Reiterleiste war ganz verschwunden. Nichts
+davon war bedienbar.
+
+### Die kompakte Kopfzeile gab es nie
+
+Dieselbe Operation ließ in `stil.css` eine Selektorliste mit hängendem
+Komma zurück:
+
+```
+.wurzel.schmal .untertitel,
+.wurzel.schmal .vorspann,
+                              ← Block fehlt
+.wurzel.schmal h1 { font-size: 17px; }
+```
+
+Statt `display: none` bekamen Vorspann und Untertitel damit
+`font-size: 17px`. Die Kopfzeile war am Handy **145 Punkte hoch** statt
+49 und fraß ein Drittel des Bildes.
+
+**Warum das durchrutschte:** In 0.11.0 habe ich nach dem Verbreitern der
+Bühne nur den Schreibtisch nachgemessen, nicht das Handy. Beide Fehler
+wären bei einer einzigen Messung auf 916 × 412 aufgefallen.
+
+Nach der Reparatur: Kopfzeile 49, Leinwand 1490 × 373, Brückenboden bei
+y 272 frei, alle drei Seiten wieder im Container, alle Reiter erreichbar,
+**90 % Bildschirmnutzung**.
+
+### Zwei Flugbahnen kannten die neue Karte nicht
+
+Auch das stammt aus dem Verbreitern:
+
+- **Der Meteoritenschauer** ging in einem festen Streifen zwischen
+  Klippe und Tor nieder — auf der breiteren Bühne nur noch 204 von 635
+  Punkten Laufweg. Das ganze neue Land bekam nichts ab. Jetzt wird die
+  **Zielzone beim Auslösen aus den Standorten der Recken bestimmt**
+  (gemessen: Recken auf 60–560 ergeben Einschläge von 50 bis 581).
+- **Der Sammel-Drachling** kehrte schon bei `KLIPPE − 70` um und hat das
+  neue Land nie gesehen; Münzen, die dort lagen, blieben liegen. Er
+  patrouilliert jetzt von 19 bis 609 — **96 % der Fläche** — und fliegt
+  schneller, weil eine Runde sonst über 40 Sekunden dauern würde.
+
+
+## 0.11.0 — 28.08.2026
+
+**Die Bühne wird doppelt so lang, der Marktschreier geht, Bosse kommen
+alle zehn Wellen.**
+
+### Mehr Fläche zum Kämpfen
+
+Die Bühne ist von 480 auf **800 Punkte** gewachsen. Alle Landmarken —
+Klippe, Brücke, Mauer, Tor — sind unverändert geblieben und um 320
+Punkte nach rechts gerückt; links davor liegt neues offenes Land.
+
+Der Weg vom Erscheinen bis ins Tor ist damit **doppelt so lang: 635
+statt 315 Punkte**. Mehr Platz zum Kämpfen, mehr Zeit, jemanden
+aufzuhalten — Bogenschützen und Zauber bekommen die doppelte Zahl an
+Gelegenheiten.
+
+Auf den Schirm passt das nicht mehr am Stück. Die Leinwand steht deshalb
+in einem **waagerecht scrollbaren Rahmen** und behält ihre Höhe, statt
+zusammengestaucht zu werden. Der Blick beginnt **am Tor** — dort
+entscheidet sich alles; das Land davor sieht man beim Zurückscrollen.
+
+Was mitwandert und was nicht, ist bewusst getrennt: Spruchband,
+Dämmerung und Randabdunklung richten sich nach dem sichtbaren
+Ausschnitt (nachgemessen: Bandmitte bei 199 bzw. 600, sie folgt genau).
+Alles andere steht fest in der Welt.
+
+Auf dem Handy verhindert `overscroll-behavior-x: contain`, dass ein
+Wisch über das Schlachtfeld am Rand zur nächsten Seite weiterblättert.
+**Gewechselt wird dort jetzt über die Reiter**, nicht mehr durch Wischen.
+
+### Der Marktschreier ist weg
+
+Das Laufband kostete Platz, den die breitere Bühne besser gebraucht.
+Mit ihm sind seine Reimzeilen gegangen — `marktschreier.js`, alle
+`melden()`-Aufrufe und acht Textlisten, die nur er benutzt hat, sind
+restlos entfernt. Die Namen der Recken und die Händlersprüche bleiben.
+
+### Bosse alle zehn Wellen
+
+Statt alle 190. Auf der längeren Brücke brauchte der Boss mit dem alten
+Tempo 160 Sekunden — zu träge, um spannend zu bleiben. Sein Tempofaktor
+steigt deshalb von 0,33 auf 0,6, was **88 Sekunden** ergibt.
+
+### Nachgezogen
+
+Alles, was an festen Koordinaten hing, rechnet jetzt relativ: Fackeln
+und Bogenschützen stehen in `MASSE`, die Zahl der Sterne und die
+Felsstruktur der Klippe wachsen mit der Breite, und der Anstieg vor der
+Abbruchkante hängt an der Klippenbreite statt an einer festen 100.
+
+`MASSE.SCHUETZE_X` liegt bewusst bei der Bühne und nicht im Zeichnen:
+Die Simulation braucht den Abschusspunkt und darf nicht von der Grafik
+abhängen.
+
+### Geprüft
+
+- 2.267 Wirtschafts-, 15.108 Artefakt- und 20 Simulationsprüfungen grün.
+- **Jedes Modul einzeln geladen**, nicht nur syntaktisch geprüft — das
+  fand zwei tote Importe, die `node --check` nicht sieht, weil es
+  Importe gar nicht auflöst.
+- Im Browser: Leinwand 800 × 200, Rahmen scrollt, Start am rechten Rand.
+  Waagerechter Schnitt über neun Stellen der ganzen Breite — überall
+  Boden, Planken oder Mauer, **keine schwarzen Lücken**. Spruchband
+  folgt der Sicht.
+
+
+## 0.10.0 — 28.08.2026
+
+**Fresszeit löst sich von den Lebenspunkten. Zwei neue Einheiten. Bosse
+werden zur Frist statt zum Kaubrocken.**
+
+### Die zentrale Änderung
+
+Bisher war `lp` beides zugleich: Zähigkeit auf der Brücke **und**
+Verdauzeit im Tor. Das koppelte zwei Dinge, die nichts miteinander zu tun
+haben — und ließ Bosse ins Unspielbare wachsen (Messung vom 28.08.: Welle
+20 hätte 1.011 Sekunden reine Fresszeit gebraucht).
+
+Jetzt sind es zwei Achsen:
+
+| | bedeutet |
+| --- | --- |
+| `lp` | wie schwer einer auf der Brücke zu töten ist |
+| `fressZeit` | wie lange er im Tor einen Platz blockiert |
+
+Gewöhnliche Recken kosten **2 Sekunden** — vom Bauern bis zum
+Großmeister gleich. „Scharfe Klauen" beschleunigt jetzt diese Zeit
+(20 Stufen drücken 2 s auf gemessene 1,55 s).
+
+### Zwei neue Einheiten
+
+**Panzerritter** (ab Welle 9): 220 Lebenspunkte, Tempo 10 — und
+**7 Sekunden Fresszeit**. Er ist der Verstopfer: nicht gefährlich,
+aber hinter ihm staut sich die Welle. Breiterer Rumpf, Schulterplatten,
+Streitkolben.
+
+**Heilzauberer** (ab Welle 14): trottet mit Tempo 7 hinterher und hält
+alles in 34 px Umkreis am Leben (9 LP je Sekunde). Grüne, pulsierende
+Aura mit hartem Ring auf den Planken; wer geheilt wird, schimmert kurz
+grün. Er heilt **nicht sich selbst** — sonst wären zwei davon
+unsterblich. Trägt einen Stab mit leuchtendem Knauf statt einer Klinge.
+
+### Bosse
+
+- **Alle 190 Wellen** statt alle fünf. Ein Meilenstein, kein Rhythmus.
+- **Betritt er das Tor, ist die Burg sofort verloren.** Er wird nicht
+  mehr verdaut — er muss auf der Brücke sterben. Eigene Niederlagen-
+  meldung: „DER BOSS IST DURCH".
+- Daraus folgt die neue Auslegung: **fünffaches Leben des stärksten
+  Rangs** (statt 25-fach) = rund 40 Bauern, und **ein Drittel Tempo** =
+  gemessene **80 Sekunden** Zeit zum Töten. Vorher hing seine Schwierig-
+  keit an Kapazität und Schlund; jetzt allein an der Frage, ob der
+  Schaden reicht.
+- Vierzigfaches Gold, weil er der einzige seiner Art ist.
+
+### Gemessen
+
+Neues Prüfskript `werkzeuge/pruefe-simulation.mjs` — es lässt die echte
+Simulation im Zeitschritt laufen, statt nur Formeln nachzurechnen.
+**20 Prüfungen, 0 Fehler**, darunter:
+
+- Bauer 2,02 s, Großmeister 2,02 s — achtfaches Leben, gleiche Zeit.
+- Panzerritter 7,02 s.
+- Der Nahe wird geheilt (5 → 20 LP), der Ferne nicht, der Heiler selbst
+  nicht, und nie über volles Leben hinaus.
+- Boss am Tor: Phase sofort `niederlage`, nichts landet im Tor.
+- Ein gewöhnlicher Großmeister am selben Punkt: Welle läuft weiter.
+
+Im Browser nachgesehen: Die Aura färbt die Umgebung an drei gemessenen
+Punkten grün, der Ring auf den Planken ebenfalls.
+
+**Balance danach:** Die Streuung, die am 28.08. noch Faktor 14 betrug
+(Welle 7 bis 20), ist praktisch verschwunden — sechs Läufe endeten
+alle bei Welle 7 mit 663 bis 1.610 Gold. Die Wellen laufen deutlich
+zügiger (29–72 s statt 19–239 s), weil der Boss-Slog weg ist. Die
+Kapazitätswand bei Welle 9–10 steht unverändert; sie ist eine
+Entwurfsfrage und in `docs/BALANCE-2026-08-28.md` beschrieben.
+
+### Prüfungen nachgezogen
+
+Die Reihe der Recken ist keine Leiter mehr, sondern eine Aufstellung mit
+Rollen. „Später = in allem größer" galt für sieben Klassen nicht mehr und
+wurde durch die Regeln ersetzt, die wirklich gelten: Erscheinungswelle
+und Goldwert steigen, alles andere folgt der Rolle.
+
+
+## 0.9.2 — 28.08.2026
+
+**Balance vermessen. Dabei einen Absturz gefunden und behoben.**
+
+### Der Absturz
+
+`explodieren()` rief `schaden()` mit einem Argument zu wenig auf. Die
+Signatur hat sieben Stellen — `(welt, recke, menge, ursache, art, werte,
+krit)` —, übergeben wurden fünf. Dadurch rutschte das Werte-Objekt in
+den Platz der Schadensart, und `werte` kam als `undefined` an:
+
+```
+TypeError: Cannot read properties of undefined (reading 'ernteFaktor')
+```
+
+**Wie man dort hinkam:** ein Feuer-Artefakt anlegen, einen Recken
+anklicken, er brennt, stirbt brennend, explodiert — und die Explosion
+tötet einen Nachbarn auf der Brücke. Also jede Kettenexplosion. Von den
+zehn Aufrufstellen war genau diese eine falsch; die anderen neun
+stimmten.
+
+Gefunden wurde er erst, weil dem Balance-Rechner beigebracht wurde,
+gefundene Artefakte auch **anzulegen** — vorher lagen sie unberührt im
+Lager (gemessen: 5 Funde, Regal 0/5), und die ganze Artefaktwirkung war
+in keiner Messung enthalten.
+
+### Neu im Balance-Rechner
+
+- **Der Bot legt Artefakte an**: das Seltenste zuerst, freie Plätze
+  auffüllen, nie tauschen.
+- **Gold eingenommen** und **Gold ausgegeben** über die ganze Partie.
+  Ohne diese Summe sieht man nicht, ob ein teurer Kauf überhaupt je
+  erreichbar ist — nur, dass er nicht gekauft wurde.
+- Neue Prüfung: **Reicht das Einkommen rechnerisch für die erste
+  Kapazitätsstufe?**
+
+### Was die Messung zeigt
+
+Zehn Läufe über 30 und 60 Wellen. Die Zahlen stehen in
+`docs/BALANCE-2026-08-28.md`; die zwei Kernbefunde:
+
+**1. Die Streuung ist gewaltig.** Sechs Läufe über 30 Wellen mit
+identischen Regeln endeten zwischen Welle **7 und 20**, das Einkommen
+lag zwischen **474 und 6.490 Gold** — Faktor 14. Über 60 Wellen wird es
+schlimmer statt besser: Welle 15 bis 35, Einkommen 1.210 bis 73.300,
+Faktor 60. Ursache ist eine Rückkopplung: Eine Niederlage wirft fünf
+Wellen zurück, also in den Bereich mit dem geringsten Einkommen (Welle 1
+bringt 4 Gold, Welle 20 bringt 816). Wer einmal fällt, fällt tiefer.
+
+**2. Bosse wachsen schneller, als die Burg fressen kann.** Boss-Leben
+skaliert mit 25 × Klassenleben × 1,05^Welle, das Fresstempo dagegen mit
++1,5 % je Stufe „Scharfe Klauen". Ohne Ausbau:
+
+| Welle | Boss-Leben | reine Fresszeit |
+| --- | --- | --- |
+| 5 | 1.216 | 122 s |
+| 10 | 2.715 | 271 s |
+| 15 | 5.445 | 544 s |
+| 20 | 10.108 | 1.011 s |
+
+Gemessen wurden 147 s für Welle 5 und 239 s für Welle 10 — passend. In
+dieser Zeit blockiert der Boss das einzige Maul, während sein Gefolge
+die Kapazität füllt.
+
+**Am Spielgleichgewicht wurde nichts geändert** — das sind Entscheidungen
+für den Entwurf, nicht für einen Messlauf.
+
+
+## 0.9.1 — 28.08.2026
+
+**Vollbildknopf — auch ohne Installation ohne Browserleiste spielen.**
+
+In 0.9.0 stand `display: fullscreen` im Manifest. Das war richtig, aber
+nur die halbe Antwort: **Es wirkt ausschließlich in der installierten
+App.** Wer die Seite als gewöhnlichen Tab öffnet, behält die
+Adressleiste — daran ändert kein Manifest etwas. Vollbild geht dort nur
+über die Fullscreen-API, und die verlangt eine echte Nutzergeste.
+
+Also gibt es jetzt einen Knopf in der Kopfzeile, rechts neben den
+Währungen. Er schaltet Vollbild ein und aus (Symbol wechselt zwischen
+Pfeilen nach außen und nach innen) und versucht dabei, die Ausrichtung
+auf quer festzulegen — im Vollbild ist das erlaubt, außerhalb nicht.
+
+Der Knopf zeigt sich nur, wo er gebraucht wird:
+
+| Lage | Knopf |
+| --- | --- |
+| Normaler Browser-Tab | **sichtbar** — dafür ist er da |
+| Installierte App | versteckt (dort ist schon Vollbild) |
+| Browser ohne Fullscreen-API (iPhone/Safari) | versteckt statt leerer Versprechung |
+
+Auf dem iPhone kann Safari bis heute kein Vollbild für Webseiten; dort
+bleibt nur das Installieren über „Zum Home-Bildschirm".
+
+**Nicht in dieser Umgebung prüfbar:** Der eingebettete Testbrowser
+sperrt Vollbild per Berechtigungsrichtlinie — ein echter Klick auf den
+Knopf meldet `TypeError: Permissions check failed`, dieselbe Art Grenze,
+die vorher schon den Dienst blockierte. Geprüft ist alles Übrige: Der
+Knopf erscheint, erkennt die API, meldet den richtigen Zustand, und die
+Erkennung „läuft als App" arbeitet.
+
+
+## 0.9.0 — 28.08.2026
+
+**Als App installierbar, und am Handy zeigen Tooltips beim Gedrückthalten.**
+
+### Installierbar, im Vollbild
+
+Neu sind `manifest.webmanifest`, `sw.js` und drei erzeugte App-Symbole.
+Wer die Seite auf dem Handy über „Zum Startbildschirm hinzufügen"
+installiert, bekommt:
+
+- **Vollbild** (`display: fullscreen`) — keine Adresszeile, keine
+  Browserleisten.
+- **Quer festgelegt** (`orientation: landscape`) — die Szene ist 2,4 : 1,
+  quer füllt sie 93 % des Bildschirms, hochkant nur ein Fünftel.
+- **Eigenes Symbol** statt eines Bildschirmfotos: ein glühender Torbogen,
+  in drei Größen, darunter eine maskierbare Fassung für Android.
+- **Offline spielbar.** Der Dienst im Hintergrund arbeitet nach „Netz
+  zuerst, Vorrat als Rückhalt" — online ist immer der neueste Stand da,
+  ohne Netz läuft es trotzdem. Andersherum wäre es schneller, würde aber
+  nach jeder Veröffentlichung den alten Stand zeigen.
+
+Die Symbole erzeugt `werkzeuge/symbole-erzeugen.mjs` als PNG, ohne fremde
+Pakete — ein PNG ist eine Handvoll Blöcke mit Prüfsumme, und `zlib` steckt
+in Node. So bleibt das Motiv mit dem Lesezeichen-Symbol zusammen und ist
+im Diff nachvollziehbar.
+
+### Es fühlt sich wie eine App an, nicht wie eine Webseite
+
+Unterdrückt sind jetzt: Text markieren, das Lupen- und Kopieren-Menü beim
+Gedrückthalten, das blaue Aufblitzen beim Antippen, Doppeltipp zum Zoomen
+und das Überdehnen am Rand.
+
+### Antippen kauft, Halten zeigt
+
+Am Handy gab es keine Möglichkeit, einen Tooltip zu sehen — Überfahren
+kennt der Finger nicht. Jetzt gilt überall dieselbe Regel: **antippen
+kauft oder öffnet, 380 ms halten zeigt die Werte.** Das gilt für die
+Waren bei allen drei Händlern, die Fähigkeiten in der Aktionsleiste und
+neu auch für Artefakte im Regal und im Lager (dort als Kurzfassung mit
+Name in der Seltenheitsfarbe und allen Affixen).
+
+Zwei Dinge waren dabei wichtig und sind beide gelöst:
+
+1. **Der Finger verdeckt den Tooltip nicht.** Er erscheint über dem
+   Druckpunkt, mit 34 px Abstand — gemessen: 28 bis 34 px Luft zwischen
+   Tooltip-Unterkante und Fingerspitze. Nach unten auszuweichen wäre
+   falsch, dort liegt die Hand; ist oben kein Platz, heftet er oben an.
+2. **Er bleibt nach dem Loslassen stehen**, bis irgendwo hingetippt oder
+   gescrollt wird. Sonst müsste man lesen, während die eigene Hand davor
+   liegt.
+
+Der Klick nach einem Halten wird verschluckt, damit Nachschauen nichts
+kauft. Ein kurzer Rüttler (12 ms) meldet, dass der Tooltip da ist.
+
+### Geprüft
+
+Mit echten Zeigerereignissen am 915 × 412-Fenster durchgespielt:
+
+- Ware kurz antippen → **gekauft**, kein Tooltip.
+- Ware halten → Tooltip mit Ist-Wert, nächster Stufe und Preis, 28 px über
+  dem Finger; Loslassen kauft **nicht**; Wegtippen schließt.
+- Fähigkeit halten → alle vier Werte samt Schadensart, 34 px Luft.
+- Artefakt halten → Kurzfassung, und die große Karte bleibt zu.
+- Mit der Maus unverändert: Überfahren zeigt, Verlassen versteckt,
+  Klicken kauft.
+- Wischen zwischen den drei Seiten rastet weiter korrekt ein.
+- 2.203 Wirtschafts- und 15.108 Artefaktprüfungen grün.
+
+**Am veröffentlichten Stand nachgeprüft.** Über die lokale Testadresse
+verweigerte der Browser den Dienst (`An unknown error occurred when
+fetching the script`) — das lag an `http://127.0.0.1`, nicht am Code. Auf
+der echten Seite ist er **angemeldet, aktiv und steuert die Seite**;
+Bereich `…/slay-em-all/`. Nach dem zweiten Aufruf liegen **31 Dateien im
+Vorrat**, darunter alle 23 Spielmodule — offline spielbar ist damit
+belegt, nicht nur behauptet.
+
+Beim ersten Aufruf sind es erst sieben: Die Spielmodule werden geladen,
+bevor der Dienst die Kontrolle übernimmt. Das ist normal und heilt sich
+beim nächsten Öffnen von selbst.
+
+**Noch offen:** Der Installationsvorgang selbst („Zum Startbildschirm
+hinzufügen") lässt sich nur am echten Gerät auslösen.
+
+
+## 0.8.2 — 28.08.2026
+
+**Am Handy quer füllt das Schlachtfeld jetzt den Bildschirm, randlos.**
+
+Jannik meldete mit Bildschirmfoto: „auf handy sieht man den boden
+garnicht". Nachgemessen auf 915 × 412 (Handy quer):
+
+| | vorher | nachher |
+| --- | --- | --- |
+| Bild der Szene | 891 × 371, unten abgeschnitten | 915 × 381, vollständig |
+| Bildschirmnutzung | 88 %, davon Teile außerhalb | **93 %** |
+| Brückenboden | 7 px unter dem Bildrand | sichtbar bei y 279, 37 px Luft |
+| Steuerung und Reiter | vollständig außerhalb des Bildes | sichtbar |
+| Seitenrand | 12 px | **0** |
+
+**Die Ursache:** Die Leinwand richtete sich allein nach der *Breite*
+(`width: 100%; height: auto`). Bei 2,4 : 1 wird sie auf 915 px Breite
+381 px hoch — mehr, als nach Kopfzeile (30 px), Steuerung (73 px) und
+Reiterleiste (28 px) übrig war. Der Rest lief unten aus dem Bild.
+
+**Die Lösung:** Quer legen sich Kopfzeile und Steuerung *auf* die Szene
+statt über und unter sie, jeweils mit einem weichen Verlauf als
+Untergrund. Draußen bleibt nur die schmale Reiterleiste. Die Leinwand
+richtet sich mit `object-fit: contain` nach Breite **und** Höhe, wird
+also nie abgeschnitten und nie verzerrt. Dazu: kein Seitenrand, keine
+abgerundeten Ecken, keine Schlagschatten — randlos bis an die Kanten.
+
+Die Steuerung liegt über dem Burggraben, wo es nichts anzuklicken gibt;
+der Brückenboden bleibt in jedem geprüften Format frei. Sie wurde quer
+zusätzlich kompakter gesetzt (75 → 66 px), damit das auch auf sehr
+flachen Bildschirmen gilt — bei 900 × 340 bleiben 18 px Luft.
+
+**Hochkant** war schon vorher heil, hatte aber einen unschönen Rest von
+429 px unter dem Spiel. Szene und Steuerung stehen jetzt mittig (199 px
+oben, 199 px unten), und darunter steht ein Hinweis: „Quer halten — dann
+füllt das Schlachtfeld den Bildschirm." Bei 2,4 : 1 Szene auf 1 : 2,2
+Bildschirm ist mehr als ein Fünftel Höhe rechnerisch nicht drin.
+
+**Geprüft:** 915 × 412, 900 × 340, 390 × 844 und 1280 × 880 gemessen;
+Bildpunkte der Leinwand ausgelesen (Planken `#32271a` bei y 147–150,
+Abgrund darunter); Händler- und Artefaktseite kommen unter der
+schwebenden Kopfzeile hervor; am Schreibtisch ist nichts verändert
+(Kopf und Steuerung stehen still, Rundung und Rand wie zuvor,
+Marktschreier sichtbar, Reiterleiste aus). Keine Konsolenmeldung.
+
+
+## 0.8.1 — 28.08.2026
+
+Kein neuer Spielinhalt. Diese Fassung holt die Pruefungen nach, die seit dem
+grossen Umbau nicht mehr liefen — und dabei kamen zwei echte Fehler heraus.
+
+### Die Pruefwerkzeuge laufen wieder
+
+`pruefe-wirtschaft.mjs` und `balance.mjs` kannten noch Blut und Schrott als
+Waehrungen, die drei gestrichenen Klick-Spielarten und Waren, die es nicht
+mehr gibt. Sie starteten seit 0.7.0 gar nicht mehr. Jetzt pruefen sie die
+heutigen Regeln: eine Waehrung, ein Klick, Wellenskalierung, Bosswellen,
+Schadensarten und die Artefaktwirkung.
+
+**2.203 Pruefungen, 0 Fehler.**
+
+### Neu: `pruefe-artefakte.mjs`
+
+Das Artefaktsystem war bis jetzt ungeprueft. Das neue Skript setzt den
+Zufall auf einen festen Startwert — derselbe Wurf ergibt also immer dasselbe
+Artefakt, und ein Fehlschlag ist nachstellbar. Geprueft werden Seltenheits-
+verteilung ueber die Wellen, Bossgarantie, Gueteskalierung, Affix-Regeln,
+das Ableiten der Tags, die Regalsumme und das Retten beschaedigter
+Spielstaende.
+
+**15.108 Pruefungen, 0 Fehler.**
+
+### Zwei gefundene Fehler
+
+**1. Der Balance-Rechner blieb ab Welle 2 stehen — seit Monaten.**
+Er reichte an `muenzeAufsammeln()` eine Zahl, wo die Funktion das ganze
+Werte-Objekt erwartet. Innen wurde daraus `undefined`, und das Gold des
+Spielers wurde stillschweigend `NaN`. Danach war jeder Preisvergleich falsch,
+der Einkauf kaufte endlos weiter, und das Werkzeug haengte sich auf. Der
+Fehler stammt nicht aus dem Umbau — er stand schon vorher so da und ist
+niemandem aufgefallen, weil das Werkzeug ohnehin nicht mehr startete.
+
+**2. Ein schwarzes Loch auf dem Handy.**
+Auf 375 x 812 Bildpunkten gemessen: Die Buehne dehnte sich auf 689 Pixel,
+darin die Leinwand mit 147 und die Steuerung mit 147 — dazwischen
+**395 Pixel schwarzes Nichts** mitten auf dem Bildschirm. Es sah aus wie ein
+Ladefehler. Ursache: Die Szene ist mit 480 x 200 breiter als hoch, auf einem
+Hochkant-Handy also nur 147 Pixel hoch, waehrend die Buehne trotzdem alles
+fuellen wollte. Behoben; am Desktop aendert sich nichts.
+
+### Geprueft
+
+Alle 21 Module syntaktisch fehlerfrei. Im Browser am Handyformat
+durchgespielt: alle drei Reiter erreichbar und gefuellt, Haendlerseite
+scrollt bis Malvina, Regal mit fuenf Fassungen und Lager 0/20 vorhanden,
+Welle gestartet und beendet, Spielstand ueberlebt das Neuladen. Keine
+Konsolenmeldung, weder am Handy noch am Desktop.
+
+### Offen
+
+- **Das Gleichgewicht stimmt noch nicht.** Der Balance-Rechner kommt ueber
+  30 Wellen nur bis Welle 7: vier Niederlagen, Kapazitaet bleibt bei 3, nur
+  ein Zauber wird gelernt, das Gold reicht nie. Zwei Urteile stehen auf
+  "nein". Die Zahlen liegen jetzt vor — die Entscheidung, an welcher
+  Schraube gedreht wird, steht aus.
+- **Der Platz auf dem Handy ist noch nicht genutzt.** Unter der Karte
+  bleiben rund 400 Pixel leer, weil eine 2,4:1-Szene ein Hochformat nicht
+  fuellen kann. Was dort stehen soll, ist eine Gestaltungsfrage.
+- Kein Ton.
 
 ## 0.8.0 — 28.08.2026
 

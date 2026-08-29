@@ -2,21 +2,55 @@
 <html lang="de">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no, maximum-scale=1">
 <title>Slay'Em All!</title>
 <meta name="description" content="Wellen-Idle am Burgtor. Die Recken gehen hinein. Was herauskommt, kommt einzeln.">
 <meta name="color-scheme" content="dark">
 <link rel="stylesheet" href="stil.css">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%23161826'/><path d='M11 24V13a5 5 0 0 1 10 0v11z' fill='%23ff7a2a'/></svg>">
+
+<!-- Als App installierbar: Vollbild, quer, eigenes Symbol. -->
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#101220">
+<link rel="apple-touch-icon" href="symbole/symbol-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Slay&#39;Em All">
+<meta name="mobile-web-app-capable" content="yes">
 </head>
 <body>
+
+<!--
+  Der Titelbildschirm.
+
+  Er hat zwei Aufgaben. Die sichtbare ist der Auftritt: Name in
+  Serifenschrift, Blut laeuft aus den Buchstaben. Die unsichtbare ist
+  technischer Natur — Browser lassen Ton erst nach einer echten
+  Nutzergeste zu. Der "Spielen"-Knopf ist genau diese Geste, und
+  deshalb steht er hier statt in einer Ecke.
+-->
+<div class="titelbild" data-titelbild>
+  <div class="titelinhalt">
+    <h1 class="grosstitel">
+      <span class="titelwort">Slay&rsquo;Em</span>
+      <span class="titelwort">All!</span>
+      <span class="tropfen tropfen-1"></span>
+      <span class="tropfen tropfen-2"></span>
+      <span class="tropfen tropfen-3"></span>
+      <span class="tropfen tropfen-4"></span>
+      <span class="tropfen tropfen-5"></span>
+    </h1>
+    <p class="titelzeile">Die Recken gehen hinein. Was herauskommt, kommt einzeln.</p>
+    <button type="button" class="knopf-spielen" data-knopf="spielen">Spielen</button>
+    <p class="titelfuss">erstellt von <strong>Kimpaliz</strong></p>
+  </div>
+</div>
 
 <div class="wurzel" data-wurzel>
 
   <header class="kopf">
     <div class="kopf-titel">
       <div class="vorspann">Wellen-Idle am Burgtor &middot; Das B&ouml;se verteidigt sich</div>
-      <h1>Slay'Em All!</h1>
       <p class="untertitel">Tags&uuml;ber rennen Recken ins Tor. Nachts z&auml;hlt der Hof die M&uuml;nzen.
         Wird die Burg &uuml;berrannt, geht es f&uuml;nf Wellen zur&uuml;ck.</p>
     </div>
@@ -30,6 +64,19 @@
         <div class="beute-name">Blut</div>
         <div class="beute-wert wert-blut" data-feld="blut">0 l</div>
       </div>
+      <button type="button" class="knopf-ton" data-knopf="ton" title="Ton" aria-label="Ton">
+        <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+          <path d="M3 6h3l4-3v10l-4-3H3z"/>
+          <path class="ton-an" d="M12 5.5a4 4 0 0 1 0 5M13.8 3.5a7 7 0 0 1 0 9"/>
+          <path class="ton-aus" d="M12 6l4 4M16 6l-4 4"/>
+        </svg>
+      </button>
+      <button type="button" class="knopf-vollbild" data-knopf="vollbild" title="Vollbild &mdash; ohne Browserleiste spielen" aria-label="Vollbild">
+        <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+          <path class="ecken-auf" d="M2 6V2h4M14 6V2h-4M2 10v4h4M14 10v4h-4"/>
+          <path class="ecken-zu" d="M6 2v4H2M10 2v4h4M6 14v-4H2M10 14v-4h4"/>
+        </svg>
+      </button>
       <button type="button" class="knopf-neustart" data-knopf="neustart">Neustart</button>
     </div>
   </header>
@@ -38,7 +85,9 @@
 
     <section class="seite seite-schlacht" aria-label="Schlachtfeld">
       <div class="buehne">
-        <canvas data-szene width="480" height="200" aria-label="Die Szene am Burgtor"></canvas>
+        <div class="sicht" data-sicht>
+          <canvas data-szene width="800" height="200" aria-label="Die Szene am Burgtor"></canvas>
+        </div>
 
         <div class="steuerung">
           <div class="lage">
@@ -52,17 +101,8 @@
 
           <button type="button" class="knopf-welle" data-knopf="welle">Welle 1 starten</button>
         </div>
-
-        <div class="marktschreier" data-marktschreier>
-          <div class="marktschreier-marke"><span class="punkt"></span>Marktschreier</div>
-          <div class="marktschreier-band" data-band>
-            <span class="bandfeld" data-bandfeld><span>Wellenkampf! Tags&uuml;ber wird gest&uuml;rmt, nachts wird kassiert!</span><span class="stern">&#10022;</span></span>
-            <span class="bandfeld" data-bandfeld><span>Die Pranke ist geladen &mdash; ein Griff in die Aktionsleiste, und es matscht!</span><span class="stern">&#10022;</span></span>
-            <span class="bandfeld" data-bandfeld><span>Gold liegt auf der Br&uuml;cke &mdash; aufsammeln, bevor die Raben es tun!</span><span class="stern">&#10022;</span></span>
-            <div class="bandblende"></div>
-          </div>
-        </div>
       </div>
+      <p class="drehhinweis">Quer halten &mdash; dann f&uuml;llt das Schlachtfeld den Bildschirm.</p>
     </section>
 
     <section class="seite seite-haendler" aria-label="H&auml;ndler">
@@ -143,5 +183,16 @@
 </div>
 
 <script type="module" src="spiel/spiel.js"></script>
+<script>
+  // Der Dienst im Hintergrund macht das Spiel installierbar und
+  // offline spielbar. Er ist reine Zugabe: Schlaegt die Anmeldung
+  // fehl (aelterer Browser, Datei ueber file:// geoeffnet), laeuft
+  // das Spiel unveraendert weiter.
+  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').catch(() => {});
+    });
+  }
+</script>
 </body>
 </html>

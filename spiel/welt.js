@@ -66,6 +66,7 @@ export function neueSzene() {
     // Lebendes
     recken: [],          // unterwegs auf der Brücke
     imTor: [],           // verschluckt, wird gerade verdaut
+    bossDurch: null,     // Name des Bosses, der das Tor erreicht hat
     brennende: [],       // verbrennen gerade zu Asche
 
     // Fliegendes und Liegendes
@@ -110,7 +111,15 @@ export function neueSzene() {
     pranke: null,
     flamme: null,
     donnerBereit: false,
+    flammeBereit: false,      // Zeiger fuer den Napalm-Wurf bewaffnet
+    zielX: null,              // wohin der Zeiger gerade deutet
+    zielBereich: 112,
+    napalm: null,             // laufender Wurf: { von, bis, zeit, ... }
+    brandboden: [],           // brennende Stellen, zuenden Durchlaeufer an
+    wischer: [],              // Putzgoblins, holen das Blut aus den Lachen
+    wischerTakt: 0,
     meteorZeit: 0,
+    meteorZone: null,     // wo der Schauer niedergeht, beim Auslösen bestimmt
     meteorTakt: 0,
     meteorWirkung: 0,
     meteorSchaden: 0,
@@ -132,7 +141,7 @@ export function neueSzene() {
     spruchQueue: [],     // wartende Zeilen fuers Laufband
     letzterSpruch: -3,
     muenzHinweisGezeigt: false,
-    sterne: sterneAnlegen(),
+    sterne: sterneAnlegen(MASSE.BREITE),
     fledermausTakt: 24,
     naechsteId: 1
   };
