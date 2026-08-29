@@ -167,6 +167,58 @@ export function rauchZeichnen(ctx, p) {
   ctx.globalAlpha = 1;
 }
 
+/* ---------------- Napalm ---------------- */
+
+/**
+ * Der brennende Boden nach einem Napalm-Wurf.
+ *
+ * Er flackert und wird nach hinten heraus schwaecher, damit man sieht,
+ * wie lange die Stelle noch gefaehrlich ist — die Hoehe der Flammen
+ * folgt der Restzeit.
+ */
+export function brandbodenZeichnen(ctx, b, zeit) {
+  const anteil = Math.max(0, Math.min(1, b.rest / 3));
+  const x0 = Math.round(b.x - b.breite / 2);
+  const w = Math.round(b.breite);
+
+  ctx.globalAlpha = 0.35 + anteil * 0.4;
+  ctx.fillStyle = '#3a1a0c';
+  ctx.fillRect(x0, MASSE.DECK, w, 2);
+  ctx.globalAlpha = 1;
+
+  for (let i = 0; i < w; i += 2) {
+    const x = x0 + i;
+    const h = Math.round((2 + streu(i + Math.floor(zeit * 14)) * 6) * anteil);
+    if (h <= 0) continue;
+    const heiss = streu(i * 3 + Math.floor(zeit * 11));
+    ctx.fillStyle = heiss < 0.35 ? '#b32a12' : heiss < 0.75 ? '#ff7a2a' : '#ffd08a';
+    ctx.fillRect(x, MASSE.DECK - h, 2, h);
+  }
+}
+
+/**
+ * Das Zielgebiet, solange der Wurf noch nicht gesetzt ist.
+ * Ohne diese Vorschau waere der Wurf blindes Raten.
+ */
+export function napalmZielZeichnen(ctx, x, wirkbereich, zeit) {
+  const halb = wirkbereich / 2;
+  const von = Math.round(x - halb);
+  const w = Math.round(wirkbereich);
+  const puls = 0.35 + 0.25 * Math.sin(zeit * 6);
+
+  ctx.globalAlpha = puls;
+  ctx.fillStyle = '#ff7a2a';
+  ctx.fillRect(von, MASSE.DECK - 1, w, 1);
+  // Klammern an den Raendern
+  ctx.fillRect(von, MASSE.DECK - 7, 1, 7);
+  ctx.fillRect(von + w - 1, MASSE.DECK - 7, 1, 7);
+  ctx.fillRect(von, MASSE.DECK - 7, 4, 1);
+  ctx.fillRect(von + w - 4, MASSE.DECK - 7, 4, 1);
+  ctx.globalAlpha = puls * 0.25;
+  ctx.fillRect(von, MASSE.DECK - 26, w, 26);
+  ctx.globalAlpha = 1;
+}
+
 /* ---------------- Einblendungen ---------------- */
 
 /**

@@ -39,7 +39,7 @@ const GEDULD = 400;
  */
 // Seit 0.7.0 kostet alles Gold. Lockruf, Marschmusik und Koeder sind
 // gestrichen; Schatzjaeger ist dazugekommen.
-const ORDNUNG_BURG = ['schlund', 'klauen', 'hallen', 'schuetze', 'krit', 'pfeile'];
+const ORDNUNG_BURG = ['putztrupp', 'schlund', 'klauen', 'hallen', 'schuetze', 'krit', 'pfeile'];
 const ORDNUNG_PIPS = ['sammler', 'stolz', 'ernte', 'schatzjaeger'];
 
 /**
@@ -77,29 +77,29 @@ function einkaufen(welt) {
   artefakteAnlegen(welt);
 
   // Der Klick zuerst — er ist billig und die wichtigste Fruehhilfe.
-  if (zustand.klick.gekauft < 1 && zustand.gold >= KLICK.preis) {
+  if (zustand.klick.gekauft < 1 && zustand.blut >= KLICK.preis) {
     if (klickKaufen(welt)) gekauft++;
   }
   // Danach den Klick ausbauen, solange er guenstig ist.
   for (const achse of ['schaden', 'abklingzeit', 'krit']) {
-    if (zustand.klick.gekauft >= 1 && zustand.gold > 300) {
+    if (zustand.klick.gekauft >= 1 && zustand.blut > 300) {
       if (klickVerbessern(welt, achse)) gekauft++;
     }
   }
 
   // Zauber: sobald bezahlbar, in der Reihenfolge ihres Preises
   for (const z of ZAUBER) {
-    if (zustand.zauber[z.k].gelernt < 1 && zustand.gold >= z.preis * 2) {
+    if (zustand.zauber[z.k].gelernt < 1 && zustand.blut >= z.preis * 2) {
       if (zauberLernen(welt, z.k)) gekauft++;
     }
   }
   // Pranke verbessern, solange reichlich Gold da ist
   for (const achse of ['schaden', 'abklingzeit', 'wirkbereich']) {
-    if (zustand.zauber.pranke.gelernt >= 1 && zustand.gold > 600) {
+    if (zustand.zauber.pranke.gelernt >= 1 && zustand.blut > 600) {
       if (zauberVerbessern(welt, 'pranke', achse)) gekauft++;
     }
   }
-  if (zustand.ritual < 1 && zustand.gold > 1200) {
+  if (zustand.ritual < 1 && zustand.blut > 1200) {
     if (ritualKaufen(welt)) gekauft++;
   }
 

@@ -14,9 +14,10 @@ import { NACHT_PALETTEN, TAG_PALETTE } from './daten/paletten.js';
 import {
   reckeZeichnen, brennendenZeichnen, truemmerZeichnen, restZeichnen,
   muenzeZeichnen, rabeZeichnen, schuetzeZeichnen, drachlingZeichnen,
-  fackelZeichnen, ketteZeichnen, fundstueckZeichnen, glutZeichnen
+  fackelZeichnen, ketteZeichnen, fundstueckZeichnen, glutZeichnen, wischerZeichnen
 } from './figuren.js';
 import {
+  brandbodenZeichnen, napalmZielZeichnen,
   prankeZeichnen, flammeZeichnen, meteorZeichnen, explosionZeichnen,
   blitzZeichnen, belegungZeichnen, spruchbandZeichnen, zahlZeichnen, rauchZeichnen
 } from './effekte.js';
@@ -71,6 +72,8 @@ export function zeichnen(ctx, welt, einstellungen = {}, sicht = null) {
   for (const rabe of szene.raben) rabeZeichnen(ctx, rabe);
   // Ein Boss ist derselbe Recke, nur doppelt so groß gezeichnet — die
   // Skalierung sitzt an seinen Füßen, damit er auf den Planken steht.
+  // Die Putzgoblins laufen hinter den Recken her.
+  for (const g of szene.wischer) wischerZeichnen(ctx, g);
   for (const r of szene.recken) {
     const s = r.groesse || 1;
     if (s === 1) { reckeZeichnen(ctx, r, zeit); continue; }
@@ -84,7 +87,12 @@ export function zeichnen(ctx, welt, einstellungen = {}, sicht = null) {
   for (const b of szene.brennende) brennendenZeichnen(ctx, b);
 
   if (szene.pranke) prankeZeichnen(ctx, szene.pranke);
+  for (const b of szene.brandboden) brandbodenZeichnen(ctx, b, zeit);
   if (szene.flamme) flammeZeichnen(ctx, szene.flamme);
+  // Zielvorschau des Napalm-Wurfs, solange er noch nicht gesetzt ist.
+  if (szene.flammeBereit && szene.zielX != null) {
+    napalmZielZeichnen(ctx, szene.zielX, szene.zielBereich || 112, zeit);
+  }
   for (const m of szene.meteore) meteorZeichnen(ctx, m);
   for (const e of szene.explosionen) explosionZeichnen(ctx, e);
 

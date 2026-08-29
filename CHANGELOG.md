@@ -1,5 +1,116 @@
 # Änderungsprotokoll
 
+## 0.13.0 — 29.08.2026
+
+**Ton, ein Titelbild, und Blut wird wieder Währung.**
+
+### Arbeitsanweisung im Repository
+
+Neu: **`CLAUDE.md`** im Wurzelverzeichnis. Sie wird beim Start jeder
+Sitzung automatisch gelesen und hält fest, was Jannik angeordnet hat:
+
+- **Vorher hier nachschauen** — `CHANGELOG.md` (Patchnotes),
+  `docs/ENTWURF.md` (Design), `README.md` (Aufbau). Der Chatverlauf ist
+  nicht die Quelle der Wahrheit, das Repository ist es.
+- **Jede Änderung wird notiert** — was, warum, womit geprüft. Mit
+  gemessenen Zahlen, und Fehler ehrlich mit Ursache.
+- Dazu die Prüfbefehle und die Regel, **am Handy nachzumessen**, die in
+  0.11.0 gefehlt hat.
+
+Ebenfalls neu: **`docs/ROADMAP.md`** mit Janniks Wunschliste
+(Bannerträger, weitere Einheiten und Kulturen, andere Burglayouts,
+Musik, Prestige, Zauber als Fundstücke mit gemeinsamen Werten).
+
+### Töne — ohne eine einzige Tondatei
+
+`spiel/klang.js` rechnet jeden Klang beim Abspielen aus Schwingungen,
+Rauschen und Hüllkurven. Kein Byte wird nachgeladen, nichts kommt von
+fremden Servern. **17 Klänge**, alle nachgemessen: Tod im Tor und auf
+der Brücke, Klick und Krit, Pfeil, Blitz, Flamme, Meteor, Pranke,
+Münze, Kauf, Ablehnung, Fund, Wellenstart, Sieg, Niederlage, Boss.
+
+Zwei Dinge, die Browser erzwingen und den Aufbau bestimmen:
+
+- **Ton braucht eine Nutzergeste.** Der Tonapparat wird deshalb genau
+  im „Spielen"-Knopf des Titelbilds geweckt — dem Knopf, den man ohnehin
+  drückt.
+- **Zu viele Töne übersteuern.** Bei einer großen Welle sterben leicht
+  zehn Recken je Sekunde. Jeder Klang hat eine Mindestpause; was zu dicht
+  kommt, fällt aus.
+
+Ein Tonknopf in der Kopfzeile schaltet stumm, die Wahl wird gemerkt.
+
+### Das Titelbild
+
+„Slay'Em All!" steht jetzt beim Start groß in Serifenschrift, **Blut
+läuft aus den Buchstaben** — fünf Tropfen mit eigenen Takten, damit nie
+ein Muster entsteht. Darunter „erstellt von **Kimpaliz**". Aus der
+Kopfzeile ist der Titel verschwunden; sie zeigt nur noch Welle, Gold,
+Blut und die Knöpfe.
+
+Zur Schrift: Das Spiel bringt nur Inter mit, und eine zweite Datei
+nachzuladen widerspricht der eigenen Regel. Elegant wird der Titel
+deshalb über eine Serifenschrift des Systems und über Satz — weite
+Sperrung, hohes Gewicht, tiefer Schatten.
+
+### Blut ist wieder Währung — aber es liegt am Boden
+
+Der neue Kreislauf:
+
+1. Wer stirbt, hinterlässt eine **Blutlache** — seit jetzt überall auf
+   festem Boden, auch auf der Ebene vor der Zugbrücke, wo Pfeile und
+   Zauber die meisten Recken erwischen.
+2. Diese Lache ist **noch kein Geld**.
+3. **Putzgoblins** laufen aus dem Tor, wischen sie auf und bringen das
+   Blut heim. Erst dann steht es im Konto.
+4. **Blut stapelt sich nicht:** Eine Lache fasst 60 Liter. Alles, was
+   daneben vergossen wird, während niemand abträgt, versickert.
+
+Damit lohnt sich regelmäßiges Saubermachen, und der **Putztrupp** bei
+Grommsch (bis Stufe 5) ist ein echter Kauf: mehr Goblins, schneller
+unterwegs. Ein Goblin sucht immer die **vollste** erreichbare Lache,
+nicht die nächste — sonst wischte er an Tropfen herum, während die große
+Pfütze überläuft.
+
+**Malvina kassiert wieder Blut.** Zauber, Klick und Morgenritual werden
+in Litern bezahlt, nicht in Gold.
+
+Nachgemessen: Lache links der Klippe bei x 120 angelegt, dreimal
+befüllt → bei 60 gedeckelt, Rest versickert. Ein Goblin trägt sie in
+40 Sekunden ab und schreibt 60 Liter gut. Putztrupp Stufe 3 ergibt vier
+Goblins.
+
+### Flammenstoß ist jetzt ein Napalmwurf
+
+Der erste Druck **bewaffnet nur den Zeiger**, wie beim Donnerschlag. Der
+Klick auf die Brücke legt das Zielgebiet fest, und dort gehen über gut
+zwei Sekunden Brocken nieder. Danach **brennt der Boden drei Sekunden
+weiter** und zündet jeden an, der hindurchläuft.
+
+Das macht aus einem Notknopf eine Entscheidung: Man legt das Feuer
+**vor** die Recken, nicht auf sie. Eine Zielvorschau zeigt beim Anvisieren
+das Gebiet; die Abklingzeit läuft erst beim Einschlag an, damit
+Entschärfen nichts kostet.
+
+Nachgemessen: Gebiet 264–376, 19 brennende Stellen, drei Recken tot, ein
+später hinzugekommener fing am Brandboden Feuer.
+
+### Edelsteine statt Kleingeld
+
+Ab 40 Gold je Stück fällt Beute als **Edelstein** — größer, geschliffen,
+in eigenem Takt funkelnd. Späte Recken warfen bisher dreistellige
+Beträge in vier Münzen ab, die aussahen wie am Anfang. Nachgemessen:
+Bauer → eine Münze zu 1, Großmeister als Boss → drei Edelsteine zu 160.
+
+### Blitztote platzen
+
+Wer vom Blitz erwischt wird, geht anders zu Boden als andere: **dreimal
+so viele Blutspritzer, dreimal so viele Einzelteile** (auch Rumpf, Kopf
+und Helm), und alles fliegt **steil nach oben** statt zur Seite. Dazu
+Rauch und ein Ruck im Bild. Nachgemessen: 6 Teile und 15 Spritzer gegen
+2 und 5 beim Pfeiltod, alle sechs Teile mit Aufwärtsschwung.
+
+
 ## 0.12.1 — 29.08.2026
 
 **Notreparatur: Das Handy war unbenutzbar.** Zwei Wunden aus dem

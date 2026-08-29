@@ -74,6 +74,14 @@ export const WAREN_GROMMSCH = [
     wertNaechste: (st) => '+1 Platz → ' + (4 + st) + ' Recken'
   },
   {
+    k: 'putztrupp', name: 'Putztrupp',
+    text: '+1 Goblin wischt Blut auf und bringt es heim',
+    preis: (st) => Math.round(30 * Math.pow(1.9, st)), max: 5,
+    wertJetzt: (st) => (1 + st) + ' Goblin' + (st ? 'snd' : '') === '1 Goblin'
+      ? '1 Goblin' : (1 + st) + ' Goblins',
+    wertNaechste: (st) => (2 + st) + ' Goblins, ' + (10 + 3 * (st + 1)) + ' Tempo'
+  },
+  {
     k: 'schlund', name: 'Zweiter Schlund',
     text: '+1 Recke wird gleichzeitig gefressen',
     preis: (st) => Math.round(25 * Math.pow(2.3, st)), max: 4,
@@ -202,7 +210,7 @@ const ABKLING_BODEN = 0.35;
 
 /* ---------------- Leere Stufen ---------------- */
 
-export const STUFEN_GROMMSCH_LEER = { klauen: 0, hallen: 0, schuetze: 0, pfeile: 0, schlund: 0, krit: 0 };
+export const STUFEN_GROMMSCH_LEER = { klauen: 0, hallen: 0, schuetze: 0, pfeile: 0, schlund: 0, krit: 0, putztrupp: 0 };
 export const STUFEN_PIPS_LEER = { sammler: 0, schatzjaeger: 0, stolz: 0, ernte: 0 };
 
 export function zauberStufenLeer() {
@@ -249,6 +257,9 @@ export function werte(stufenG, stufenP, wirkung) {
     // der Schlange — Kapazität ist der Puffer, der Schlund der Durchsatz.
     schlund: 1 + (stufenG.schlund || 0) + (a ? a.schlund : 0),
     schuetzen: stufenG.schuetze,
+    // Wie viele Goblins wischen und wie flink sie sind.
+    wischer: 1 + (stufenG.putztrupp || 0),
+    wischTempo: 34 + 12 * (stufenG.putztrupp || 0),
     pfeilSchaden: 10 + 10 * stufenG.pfeile,
     schuetzenKrit: 0.06 * (stufenG.krit || 0),
     stolzFaktor: 1 + 0.25 * stufenP.stolz,

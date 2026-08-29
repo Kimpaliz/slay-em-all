@@ -347,6 +347,56 @@ export function restZeichnen(ctx, rest) {
   }
 }
 
+/**
+ * Ein Putzgoblin.
+ *
+ * Klein, gruen, mit Eimer. Beim Wischen beugt er sich vor und der Lappen
+ * wischt hin und her — damit man auf einen Blick sieht, ob er arbeitet
+ * oder nur unterwegs ist.
+ */
+export function wischerZeichnen(ctx, g) {
+  const x = Math.round(g.x);
+  const fuss = MASSE.DECK;
+  const wischt = g.tun === 'wischt';
+  const buecken = wischt ? 2 : 0;
+  const oben = fuss - 9 + buecken;
+
+  ctx.fillStyle = 'rgba(0,0,0,0.4)';
+  ctx.fillRect(x - 1, fuss, 6, 1);
+
+  // Beine
+  const schritt = g.tun !== 'wischt' && Math.sin(g.phase) > 0;
+  ctx.fillStyle = '#2c3d1c';
+  ctx.fillRect(x + (schritt ? 3 : 0), fuss - 3, 2, 3);
+  ctx.fillRect(x + (schritt ? 0 : 3), fuss - 2, 2, 2);
+
+  // Rumpf und Kopf
+  ctx.fillStyle = '#5d7a3a';
+  ctx.fillRect(x, oben + 3, 5, 5);
+  ctx.fillStyle = '#82a054';
+  ctx.fillRect(x + 1, oben, 4, 4);
+  ctx.fillStyle = '#42582a';
+  ctx.fillRect(x, oben + 1, 1, 2);       // Ohr links
+  ctx.fillRect(x + 5, oben + 1, 1, 2);   // Ohr rechts
+  ctx.fillStyle = '#17130f';
+  ctx.fillRect(x + 2, oben + 2, 1, 1);
+
+  // Eimer
+  ctx.fillStyle = '#6a6f7d';
+  ctx.fillRect(x + 5, fuss - 4, 4, 4);
+  ctx.fillStyle = '#8d1f26';
+  ctx.fillRect(x + 6, fuss - 3, 2, 2);
+
+  // Lappen: beim Wischen hin und her
+  if (wischt) {
+    const hin = Math.sin(g.phase * 2) > 0 ? 0 : 3;
+    ctx.fillStyle = '#c8b8a0';
+    ctx.fillRect(x - 3 + hin, fuss - 2, 4, 2);
+    ctx.fillStyle = '#8d1f26';
+    ctx.fillRect(x - 3 + hin, fuss - 1, 4, 1);
+  }
+}
+
 /* ---------------- Beute und Tiere ---------------- */
 
 /**
@@ -391,6 +441,28 @@ export function glutZeichnen(ctx, g, zeit) {
 export function muenzeZeichnen(ctx, m, zeit) {
   const x = Math.round(m.x);
   const y = Math.round(m.y);
+
+  /*
+    Ein Edelstein statt Kleingeld.
+
+    Er ist groesser, hat eine geschliffene Silhouette und funkelt in
+    einem eigenen Takt — man soll ihn quer ueber die Bruecke von einer
+    Muenze unterscheiden koennen, ohne die Zahl daneben zu lesen.
+  */
+  if (m.stein) {
+    ctx.fillStyle = '#6b3f8f'; ctx.fillRect(x - 2, y - 3, 6, 6);
+    ctx.fillStyle = '#9a5fc4'; ctx.fillRect(x - 1, y - 4, 4, 7);
+    ctx.fillStyle = '#c98fe8'; ctx.fillRect(x - 1, y - 3, 2, 3);
+    ctx.fillStyle = '#e8cbff'; ctx.fillRect(x, y - 3, 1, 1);
+    ctx.fillStyle = '#4a2a63'; ctx.fillRect(x + 2, y, 1, 2);
+    if (Math.sin(zeit * 4 + m.phase) > 0.86) {
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(x + 1, y - 4, 1, 1);
+      ctx.fillRect(x - 2, y + 1, 1, 1);
+    }
+    return;
+  }
+
   ctx.fillStyle = '#a5761f'; ctx.fillRect(x - 1, y - 1, 4, 3);
   ctx.fillStyle = '#e0b64f'; ctx.fillRect(x - 1, y - 1, 3, 2);
   ctx.fillStyle = '#f6d492'; ctx.fillRect(x - 1, y - 1, 1, 1);

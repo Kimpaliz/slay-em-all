@@ -20,12 +20,37 @@
 </head>
 <body>
 
+<!--
+  Der Titelbildschirm.
+
+  Er hat zwei Aufgaben. Die sichtbare ist der Auftritt: Name in
+  Serifenschrift, Blut laeuft aus den Buchstaben. Die unsichtbare ist
+  technischer Natur — Browser lassen Ton erst nach einer echten
+  Nutzergeste zu. Der "Spielen"-Knopf ist genau diese Geste, und
+  deshalb steht er hier statt in einer Ecke.
+-->
+<div class="titelbild" data-titelbild>
+  <div class="titelinhalt">
+    <h1 class="grosstitel">
+      <span class="titelwort">Slay&rsquo;Em</span>
+      <span class="titelwort">All!</span>
+      <span class="tropfen tropfen-1"></span>
+      <span class="tropfen tropfen-2"></span>
+      <span class="tropfen tropfen-3"></span>
+      <span class="tropfen tropfen-4"></span>
+      <span class="tropfen tropfen-5"></span>
+    </h1>
+    <p class="titelzeile">Die Recken gehen hinein. Was herauskommt, kommt einzeln.</p>
+    <button type="button" class="knopf-spielen" data-knopf="spielen">Spielen</button>
+    <p class="titelfuss">erstellt von <strong>Kimpaliz</strong></p>
+  </div>
+</div>
+
 <div class="wurzel" data-wurzel>
 
   <header class="kopf">
     <div class="kopf-titel">
       <div class="vorspann">Wellen-Idle am Burgtor &middot; Das B&ouml;se verteidigt sich</div>
-      <h1>Slay'Em All!</h1>
       <p class="untertitel">Tags&uuml;ber rennen Recken ins Tor. Nachts z&auml;hlt der Hof die M&uuml;nzen.
         Wird die Burg &uuml;berrannt, geht es f&uuml;nf Wellen zur&uuml;ck.</p>
     </div>
@@ -39,6 +64,13 @@
         <div class="beute-name">Blut</div>
         <div class="beute-wert wert-blut" data-feld="blut">0 l</div>
       </div>
+      <button type="button" class="knopf-ton" data-knopf="ton" title="Ton" aria-label="Ton">
+        <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+          <path d="M3 6h3l4-3v10l-4-3H3z"/>
+          <path class="ton-an" d="M12 5.5a4 4 0 0 1 0 5M13.8 3.5a7 7 0 0 1 0 9"/>
+          <path class="ton-aus" d="M12 6l4 4M16 6l-4 4"/>
+        </svg>
+      </button>
       <button type="button" class="knopf-vollbild" data-knopf="vollbild" title="Vollbild &mdash; ohne Browserleiste spielen" aria-label="Vollbild">
         <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
           <path class="ecken-auf" d="M2 6V2h4M14 6V2h-4M2 10v4h4M14 10v4h-4"/>

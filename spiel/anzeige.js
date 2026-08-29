@@ -1015,7 +1015,8 @@ export function anzeigeAnlegen(wurzel, rueckrufe) {
         laeuft = (k === 'pranke' && szene.pranke)
           || (k === 'flamme' && szene.flamme)
           || (k === 'meteor' && szene.meteorZeit > 0);
-        scharf = k === 'donner' && szene.donnerBereit;
+        scharf = (k === 'donner' && szene.donnerBereit)
+          || (k === 'flamme' && szene.flammeBereit);
       }
       const bereit = rest <= 0 && !laeuft && szene.phase === 'tag';
 

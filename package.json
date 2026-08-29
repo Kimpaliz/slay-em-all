@@ -1,6 +1,6 @@
 {
   "name": "slay-em-all",
-  "version": "0.12.1",
+  "version": "0.13.0",
   "description": "Slay'Em All! — Wellen-Idle am Burgtor. Die Recken gehen hinein. Was herauskommt, kommt einzeln.",
   "type": "module",
   "private": true,

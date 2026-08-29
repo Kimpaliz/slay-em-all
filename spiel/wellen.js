@@ -17,6 +17,7 @@
 // verloren — er muss auf der Brücke sterben.
 
 import { MASSE } from './masse.js';
+import { klang } from './klang.js';
 import { buehneRaeumen } from './welt.js';
 import { RECKEN } from './daten/recken.js';
 import { bossName } from './daten/bosse.js';
@@ -71,6 +72,7 @@ function phaseSetzen(szene, phase) {
 }
 
 export function welleStarten(welt) {
+  klang('welleStart');
   const { zustand, szene } = welt;
   if (szene.phase !== 'nacht') return false;
 
@@ -97,6 +99,7 @@ export function welleStarten(welt) {
 }
 
 export function welleGewonnen(welt) {
+  klang('welleGeschafft');
   const { zustand, szene } = welt;
   phaseSetzen(szene, 'nacht');
   szene.nachtzeit = 0;
@@ -118,6 +121,7 @@ export function welleGewonnen(welt) {
  * dass er die Beute tatsächlich verliert.
  */
 export function welleVerloren(welt) {
+  klang('verloren');
   const { zustand, szene } = welt;
   const ziel = rueckfall(zustand.welle);
 

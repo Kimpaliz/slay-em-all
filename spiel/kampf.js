@@ -20,7 +20,8 @@
 // jeder andere Antrieb — etwa `vorspulen()` in den Prüfungen — überhaupt
 // keine Beute. Nur die Anzeige wird gedrosselt, nicht die Buchhaltung.
 
-import { MASSE } from './masse.js';
+import { MASSE, festerBoden } from './masse.js';
+import { klang } from './klang.js';
 import { schadensFarbe, BOSS } from '../werkzeuge/wirtschaft.mjs';
 import {
   artefaktErzeugen, seltenheitAuslosen, seltenheitNach, fundWurf, INVENTAR_PLAETZE, verkaufswert
@@ -70,21 +71,40 @@ export function rauchen(szene, x, y, anzahl, optionen = {}) {
 }
 
 /** Eine Blutlache auf den Planken — benachbarte wachsen zusammen. */
-export function lacheSetzen(szene, x, breite) {
-  if (x < MASSE.KLIPPE - 6 || x > MASSE.TOR_RECHTS) return;
-  const nah = szene.lachen.find((l) => Math.abs(l.x - x) < 3);
+/**
+ * So viel Blut fasst eine Lache. Mehr laeuft weg.
+ *
+ * Das ist der Kern des Kreislaufs: Blut **stapelt sich nicht**. Wer
+ * nicht regelmaessig wischen laesst, verliert alles, was ueber diesen
+ * Wert hinaus vergossen wird. Deshalb lohnt der Putztrupp.
+ */
+export const LACHE_FASST = 60;
+
+/**
+ * Eine Blutlache setzen oder vergroessern.
+ *
+ * `blutmenge` ist, was dieser Tod an Litern beitraegt. Seit 0.13.0
+ * darf das ueberall auf festem Boden geschehen — auch auf der Ebene vor
+ * der Zugbruecke, wo Pfeile und Zauber die meisten Recken erwischen.
+ */
+export function lacheSetzen(szene, x, breite, blutmenge = 0) {
+  if (!festerBoden(x)) return;
+  const nah = szene.lachen.find((l) => Math.abs(l.x - x) < 6);
   if (nah) {
     nah.breite = Math.min(11, nah.breite + 1);
     nah.deckkraft = Math.min(0.95, nah.deckkraft + 0.12);
+    // Was ueber die Fassungsgrenze geht, versickert.
+    nah.blut = Math.min(LACHE_FASST, (nah.blut || 0) + blutmenge);
     return;
   }
   szene.lachen.push({
     x,
     breite: breite + ((Math.random() * 3) | 0),
     deckkraft: 0.45 + Math.random() * 0.3,
-    tropft: 1 + Math.random() * 3
+    tropft: 1 + Math.random() * 3,
+    blut: Math.min(LACHE_FASST, blutmenge)
   });
-  if (szene.lachen.length > 46) szene.lachen.shift();
+  if (szene.lachen.length > 60) szene.lachen.shift();
 }
 
 /**
@@ -96,11 +116,27 @@ export function lacheSetzen(szene, x, breite) {
  * Spieler verliert also nichts, nur die Übersicht bliebe sonst auf der
  * Strecke.
  */
+/**
+ * Ab diesem Wert je Stück wird aus Kleingeld ein Edelstein.
+ *
+ * Späte Recken werfen dreistellige Beträge ab. In vier Münzen zu je 60
+ * Gold aufgeteilt sieht das aus wie am Anfang — dieselben vier
+ * Klimperstücke, nur mit anderer Zahl daneben. Ein Edelstein zeigt auf
+ * einen Blick, dass hier etwas Größeres liegt, und spart obendrein
+ * Stücke auf der Brücke.
+ */
+export const EDELSTEIN_AB = 40;
+
 export function muenzenFallen(szene, x, klasse, besonders, ernteFaktor, bossFaktor) {
   let gesamt = klasse.gold * (bossFaktor || 1);
   if (besonders) gesamt = Math.round(gesamt * ernteFaktor);
   gesamt = Math.max(1, Math.round(gesamt));
-  const stuecke = Math.min(bossFaktor ? 8 : 4, gesamt);
+
+  // Große Beträge fallen als wenige Edelsteine statt als viel Kleingeld.
+  const alsStein = gesamt >= EDELSTEIN_AB * 2;
+  const stuecke = alsStein
+    ? Math.min(3, Math.max(1, Math.round(gesamt / (EDELSTEIN_AB * 3))))
+    : Math.min(bossFaktor ? 8 : 4, gesamt);
   const je = Math.floor(gesamt / stuecke);
   let rest = gesamt - je * stuecke;
   for (let i = 0; i < stuecke; i++) {
@@ -110,6 +146,7 @@ export function muenzenFallen(szene, x, klasse, besonders, ernteFaktor, bossFakt
       vx: -(8 + Math.random() * 46),
       vy: -(30 + Math.random() * 55),
       wert: je + (rest-- > 0 ? 1 : 0),
+      stein: alsStein,
       liegt: false,
       phase: Math.random() * 6.28
     });
@@ -126,6 +163,7 @@ export function muenzeAufsammeln(welt, muenze, vonHand, werte) {
   const szene = welt.szene;
   const i = szene.muenzen.indexOf(muenze);
   if (i < 0) return;
+  klang('muenze');
   const faktor = (vonHand ? werte.stolzFaktor : 1) * (werte.muenzFaktor || 1);
   const wert = Math.max(1, Math.round(muenze.wert * faktor));
   szene.muenzen.splice(i, 1);
@@ -143,6 +181,7 @@ export function muenzeAufsammeln(welt, muenze, vonHand, werte) {
  * Wellenende sammelt sich alles Liegengebliebene von selbst ein.
  */
 export function fundstueckFallen(welt, x, artefakt) {
+  klang('fund');
   const szene = welt.szene;
   const ziel = Math.max(MASSE.KLIPPE + 4, Math.min(MASSE.TOR_RECHTS - 6, x));
   szene.fundstuecke.push({
@@ -328,20 +367,40 @@ export function verbrennen(welt, recke, ursache, werte) {
 export function brueckenTod(welt, recke, ursache, werte) {
   const szene = welt.szene;
   const k = recke.klasse;
+  const vomBlitz = ursache === 'blitz' || ursache === 'kette';
+  klang(vomBlitz ? 'blitz' : 'brueckenTod');
   const gross = recke.groesse || 1;
-  spritzen(szene, recke.x + 3, MASSE.DECK - 6, 7 * gross, k.blut);
-  const arten = ['arm', 'bein', 'schaedel'];
-  for (let i = 0; i < 2 * gross; i++) {
+  /*
+    Wer vom Blitz erwischt wird, platzt.
+
+    Der Unterschied zum gewoehnlichen Tod ist Absicht und liegt in drei
+    Zahlen: dreimal so viele Blutspritzer, deutlich mehr Einzelteile,
+    und alles fliegt **steil nach oben** statt zur Seite. Ein Blitz
+    schlaegt von oben ein — die Reste sollen wirken, als haette es sie
+    ausgeworfen, nicht umgeworfen.
+  */
+  spritzen(szene, recke.x + 3, MASSE.DECK - 6, (vomBlitz ? 21 : 7) * gross, k.blut);
+  const arten = vomBlitz
+    ? ['arm', 'bein', 'schaedel', 'rumpf', 'kopf', 'helm']
+    : ['arm', 'bein', 'schaedel'];
+  const teile = (vomBlitz ? 6 : 2) * gross;
+  for (let i = 0; i < teile; i++) {
     szene.truemmer.push({
       art: arten[(Math.random() * arten.length) | 0],
       x: recke.x + 3, y: MASSE.DECK - 8,
-      vx: Math.random() * 60 - 40, vy: -(30 + Math.random() * 40),
-      dreh: 0, drehTempo: Math.random() * 8 - 4, lebt: 12,
+      // Seitwärts bei gewöhnlichem Tod, steil nach oben beim Blitz.
+      vx: vomBlitz ? (Math.random() * 70 - 35) : (Math.random() * 60 - 40),
+      vy: vomBlitz ? -(90 + Math.random() * 80) : -(30 + Math.random() * 40),
+      dreh: 0, drehTempo: Math.random() * (vomBlitz ? 16 : 8) - (vomBlitz ? 8 : 4), lebt: 12,
       farbe: k.rumpf, metall: k.metall, haut: k.haut, schild: k.schild || k.metall,
       rollt: false, faellt: false
     });
   }
-  lacheSetzen(szene, recke.x + 3, 4 + (gross - 1) * 3);
+  if (vomBlitz) {
+    szene.ruettelt = Math.min(5, szene.ruettelt + 1.5);
+    rauchen(szene, recke.x + 3, MASSE.DECK - 10, 4, { dauer: 1.1, steigen: 22 });
+  }
+  lacheSetzen(szene, recke.x + 3, 4 + (gross - 1) * 3, k.blut * gross);
   muenzenFallen(szene, recke.x + 3, k, ursache !== 'tor', werte.ernteFaktor,
     recke.boss ? BOSS.goldFaktor : 0);
   verbuchen(welt, k, recke.boss, recke.x + 3, werte);
@@ -357,6 +416,7 @@ export function brueckenTod(welt, recke, ursache, werte) {
  */
 export function torTod(welt, opfer, blutmenge, ruetteln, werte) {
   const szene = welt.szene;
+  klang('torTod');
   const k = opfer.klasse;
   const maulX = MASSE.TOR_LINKS + 4;
   const maulY = MASSE.DECK - 10;
@@ -419,6 +479,7 @@ export function torTod(welt, opfer, blutmenge, ruetteln, werte) {
  */
 export function zermalmen(welt, werte) {
   const szene = welt.szene;
+  klang('pranke');
   const pranke = szene.pranke;
   const vonX = MASSE.TOR_LINKS - pranke.reichweite - 4;
   let name = null;

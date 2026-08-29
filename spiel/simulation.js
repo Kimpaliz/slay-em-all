@@ -11,6 +11,7 @@
 // ändert, kann Tode um einen Bildschritt verschieben.
 
 import { MASSE, festerBoden, ausklang } from './masse.js';
+import { klang } from './klang.js';
 import { reckeAnlegen } from './welt.js';
 import {
   schaden, torTod, zermalmen, lacheSetzen, muenzenFallen, muenzeAufsammeln, rauchen,
@@ -56,6 +57,7 @@ export function schritt(welt, dt, einstellungen = {}) {
   reckenFuehren(welt, dt, werte);
   abklingzeitenFuehren(szene, dt);
 
+  wischerFuehren(welt, dt, werte);
   heilungFuehren(welt, dt);
   brandFuehren(welt, dt, werte);
   giftFuehren(welt, dt, werte);
@@ -64,6 +66,7 @@ export function schritt(welt, dt, einstellungen = {}) {
   pfeileFuehren(welt, dt, werte);
   blitzeFuehren(szene, dt);
   flammeFuehren(welt, dt, werte);
+  napalmFuehren(welt, dt, werte);
   meteoreFuehren(welt, dt, werte);
   brennendeFuehren(welt, dt, werte);
   brandfleckenFuehren(szene, dt);
@@ -311,6 +314,78 @@ function heilungFuehren(welt, dt) {
   }
 }
 
+/**
+ * Die Putzgoblins.
+ *
+ * Der Kreislauf, den sie schliessen: Blut faellt beim Sterben als Lache
+ * auf den Boden und ist dort **noch kein Geld**. Erst wenn ein Goblin
+ * hinlaeuft und aufwischt, wird es gutgeschrieben. Weil eine Lache nur
+ * `LACHE_FASST` Liter haelt, geht alles verloren, was daneben vergossen
+ * wird, solange niemand abtraegt — deshalb lohnt sich der Putztrupp.
+ *
+ * Jeder Goblin hat drei Zustaende: `hin` (zur Lache), `wischt` (dabei),
+ * `heim` (zurueck ans Tor). Er sucht immer die **volleste erreichbare**
+ * Lache, nicht die naechste — sonst wischte er ewig an Tropfen herum,
+ * waehrend die grosse Pfuetze ueberlaeuft.
+ */
+function wischerFuehren(welt, dt, werte) {
+  const { zustand, szene } = welt;
+  const heim = MASSE.TOR_LINKS - 6;
+
+  // Fehlende Goblins nachziehen, ueberzaehlige gehen heim und verschwinden.
+  while (szene.wischer.length < werte.wischer) {
+    szene.wischer.push({ x: heim, ziel: null, tun: 'heim', fortschritt: 0, phase: Math.random() * 6.28 });
+  }
+  if (szene.wischer.length > werte.wischer) szene.wischer.length = werte.wischer;
+
+  for (const g of szene.wischer) {
+    g.phase += dt * 6;
+
+    if (g.tun === 'wischt') {
+      g.fortschritt += dt;
+      if (g.fortschritt >= 0.7) {
+        const i = szene.lachen.indexOf(g.ziel);
+        if (i >= 0) {
+          const gewonnen = Math.round(g.ziel.blut || 0);
+          szene.lachen.splice(i, 1);
+          if (gewonnen > 0) {
+            zustand.blut += gewonnen;
+            szene.zahlen.push({
+              x: g.x, y: MASSE.DECK - 14,
+              text: '+' + gewonnen, farbe: '#c1444f', zeit: 0
+            });
+          }
+        }
+        g.ziel = null;
+        g.tun = 'heim';
+      }
+      continue;
+    }
+
+    if (g.tun === 'hin') {
+      // Ziel verschwunden? Dann heim.
+      if (!g.ziel || szene.lachen.indexOf(g.ziel) < 0) { g.ziel = null; g.tun = 'heim'; continue; }
+      const weg = g.ziel.x - g.x;
+      if (Math.abs(weg) < 3) { g.tun = 'wischt'; g.fortschritt = 0; continue; }
+      g.x += Math.sign(weg) * werte.wischTempo * dt;
+      continue;
+    }
+
+    // 'heim': zurueck ans Tor, unterwegs nach Arbeit schauen
+    const belegt = szene.wischer.map((a) => a.ziel).filter(Boolean);
+    let beste = null;
+    for (const l of szene.lachen) {
+      if (!l.blut || l.blut < 1) continue;
+      if (belegt.includes(l)) continue;
+      if (!beste || l.blut > beste.blut) beste = l;
+    }
+    if (beste) { g.ziel = beste; g.tun = 'hin'; continue; }
+
+    const weg = heim - g.x;
+    if (Math.abs(weg) > 2) g.x += Math.sign(weg) * werte.wischTempo * 0.8 * dt;
+  }
+}
+
 function abklingzeitenFuehren(szene, dt) {
   for (const k in szene.abklingzeit) {
     if (szene.abklingzeit[k] > 0) szene.abklingzeit[k] = Math.max(0, szene.abklingzeit[k] - dt);
@@ -451,6 +526,7 @@ function schuetzenFuehren(welt, dt, werte) {
     const ax = MASSE.SCHUETZE_X + a * 24;
     const ay = 22;
     const flugzeit = Math.max(0.45, Math.min(1.1, (ax - ziel.x) / 150));
+    klang('pfeil');
     szene.pfeile.push({
       x: ax, y: ay,
       vx: ((ziel.x + ziel.tempo * flugzeit + 3) - ax) / flugzeit,
@@ -523,6 +599,62 @@ function blitzeFuehren(szene, dt) {
  * Sie qualmt, solange sie brennt, und noch eine Weile danach — der Rauch
  * gleitet über die Planken hoch und fadet aus.
  */
+/**
+ * Der Napalm-Wurf und der Brandboden, den er hinterlaesst.
+ *
+ * Zwei Abschnitte: Solange `zeit < dauer` fallen Brocken ins Gebiet und
+ * zuenden Getroffene an. Jeder Einschlag legt ausserdem eine brennende
+ * Stelle auf den Boden, die drei Sekunden haelt — wer danach
+ * hindurchlaeuft, faengt ebenfalls Feuer. Deshalb lohnt es sich, das
+ * Gebiet **vor** die Recken zu legen statt auf sie.
+ */
+function napalmFuehren(welt, dt, werte) {
+  const szene = welt.szene;
+  const n = szene.napalm;
+
+  if (n) {
+    n.zeit += dt;
+    n.takt -= dt;
+    if (n.takt <= 0) {
+      n.takt = 0.11;
+      const x = n.von + Math.random() * (n.bis - n.von);
+      szene.explosionen.push({ x, zeit: 0.2 });
+      rauchen(szene, x, MASSE.DECK - 7, 2, { dauer: 2.2, steigen: 16, streuung: 4 });
+      // Eine brennende Stelle bleibt liegen.
+      szene.brandboden.push({ x, rest: 3, breite: 14 });
+      if (szene.brandboden.length > 26) szene.brandboden.shift();
+      if (festerBoden(x)) {
+        szene.brandflecken.push({ x, breite: 4 + Math.random() * 4 });
+        if (szene.brandflecken.length > 30) szene.brandflecken.shift();
+      }
+      // Wer im Einschlag steht, brennt sofort.
+      for (let i = szene.recken.length - 1; i >= 0; i--) {
+        const r = szene.recken[i];
+        if (r.zustand !== 'laeuft') continue;
+        if (Math.abs(r.x + 3 - x) < 13) schaden(welt, r, n.schaden, 'napalm', 'feuer', werte);
+      }
+    }
+    if (n.zeit >= n.dauer) szene.napalm = null;
+  }
+
+  // Der Boden brennt nach und zuendet Durchlaeufer an.
+  for (let i = szene.brandboden.length - 1; i >= 0; i--) {
+    const b = szene.brandboden[i];
+    b.rest -= dt;
+    if (b.rest <= 0) { szene.brandboden.splice(i, 1); continue; }
+    if (Math.random() < dt * 6) {
+      rauchen(szene, b.x + (Math.random() * 10 - 5), MASSE.DECK - 4, 1,
+        { dauer: 1.4, steigen: 14, streuung: 2 });
+    }
+    for (const r of szene.recken) {
+      if (r.zustand !== 'laeuft' || r.brand) continue;
+      if (Math.abs(r.x + 3 - b.x) < b.breite / 2) {
+        r.brand = { rest: 3, takt: 0, schadenJeSekunde: Math.max(10, Math.round(werte.pfeilSchaden)) };
+      }
+    }
+  }
+}
+
 function flammeFuehren(welt, dt, werte) {
   const szene = welt.szene;
   const f = szene.flamme;

@@ -111,6 +111,13 @@ export function neueSzene() {
     pranke: null,
     flamme: null,
     donnerBereit: false,
+    flammeBereit: false,      // Zeiger fuer den Napalm-Wurf bewaffnet
+    zielX: null,              // wohin der Zeiger gerade deutet
+    zielBereich: 112,
+    napalm: null,             // laufender Wurf: { von, bis, zeit, ... }
+    brandboden: [],           // brennende Stellen, zuenden Durchlaeufer an
+    wischer: [],              // Putzgoblins, holen das Blut aus den Lachen
+    wischerTakt: 0,
     meteorZeit: 0,
     meteorZone: null,     // wo der Schauer niedergeht, beim Auslösen bestimmt
     meteorTakt: 0,

@@ -1056,3 +1056,154 @@ canvas[data-szene] {
   .punkt { animation: none; }
   * { scroll-behavior: auto !important; }
 }
+
+/* ---------------- Titelbild ---------------- */
+
+/*
+   Der Auftritt. Er liegt über allem, bis auf "Spielen" gedrückt wird.
+
+   Zur Schrift: Das Spiel bringt nur Inter mit, und eine zweite Datei
+   nachzuladen widerspricht der Regel, nichts von fremden Servern zu
+   holen. Elegant wird der Titel deshalb über eine Serifenschrift des
+   Systems und über Satz — weite Sperrung, hohes Gewicht, tiefer
+   Schatten. Das kostet kein Byte und sieht auf jedem Gerät gesetzt aus.
+*/
+.titelbild {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background:
+    radial-gradient(120% 80% at 50% 12%, #24121a 0%, #150c12 45%, #08060a 100%);
+  animation: titelKommt 0.5s ease-out;
+}
+.titelbild.geht {
+  animation: titelGeht 0.45s ease-in forwards;
+  pointer-events: none;
+}
+.titelbild[hidden] { display: none; }
+
+@keyframes titelKommt { from { opacity: 0; } to { opacity: 1; } }
+@keyframes titelGeht { to { opacity: 0; visibility: hidden; } }
+
+.titelinhalt { text-align: center; max-width: 34rem; }
+
+.grosstitel {
+  position: relative;
+  margin: 0 0 6px;
+  font-family: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia,
+    'Times New Roman', serif;
+  font-weight: 700;
+  font-size: clamp(38px, 11vw, 92px);
+  line-height: 1.04;
+  letter-spacing: 0.02em;
+  /* Von oben satt, nach unten dunkler — als wäre die Farbe abgelaufen. */
+  background: linear-gradient(178deg, #f4e9e6 0%, #d8888a 34%, #a8232c 68%, #5e0f16 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 3px 0 rgba(0, 0, 0, 0.55))
+          drop-shadow(0 0 22px rgba(150, 20, 30, 0.4));
+}
+
+.titelwort { display: inline-block; }
+
+/*
+   Die Tropfen.
+
+   Sie hängen an festen Stellen unter dem Schriftzug und laufen in
+   verschiedenen Takten: erst schwillt der Tropfen an, dann reißt er ab
+   und fällt. Weil jeder seine eigene Dauer und Verzögerung hat, ergibt
+   sich nie ein gleichmäßiges Muster.
+*/
+.tropfen {
+  position: absolute;
+  top: 82%;
+  width: 5px;
+  border-radius: 0 0 50% 50%;
+  background: linear-gradient(180deg, #8d1f26, #5e0f16);
+  transform-origin: top center;
+  pointer-events: none;
+}
+
+.tropfen-1 { left: 12%; animation: tropft 5.5s ease-in 0.2s infinite; }
+.tropfen-2 { left: 31%; width: 4px; animation: tropft 7.2s ease-in 1.4s infinite; }
+.tropfen-3 { left: 52%; width: 6px; animation: tropft 6.1s ease-in 2.6s infinite; }
+.tropfen-4 { left: 71%; width: 4px; animation: tropft 8.4s ease-in 0.9s infinite; }
+.tropfen-5 { left: 88%; width: 5px; animation: tropft 6.8s ease-in 3.7s infinite; }
+
+@keyframes tropft {
+  0%        { height: 0; opacity: 0.9; transform: translateY(0); }
+  28%       { height: 26px; opacity: 1; transform: translateY(0); }
+  36%       { height: 34px; }
+  44%       { height: 12px; transform: translateY(30px); opacity: 0.85; }
+  60%       { height: 6px; transform: translateY(130px); opacity: 0; }
+  100%      { height: 0; opacity: 0; transform: translateY(130px); }
+}
+
+.titelzeile {
+  margin: 14px 0 26px;
+  font-size: clamp(12px, 3.4vw, 15px);
+  color: color-mix(in srgb, #e9e9ed 62%, transparent);
+  text-wrap: pretty;
+}
+
+.knopf-spielen {
+  font: inherit;
+  font-size: clamp(14px, 4vw, 17px);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: #f6ece9;
+  background: linear-gradient(180deg, #a8232c, #6d121a);
+  border: 0;
+  box-shadow: 0 0 0 1px #c1444f, 0 8px 24px rgba(140, 20, 30, 0.45);
+  border-radius: 999px;
+  padding: 13px 46px;
+  cursor: pointer;
+}
+.knopf-spielen:hover { background: linear-gradient(180deg, #c1444f, #7d1620); }
+.knopf-spielen:active { transform: translateY(1px); }
+
+.titelfuss {
+  margin: 26px 0 0;
+  font-size: 11.5px;
+  letter-spacing: 0.08em;
+  color: color-mix(in srgb, #e9e9ed 40%, transparent);
+}
+.titelfuss strong { color: var(--akzent); font-weight: 600; }
+
+/* ---------------- Tonknopf ---------------- */
+
+.knopf-ton {
+  align-self: center;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  color: var(--gedaempft);
+  background: transparent;
+  border: 0;
+  box-shadow: 0 0 0 1px var(--linie);
+  border-radius: var(--rundung-klein);
+  cursor: pointer;
+}
+.knopf-ton:hover { color: var(--text); box-shadow: 0 0 0 1px var(--schwach); }
+.knopf-ton svg {
+  width: 16px; height: 16px;
+  fill: currentColor; stroke: currentColor;
+  stroke-width: 1.4; stroke-linecap: round;
+}
+.knopf-ton svg path:first-child { stroke-width: 1; }
+.knopf-ton .ton-an, .knopf-ton .ton-aus { fill: none; }
+.knopf-ton .ton-aus { display: none; }
+.knopf-ton.stumm { color: var(--schwach); }
+.knopf-ton.stumm .ton-an { display: none; }
+.knopf-ton.stumm .ton-aus { display: inline; }
+
+@media (prefers-reduced-motion: reduce) {
+  .tropfen { animation: none; height: 18px; }
+  .titelbild { animation: none; }
+}

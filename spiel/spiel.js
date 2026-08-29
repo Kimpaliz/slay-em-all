@@ -22,6 +22,7 @@ import { anzeigeAnlegen } from './anzeige.js';
 import { portraetsAnlegen } from './portraets.js';
 import { eingabeAnlegen } from './eingabe.js';
 import { vollbildAnlegen } from './vollbild.js';
+import { klang, klangWecken, klangEinstellungLaden, stummUmschalten, istStumm } from './klang.js';
 import { laden, sichern, loeschen, altlastenEntfernen } from './speicher.js';
 import { welleStarten, welleAuslosen } from './wellen.js';
 import { ausloesen } from './zauber.js';
@@ -41,6 +42,7 @@ export function spielStarten(optionen = {}) {
   const wurzel = optionen.wurzel || document.querySelector('[data-wurzel]') || document;
   const welt = neueWelt();
 
+  klangEinstellungLaden();
   altlastenEntfernen();
   const gespeichert = laden();
   if (gespeichert) {
@@ -85,6 +87,7 @@ export function spielStarten(optionen = {}) {
   });
 
   function nachKauf() {
+    klang('kauf');
     anzeige.auffrischen(welt);
     sichern(welt.zustand);
   }
@@ -129,6 +132,53 @@ export function spielStarten(optionen = {}) {
   // Vollbild gibt es im normalen Browser nur auf Knopfdruck; in der
   // installierten App versteckt sich der Knopf von selbst.
   vollbildAnlegen(wurzel.querySelector('[data-knopf="vollbild"]'));
+
+  /*
+    Der Tonknopf.
+
+    Er zeigt den gemerkten Zustand schon vor dem ersten Ton — wer beim
+    letzten Mal stumm geschaltet hat, sieht das sofort und wird nicht
+    beim Antippen von "Spielen" überrascht.
+  */
+  const tonKnopf = wurzel.querySelector('[data-knopf="ton"]');
+  function tonAnzeigen() {
+    if (!tonKnopf) return;
+    const aus = istStumm();
+    tonKnopf.classList.toggle('stumm', aus);
+    tonKnopf.title = aus ? 'Ton einschalten' : 'Ton ausschalten';
+    tonKnopf.setAttribute('aria-label', tonKnopf.title);
+    tonKnopf.setAttribute('aria-pressed', aus ? 'false' : 'true');
+  }
+  if (tonKnopf) {
+    tonKnopf.addEventListener('click', () => {
+      klangWecken();          // falls noch nie eine Geste kam
+      stummUmschalten();
+      tonAnzeigen();
+      klang('kauf');          // kurze Rückmeldung, dass es wieder an ist
+    });
+    tonAnzeigen();
+  }
+
+  /*
+    Das Titelbild.
+
+    Der Knopf ist die Nutzergeste, die Browser für Ton verlangen —
+    deshalb wird der Tonapparat genau hier geweckt und nirgends sonst.
+    Danach blendet das Bild aus und gibt das Spiel frei.
+  */
+  const titelbild = document.querySelector('[data-titelbild]');
+  const spielenKnopf = document.querySelector('[data-knopf="spielen"]');
+  if (titelbild && spielenKnopf) {
+    spielenKnopf.addEventListener('click', () => {
+      klangWecken();
+      tonAnzeigen();
+      titelbild.classList.add('geht');
+      // Erst nach der Blende aus dem Weg räumen, sonst springt es.
+      setTimeout(() => { titelbild.hidden = true; }, 480);
+      klang('welleStart');
+      ansTorScrollen();
+    }, { once: true });
+  }
 
   anzeige.breiteMessen();
   anzeige.auffrischen(welt);
