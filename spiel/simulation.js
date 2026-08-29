@@ -14,7 +14,7 @@ import { MASSE, festerBoden, ausklang } from './masse.js';
 import { klang } from './klang.js';
 import { reckeAnlegen } from './welt.js';
 import {
-  schaden, torTod, zermalmen, lacheSetzen, muenzenFallen, muenzeAufsammeln, rauchen,
+  schaden, torTod, zermalmen, lacheSetzen, muenzenFallen, muenzeAufsammeln, BOSS_CC_FAKTOR, rauchen,
   vergiften, fundstueckNehmen
 } from './kampf.js';
 import { wirkungAus } from './artefakte.js';
@@ -234,6 +234,7 @@ function reckenFuehren(welt, dt, werte) {
   for (let i = szene.recken.length - 1; i >= 0; i--) {
     const r = szene.recken[i];
     if (r.getroffen > 0) r.getroffen -= dt;
+    if (r.ccSperre > 0) r.ccSperre -= dt;
     if (r.frost) {
       r.frost.rest -= dt;
       if (r.frost.rest <= 0) delete r.frost;
@@ -255,7 +256,12 @@ function reckenFuehren(welt, dt, werte) {
     // Frost aus dem Regal bremst, Raureif bremst kurz vor dem Tor.
     let tempo = r.tempo;
     if (r.frost) tempo *= r.frost.faktor;
-    if (raureif > 0 && r.x > MASSE.TOR_LINKS - 40) tempo *= 1 - raureif;
+    // Raureif ist ebenfalls eine Beeinträchtigung — auf einen Boss wirkt
+    // sie nur zu einem Zehntel, und auch das nur außerhalb seiner Sperre.
+    if (raureif > 0 && r.x > MASSE.TOR_LINKS - 40) {
+      const wirkt = r.boss ? (r.ccSperre > 0 ? 0 : raureif * BOSS_CC_FAKTOR) : raureif;
+      tempo *= 1 - wirkt;
+    }
 
     r.x += tempo * dt;
     if (r.x >= MASSE.TOR_EINTRITT) {

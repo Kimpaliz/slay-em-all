@@ -238,6 +238,43 @@ function fundWuerfeln(welt, x, boss, werte) {
  * alle ticken parallel. Genau das macht Giftpfeile bei dichten Reihen so
  * gut — und deshalb bekommt jeder Stapel seine eigene Uhr.
  */
+/**
+ * Wie stark ein Boss Beeinträchtigungen abschüttelt.
+ *
+ * Ein Boss ist eine Frist, kein Sandsack: Er muss auf der Brücke
+ * sterben, sonst ist sofort Schluss. Wäre er dauerhaft einfrierbar,
+ * hätte man ihn mit einem einzigen Artefakt entschärft — die Frist
+ * wäre keine mehr.
+ *
+ * Deshalb zwei Bremsen zugleich:
+ *   1. **Dauer auf ein Zehntel.** Drei Sekunden Frost werden 0,3.
+ *   2. **Danach zehn Sekunden nichts.** In der Zeit prallt jede weitere
+ *      Beeinträchtigung ab.
+ *
+ * Betroffen sind nur echte Beeinträchtigungen — Frost und Raureif, also
+ * alles, was das Gehen behindert. Gift und Brand richten Schaden an und
+ * bleiben davon unberührt; sie sind das Mittel, das gegen einen Boss
+ * überhaupt wirken soll.
+ */
+export const BOSS_CC_FAKTOR = 0.1;
+export const BOSS_CC_SPERRE = 10;
+
+/**
+ * Darf dieser Recke gerade beeinträchtigt werden?
+ * Gibt die zulässige Dauer zurück, oder 0.
+ */
+export function ccDauer(recke, dauer) {
+  if (!recke.boss) return dauer;
+  if (recke.ccSperre > 0) return 0;
+  return dauer * BOSS_CC_FAKTOR;
+}
+
+/** Setzt die Sperre nach einer Beeinträchtigung. */
+export function ccSperren(recke, dauer) {
+  if (!recke.boss) return;
+  recke.ccSperre = dauer + BOSS_CC_SPERRE;
+}
+
 export function vergiften(recke, dps, dauer) {
   if (!recke.gift) recke.gift = [];
   if (recke.gift.length >= 8) recke.gift.shift();
@@ -246,9 +283,13 @@ export function vergiften(recke, dps, dauer) {
 
 /** Frost verlangsamt. Der stärkste Frost gewinnt, sie stapeln nicht. */
 export function einfrieren(recke, prozent, dauer) {
+  const echt = ccDauer(recke, dauer);
+  if (echt <= 0) return false;           // Boss ist gerade gefeit
   const faktor = 1 - Math.min(0.75, prozent / 100);
-  if (recke.frost && recke.frost.faktor <= faktor && recke.frost.rest >= dauer) return;
-  recke.frost = { faktor, rest: dauer };
+  if (recke.frost && recke.frost.faktor <= faktor && recke.frost.rest >= echt) return false;
+  recke.frost = { faktor, rest: echt };
+  ccSperren(recke, echt);
+  return true;
 }
 
 /**

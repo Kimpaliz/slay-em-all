@@ -1207,3 +1207,19 @@ canvas[data-szene] {
   .tropfen { animation: none; height: 18px; }
   .titelbild { animation: none; }
 }
+
+/* Das Wellensymbol ist befragbar: halten (oder überfahren) zeigt die
+   Werte der Welle. Ein feiner Rand deutet an, dass da etwas ist. */
+.wellenmarke.befragbar {
+  cursor: help;
+  border-bottom: 1px dotted color-mix(in srgb, var(--akzent-hell) 55%, transparent);
+}
+.wellenmarke.befragbar:hover,
+.wellenmarke.befragbar.haelt {
+  background: rgba(145, 132, 217, 0.3);
+  box-shadow: 0 0 0 1px var(--akzent);
+}
+.wellenmarke.befragbar:focus-visible {
+  outline: 2px solid var(--akzent-hell);
+  outline-offset: 2px;
+}

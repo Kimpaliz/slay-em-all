@@ -11,6 +11,7 @@ import {
   STUFEN_GROMMSCH_LEER, STUFEN_PIPS_LEER, zauberStufenLeer, klickStufenLeer,
   werte, wellenStaerke, spawnAbstand, verfuegbareKlassen, klassenGewichte,
   zauberWerte, ausbauPreis, klickWerte, klickAusbauPreis, rueckfall, zahl,
+  wellenTempo, TEMPO_SCHWELLE,
   SCHADENSARTEN, schadensFarbe, HALLEN_AB_WELLE, FRESSTEMPO, TEMPO_DECKEL,
   wellenSkalierung, istBosswelle, BOSS, BOSS_ABSTAND
 } from './wirtschaft.mjs';
@@ -239,11 +240,36 @@ console.log('Wie die Wellen von selbst wachsen');
   nahe(wellenSkalierung(11).lpFaktor, Math.pow(1.05, 10), 'Leben wachsen mit 1,05 je Welle');
 
   // Tempo ist gedeckelt, Truppgroesse bewusst NICHT.
-  gleich(TEMPO_DECKEL, 1.5, 'Tempodeckel liegt bei +50 %');
+  gleich(TEMPO_DECKEL, 2.6, 'Tempodeckel liegt bei +160 %');
   for (const w of [50, 200, 1000]) {
     pruefe(wellenSkalierung(w).tempoFaktor <= TEMPO_DECKEL + 1e-9,
       'Tempo bleibt gedeckelt, Welle ' + w);
   }
+
+  /*
+    Ab der Schwelle ziehen sie an — und zwar sichtbar.
+
+    Geprueft wird dreierlei: dass es davor gemaechlich bleibt, dass die
+    Schwelle selbst einen deutlichen Sprung macht (sonst waere sie keine
+    Schwelle), und dass es danach in jeder Welle spuerbar weitergeht.
+  */
+  gleich(TEMPO_SCHWELLE, 10, 'Die Schwelle liegt bei Welle 10');
+  const vorSchwelle = wellenTempo(TEMPO_SCHWELLE - 1) - wellenTempo(TEMPO_SCHWELLE - 2);
+  const aufSchwelle = wellenTempo(TEMPO_SCHWELLE) - wellenTempo(TEMPO_SCHWELLE - 1);
+  const nachSchwelle = wellenTempo(TEMPO_SCHWELLE + 1) - wellenTempo(TEMPO_SCHWELLE);
+  pruefe(vorSchwelle < 0.02, 'Vor der Schwelle waechst es gemaechlich',
+    '+' + (vorSchwelle * 100).toFixed(1) + ' %');
+  pruefe(aufSchwelle > 0.1, 'Auf der Schwelle gibt es einen sichtbaren Sprung',
+    '+' + (aufSchwelle * 100).toFixed(1) + ' %');
+  pruefe(nachSchwelle > vorSchwelle * 3, 'Danach geht es deutlich steiler weiter',
+    '+' + (nachSchwelle * 100).toFixed(1) + ' % je Welle');
+  for (let w = TEMPO_SCHWELLE; w < 40; w++) {
+    pruefe(wellenTempo(w + 1) >= wellenTempo(w), 'Tempo faellt nie, Welle ' + w);
+  }
+  // Nicht ins Unspielbare: Ein Bauer muss ueber zehn Sekunden brauchen.
+  const schnellster = 20 * TEMPO_DECKEL;
+  pruefe(635 / schnellster > 10, 'Selbst am Anschlag bleiben ueber 10 s zum Zielen',
+    (635 / schnellster).toFixed(1) + ' s');
   gleich(wellenSkalierung(5).truppGroesse, 2, 'Ab Welle 5 kommen sie zu zweit');
   gleich(wellenSkalierung(50).truppGroesse, 11, 'Welle 50: elf auf einmal');
   pruefe(wellenSkalierung(500).truppGroesse > wellenSkalierung(100).truppGroesse,

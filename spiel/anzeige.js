@@ -16,7 +16,8 @@
 import {
   WAREN_GROMMSCH, WAREN_PIPS, ZAUBER, RITUAL_PREIS, KLICK, SCHADENSARTEN,
   werte as werteAus, wellenStaerke, zauberWerte, ausbauPreis,
-  klickWerte, klickAusbauPreis, istBosswelle, zahl
+  klickWerte, klickAusbauPreis, istBosswelle, zahl,
+  wellenSkalierung, wellenTempo, TEMPO_SCHWELLE, TEMPO_DECKEL, BOSS
 } from '../werkzeuge/wirtschaft.mjs';
 import { ACHSEN, KLICK_ACHSEN, wareZustand } from './handel.js';
 import { symbolZeichnen, waehrungZeichnen } from './portraets.js';
@@ -132,6 +133,74 @@ export function anzeigeAnlegen(wurzel, rueckrufe) {
     tipp.appendChild(artZeile(z.art));
   }
 
+  /**
+   * Der Steckbrief der laufenden Welle.
+   *
+   * Vier Zahlen, die sonst nirgends stehen: Wie schnell die Recken sind,
+   * wie zaeh, wie wahrscheinlich sie etwas fallen lassen, und was sie
+   * ungefaehr wert sind. Alles im Vergleich zur ersten Welle, damit man
+   * die Zahl einordnen kann, ohne sie zu kennen.
+   *
+   * Das Gold ist ein **Mittelwert der tatsaechlich ausgelosten Welle**,
+   * wenn eine ansteht — nicht eine Schaetzung ueber alle Klassen. Nachts
+   * weiss das Spiel ja genau, wer kommt.
+   */
+  function tippWelleFuellen(zustand) {
+    const welle = zustand.welle;
+    const sk = wellenSkalierung(welle);
+    const w = werteAus(zustand.stufenG, zustand.stufenP, wirkungAus(zustand.regal));
+    const boss = istBosswelle(welle);
+
+    tippKopf('Welle ' + welle + (boss ? '  ·  Bosswelle' : ''),
+      boss
+        ? 'Halbes Gefolge und ein Boss. Erreicht er das Tor, ist sofort Schluss.'
+        : 'Was diese Welle mitbringt — im Vergleich zur ersten.');
+
+    // Tempo
+    const tempo = Math.round((sk.tempoFaktor - 1) * 100);
+    const naechstes = Math.round((wellenTempo(welle + 1) - 1) * 100);
+    tipp.appendChild(tippZeile('»', 'Tempo', '+' + tempo + ' %',
+      naechstes > tempo ? 'nächste +' + naechstes + ' %' : '', '', '#9ecbff'));
+
+    // Leben
+    tipp.appendChild(tippZeile('♥', 'Leben', '×' + sk.lpFaktor.toFixed(2).replace('.', ','),
+      '', '', '#ff8a6a'));
+
+    // Wie viele auf einmal
+    tipp.appendChild(tippZeile('⁙', 'Trupp', sk.truppGroesse + ' zugleich',
+      '', '', '#d2cefd'));
+
+    // Fundchance
+    tipp.appendChild(tippZeile('◈', 'Artefakt je Toter',
+      w.fundchance.toFixed(2).replace('.', ',') + ' %', '', '', '#c98fe8'));
+
+    // Goldwert
+    const liste = zustand.anstehend || [];
+    let gold = 0;
+    if (liste.length) {
+      for (const id of liste) {
+        const k = RECKEN.find((r) => r.id === id);
+        if (k) gold += k.gold;
+      }
+      gold = gold / liste.length;
+    } else {
+      const moeglich = RECKEN.filter((r) => welle >= r.abWelle);
+      gold = moeglich.reduce((a, r) => a + r.gold, 0) / Math.max(1, moeglich.length);
+    }
+    if (boss) gold *= 1 + BOSS.goldFaktor / Math.max(1, liste.length || 10);
+    tipp.appendChild(tippZeile('◆', 'Gold je Recke', '~' + zahl(Math.round(gold * 10) / 10),
+      '', '', '#e0b64f'));
+
+    // Der Hinweis auf die Schwelle, solange sie noch kommt
+    if (welle < TEMPO_SCHWELLE) {
+      const rest = TEMPO_SCHWELLE - welle;
+      tipp.appendChild(tippZeile('!', 'Ab Welle ' + TEMPO_SCHWELLE,
+        'ziehen sie an', 'noch ' + rest, '', '#ffd08a'));
+    } else if (sk.tempoFaktor >= TEMPO_DECKEL - 0.001) {
+      tipp.appendChild(tippZeile('!', 'Tempo', 'am Anschlag', '', '', '#ffd08a'));
+    }
+  }
+
   /** Die Schadensart als eigene Zeile, in ihrer Farbe. */
   function artZeile(art) {
     const a = SCHADENSARTEN[art] || SCHADENSARTEN.physisch;
@@ -222,8 +291,20 @@ export function anzeigeAnlegen(wurzel, rueckrufe) {
     }
   }
 
-  /** Setzt den Tooltip über den Druckpunkt, innerhalb des Bildschirms. */
-  function tippUeberFinger(x, y) {
+  /**
+   * Setzt den Tooltip über den Druckpunkt, innerhalb des Bildschirms.
+   *
+   * `el` ist das gedrückte Element und wird für den Notfall gebraucht:
+   * Sitzt es ganz oben — wie das Wellensymbol in der Kopfzeile —, ist
+   * über dem Finger kein Platz. Früher klebte der Tooltip dann bei
+   * y = 4 und lag damit **unter der Fingerkuppe**; gemessen ragte er
+   * 148 Punkte über den Druckpunkt hinaus nach unten.
+   *
+   * Jetzt rutscht er in diesem Fall unter das *Element* statt an den
+   * Bildrand. Die Fingerkuppe deckt rund 22 Punkte ab, die Unterkante
+   * des Elements liegt darunter — so bleibt er lesbar.
+   */
+  function tippUeberFinger(x, y, el) {
     tipp.hidden = false;
     tipp.classList.add('gehalten');
     const wr = wurzel.getBoundingClientRect();
@@ -231,10 +312,15 @@ export function anzeigeAnlegen(wurzel, rueckrufe) {
     const hoehe = tipp.offsetHeight;
     let links = x - wr.left - breite / 2;
     links = Math.max(6, Math.min(links, wr.width - breite - 6));
+
     let oben = y - wr.top - hoehe - FINGERLUFT;
-    // Oben kein Platz? Dann anheften. Nach unten auszuweichen wäre
-    // falsch — dort liegt die Hand.
-    if (oben < 4) oben = 4;
+    if (oben < 4) {
+      // Kein Platz darüber: unter das Element, nicht unter den Finger.
+      const er = el ? el.getBoundingClientRect() : null;
+      oben = er ? er.bottom - wr.top + 10 : y - wr.top + FINGERLUFT;
+      oben = Math.min(oben, wr.height - hoehe - 6);
+      oben = Math.max(4, oben);
+    }
     tipp.style.left = links + 'px';
     tipp.style.top = oben + 'px';
   }
@@ -269,7 +355,7 @@ export function anzeigeAnlegen(wurzel, rueckrufe) {
         gehaltenerKnopf = el;
         el.classList.add('haelt');
         fuellen();
-        tippUeberFinger(haltePunkt.x, haltePunkt.y);
+        tippUeberFinger(haltePunkt.x, haltePunkt.y, el);
         if (navigator.vibrate) { try { navigator.vibrate(12); } catch (fehler) { /* egal */ } }
       }, HALTEDAUER);
     });
@@ -436,6 +522,16 @@ export function anzeigeAnlegen(wurzel, rueckrufe) {
   malvinaAufbauen();
 
   /* ---------- Knöpfe ---------- */
+
+  // Das Wellensymbol oben zeigt auf Halten (oder Überfahren) den
+  // Steckbrief der Welle.
+  if (feld.welle) {
+    feld.welle.classList.add('befragbar');
+    feld.welle.setAttribute('tabindex', '0');
+    feld.welle.setAttribute('role', 'button');
+    feld.welle.setAttribute('aria-label', 'Werte dieser Welle');
+    tippAnbinden(feld.welle, () => tippWelleFuellen(rueckrufe.zustand()));
+  }
 
   if (knoepfe.welle) knoepfe.welle.addEventListener('click', () => rueckrufe.welleStarten());
   if (knoepfe.neustart) {

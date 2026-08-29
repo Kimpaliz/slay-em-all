@@ -277,7 +277,32 @@ export function werte(stufenG, stufenP, wirkung) {
 /* ---------------- Wie die Wellen von selbst wachsen ---------------- */
 
 /** Deckel, damit das Spiel nicht mechanisch unspielbar wird. */
-export const TEMPO_DECKEL = 1.5;
+export const TEMPO_DECKEL = 2.6;
+
+/**
+ * Ab dieser Welle ziehen die Recken merklich an.
+ *
+ * Davor wachsen sie um ein Prozent je Welle — das ist Untermalung, kein
+ * Druck. Ab Welle 10 gibt es **einen sichtbaren Sprung** und danach eine
+ * deutlich steilere Kurve, damit sich jede Welle von der vorherigen
+ * abhebt statt nur nummeriert zu sein.
+ *
+ * Der Deckel liegt bei 2,6: Ein Bauer braucht dann noch gut zwölf
+ * Sekunden über die Brücke. Schneller wäre nicht mehr schwer, sondern
+ * nur noch unfair — Zielen und Zaubern brauchen eine Mindestzeit.
+ */
+export const TEMPO_SCHWELLE = 10;
+const TEMPO_LANGSAM = 0.01;   // je Welle bis zur Schwelle
+const TEMPO_SPRUNG = 0.12;    // einmalig auf der Schwelle
+const TEMPO_SCHNELL = 0.05;   // je Welle danach
+
+export function wellenTempo(welle) {
+  const bis = Math.min(welle, TEMPO_SCHWELLE);
+  let faktor = 1 + TEMPO_LANGSAM * (bis - 1);
+  if (welle >= TEMPO_SCHWELLE) faktor += TEMPO_SPRUNG;
+  if (welle > TEMPO_SCHWELLE) faktor += TEMPO_SCHNELL * (welle - TEMPO_SCHWELLE);
+  return Math.min(TEMPO_DECKEL, faktor);
+}
 
 /**
  * Was die Welle selbst mitbringt — ohne dass der Spieler etwas kauft.
@@ -291,7 +316,7 @@ export const TEMPO_DECKEL = 1.5;
 export function wellenSkalierung(welle) {
   return {
     lpFaktor: Math.pow(1.05, welle - 1),
-    tempoFaktor: Math.min(TEMPO_DECKEL, 1 + 0.01 * (welle - 1)),
+    tempoFaktor: wellenTempo(welle),
     truppGroesse: 1 + Math.floor(welle / 5)
   };
 }

@@ -1,5 +1,85 @@
 # Änderungsprotokoll
 
+## 0.14.0 — 29.08.2026
+
+**Ab Welle 10 ziehen die Recken an, das Wellensymbol verrät die Werte,
+und Bosse schütteln Beeinträchtigungen ab.**
+
+### Ab Welle 10 wird es schnell
+
+Bisher wuchs das Tempo um ein Prozent je Welle und war bei +50 %
+gedeckelt — Untermalung, kein Druck. Jetzt gibt es eine **Schwelle bei
+Welle 10**: dort einmalig **+12 %**, danach **+5 % je Welle**. Der
+Deckel steigt auf +160 %.
+
+| Welle | Tempo | Zuwachs | Bauer über die Brücke |
+| --- | --- | --- | --- |
+| 9 | +8 % | +0,9 % | 29,4 s |
+| **10** | **+21 %** | **+12,0 %** | 26,2 s |
+| 11 | +26 % | +4,1 % | 25,2 s |
+| 15 | +46 % | | 21,7 s |
+| 20 | +71 % | | 18,6 s |
+| 40 | +160 % | am Anschlag | 12,2 s |
+
+Der Deckel ist nicht willkürlich: Bei 2,6 braucht ein Bauer noch gut
+zwölf Sekunden über die Brücke. Schneller wäre nicht mehr schwer,
+sondern unfair — Zielen und Zaubern brauchen eine Mindestzeit. Eine
+Prüfung hält genau das fest.
+
+Gemessen mit dem Balance-Rechner über 25 Wellen: Der Bot kommt weiterhin
+bis Welle 20–26 bei 0–1 Niederlagen, die Wellen dauern im Schnitt 60–81
+Sekunden statt vorher deutlich länger.
+
+### Das Wellensymbol verrät, was kommt
+
+Halten (am Handy) oder Überfahren (mit der Maus) auf **Welle N** oben
+zeigt jetzt den Steckbrief der Welle:
+
+- **Tempo** — Aufschlag gegenüber Welle 1, und was die nächste bringt
+- **Leben** — Faktor auf die Lebenspunkte
+- **Trupp** — wie viele gleichzeitig erscheinen
+- **Artefakt je Toter** — die tatsächliche Fundchance in Prozent
+- **Gold je Recke** — Mittelwert der **wirklich ausgelosten** Welle,
+  nicht eine Schätzung über alle Klassen. Nachts weiß das Spiel ja
+  genau, wer kommt.
+
+Vor Welle 10 steht dort zusätzlich, wie viele Wellen es noch bis zur
+Schwelle sind; am Anschlag, dass das Tempo ausgereizt ist. Bosswellen
+bekommen einen eigenen Kopf und die Warnung, dass sofort Schluss ist,
+wenn der Boss das Tor erreicht.
+
+Nachgemessen: Welle 1 → ~1 Gold, Welle 12 → ~6, Bosswelle 20 → ~20.
+
+**Dabei ein Platzierungsfehler behoben.** Das Wellensymbol sitzt ganz
+oben; über dem Finger ist dort kein Platz. Der gehaltene Tooltip klebte
+deshalb bei y = 4 und lag damit **unter der Fingerkuppe** — gemessen
+ragte er 148 Punkte über den Druckpunkt hinaus. Jetzt rutscht er in
+diesem Fall unter das *Element* statt an den Bildrand (gemessen:
+Symbol 10–30, Tooltip 40–204, zehn Punkte Abstand).
+
+### Bosse lassen sich nicht festhalten
+
+Ein Boss ist eine Frist, kein Sandsack — er muss auf der Brücke sterben,
+sonst ist sofort Schluss. Dauerhaft einfrierbar wäre er mit einem
+einzigen Artefakt entschärft, und die Frist wäre keine mehr.
+
+Deshalb zwei Bremsen zugleich:
+
+1. **Dauer auf ein Zehntel** — drei Sekunden Frost werden 0,3.
+2. **Danach zehn Sekunden nichts** — jede weitere Beeinträchtigung
+   prallt ab.
+
+Betroffen sind nur echte Beeinträchtigungen: **Frost und Raureif**, also
+alles, was das Gehen behindert. **Gift und Brand bleiben unberührt** —
+sie richten Schaden an und sind das Mittel, das gegen einen Boss
+überhaupt wirken soll.
+
+Nachgemessen: gewöhnlicher Recke 3,0 s Frost, Boss 0,3 s, Sperre 10,3 s;
+sofortiger zweiter Versuch prallt ab, nach fünf Sekunden immer noch,
+nach elf wieder möglich. Gift auf den Boss weiterhin volle vier
+Sekunden.
+
+
 ## 0.13.0 — 29.08.2026
 
 **Ton, ein Titelbild, und Blut wird wieder Währung.**

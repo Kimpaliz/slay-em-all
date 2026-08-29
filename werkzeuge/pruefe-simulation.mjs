@@ -9,6 +9,7 @@
 
 import { neueWelt } from '../spiel/welt.js';
 import { schritt } from '../spiel/simulation.js';
+import { einfrieren, vergiften } from '../spiel/kampf.js';
 import { RECKEN } from '../spiel/daten/recken.js';
 import { MASSE } from '../spiel/masse.js';
 import { BOSS, istBosswelle } from './wirtschaft.mjs';
@@ -159,6 +160,40 @@ console.log('\n6. Ist der Boss zu schaffen?');
     Math.round(bossLp / bauer.lp) + ' Bauern');
   pruefe(istBosswelle(10) && istBosswelle(20) && !istBosswelle(5) && !istBosswelle(11),
     'Bosse kommen alle 10 Wellen');
+}
+
+/* ---------------- 7. Boss gegen Beeintraechtigungen ---------------- */
+
+console.log('');
+console.log('7. Schuettelt der Boss Beeintraechtigungen ab?');
+{
+  const machRecke = (boss) => ({
+    klasse: RECKEN[0], x: 200, lp: 999, maxLp: 999,
+    zustand: 'laeuft', tempo: 20, boss: !!boss
+  });
+
+  const normal = machRecke(false);
+  const boss = machRecke(true);
+
+  einfrieren(normal, 40, 3);
+  einfrieren(boss, 40, 3);
+  pruefe(Math.abs(normal.frost.rest - 3) < 1e-9,
+    'Ein gewoehnlicher Recke friert die volle Zeit', normal.frost.rest + ' s');
+  pruefe(Math.abs(boss.frost.rest - 0.3) < 1e-9,
+    'Der Boss nur ein Zehntel davon', boss.frost.rest + ' s');
+  pruefe(einfrieren(boss, 60, 3) === false,
+    'Gleich danach prallt jede Beeintraechtigung ab');
+  pruefe(boss.ccSperre > 10,
+    'Die Sperre laeuft ueber zehn Sekunden', boss.ccSperre.toFixed(1) + ' s');
+
+  // Sperre abwarten
+  boss.ccSperre = 0;
+  pruefe(einfrieren(boss, 60, 3) === true, 'Nach der Sperre geht es wieder');
+
+  // Gift ist Schaden, keine Beeintraechtigung — es bleibt unberuehrt.
+  const boss2 = machRecke(true);
+  vergiften(boss2, 10, 4);
+  pruefe(boss2.gift[0].rest === 4, 'Gift wirkt auf den Boss in voller Laenge');
 }
 
 console.log('\n' + (ok + schlecht) + ' Pruefungen, ' + schlecht + ' Fehler.');
