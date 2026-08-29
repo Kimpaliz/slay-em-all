@@ -10,12 +10,8 @@ kommt einzeln.
 
 ### → **[kimpaliz.github.io/slay-em-all](https://kimpaliz.github.io/slay-em-all/)**
 
-Läuft im Browser und auf dem Handy. Nichts anzumelden. Der Spielstand
-liegt im Browser und läuft beim nächsten Besuch weiter.
-
-**Als App aufs Handy:** Im Browsermenü „Zum Startbildschirm hinzufügen"
-(Chrome: „App installieren"). Dann startet es im **Vollbild**, quer, mit
-eigenem Symbol — und läuft auch ohne Netz.
+Läuft im Browser und auf dem Handy. Nichts zu installieren, nichts anzumelden.
+Der Spielstand liegt im Browser und läuft beim nächsten Besuch weiter.
 
 ### Örtlich, zum Weiterentwickeln
 
@@ -35,18 +31,9 @@ Was drinnen passiert, sieht man nicht — nur was herauskommt: Arme, Beine,
 rollende Helme, Schädel im Burggraben. **Nachts** kommt keiner: Dann wird
 eingekauft, und der Sammel-Drachling holt liegengebliebenes Gold.
 
-### Ein langes Schlachtfeld
-
-Die Bühne ist **800 Punkte breit** und passt nicht auf einen Schirm —
-sie **scrollt waagerecht**. Der Blick beginnt am Tor; das offene Land
-davor sieht man beim Zurückscrollen. Vom Erscheinen bis ins Tor sind es
-635 Punkte, also reichlich Zeit, jemanden aufzuhalten.
-
-**Verlieren geht auf zwei Arten.** Nicht durch Schaden, sondern durch Stau:
+**Verlieren geht nur auf eine Art.** Nicht durch Schaden, sondern durch Stau:
 Passen mehr Recken gleichzeitig ins Tor, als die Burg fasst, ist das Monster
-überfordert. Und: **Erreicht ein Boss das Tor, ist sofort Schluss** — er
-wird nicht gefressen, er muss auf der Brücke sterben. Beides kostet
-**fünf Wellen**. Die Beute bleibt. Deshalb ist
+überfordert — und es geht **fünf Wellen zurück**. Die Beute bleibt. Deshalb ist
 „Tiefere Hallen" bei Grommsch der eigentliche Verteidigungskauf.
 
 ### Eine Währung: Gold
@@ -133,29 +120,12 @@ mehrere zugleich fressen — Kapazität ist der Puffer, der Schlund der
 Durchsatz. Und nachts kündigt das Lager an, **was die nächste Welle
 bringt** — die Aufstellung ist dann schon ausgelost.
 
-### Bedienung
+### Die fünf Ränge
 
-Am Schreibtisch zeigt jeder Knopf seine Werte, wenn die Maus darüberfährt.
-**Am Handy gilt: antippen kauft, gedrückt halten zeigt.** Das funktioniert
-bei allen Waren, bei den Fähigkeiten in der Aktionsleiste und bei
-Artefakten. Der Tooltip erscheint über dem Finger und bleibt stehen, bis
-man woanders hintippt — sonst läge die eigene Hand davor.
-
-### Die sieben Ränge
-
-Bauer → Söldner → Ritter → **Panzerritter** → Paladin → **Heilzauberer** →
-Großmeister, ab den Wellen 1, 3, 7, 9, 12, 14 und 18.
-
-Zwei davon fallen bewusst aus der Reihe. Der **Panzerritter** ist kaum
-gefährlich, blockiert das Tor aber **7 Sekunden** statt 2 — hinter ihm
-staut sich die Welle. Der **Heilzauberer** ist dünn und langsam, hält
-aber alles um sich herum am Leben; seine grüne Aura zeigt genau, wie
-weit er reicht.
-
-**Lebenspunkte und Fresszeit sind zwei verschiedene Dinge.** Wie zäh
-einer auf der Brücke ist, sagt nichts darüber, wie lange er im Tor einen
-Platz belegt. Ein Großmeister hat das Achtfache an Leben eines Bauern —
-und kostet im Tor genau gleich viel Zeit.
+Bauer → Söldner → Ritter → Paladin → Großmeister, ab den Wellen 1, 3, 7, 12
+und 18 — feste Grenzen, der „Edle Köder" ist gestrichen. Lebenspunkte sind
+zugleich Verdauzeit: Das Monster frisst 10 LP je Sekunde, ein Großmeister
+hat 160 und blockiert damit 16 Sekunden lang einen Platz.
 
 ## Aufbau
 
@@ -178,17 +148,13 @@ spiel/
   portraets.js              die bewegten Händlerporträts
   anzeige.js                Brücke zwischen Zustand und Oberfläche
   eingabe.js                Maus, Finger, Tastatur
-  masse.js                  die feste Bühne (800 × 200)
+  marktschreier.js          das Laufband
+  masse.js                  die feste Bühne (480 × 200)
   speicher.js               Spielstand
   daten/                    Recken, Bosse, Texte, Paletten, Porträtbilder
-manifest.webmanifest        macht es als App installierbar
-sw.js                       Dienst im Hintergrund: offline spielbar
-symbole/                    App-Symbole, erzeugt
 werkzeuge/
-  symbole-erzeugen.mjs      malt die App-Symbole als PNG
   wirtschaft.mjs            alle Regeln und Preise, ohne Browser
-  pruefe-wirtschaft.mjs     2.269 Prüfungen der Formeln
-  pruefe-simulation.mjs     20 Prüfungen an der laufenden Welt
+  pruefe-wirtschaft.mjs     1.910 Prüfungen
   balance.mjs               spielt Wellen durch und misst
   vorschau-server.mjs       örtlicher Server
 ```

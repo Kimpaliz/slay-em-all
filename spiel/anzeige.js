@@ -16,8 +16,7 @@
 import {
   WAREN_GROMMSCH, WAREN_PIPS, ZAUBER, RITUAL_PREIS, KLICK, SCHADENSARTEN,
   werte as werteAus, wellenStaerke, zauberWerte, ausbauPreis,
-  klickWerte, klickAusbauPreis, istBosswelle, zahl,
-  wellenSkalierung, wellenTempo, TEMPO_SCHWELLE, TEMPO_DECKEL, BOSS
+  klickWerte, klickAusbauPreis, istBosswelle, zahl
 } from '../werkzeuge/wirtschaft.mjs';
 import { ACHSEN, KLICK_ACHSEN, wareZustand } from './handel.js';
 import { symbolZeichnen, waehrungZeichnen } from './portraets.js';
@@ -133,74 +132,6 @@ export function anzeigeAnlegen(wurzel, rueckrufe) {
     tipp.appendChild(artZeile(z.art));
   }
 
-  /**
-   * Der Steckbrief der laufenden Welle.
-   *
-   * Vier Zahlen, die sonst nirgends stehen: Wie schnell die Recken sind,
-   * wie zaeh, wie wahrscheinlich sie etwas fallen lassen, und was sie
-   * ungefaehr wert sind. Alles im Vergleich zur ersten Welle, damit man
-   * die Zahl einordnen kann, ohne sie zu kennen.
-   *
-   * Das Gold ist ein **Mittelwert der tatsaechlich ausgelosten Welle**,
-   * wenn eine ansteht — nicht eine Schaetzung ueber alle Klassen. Nachts
-   * weiss das Spiel ja genau, wer kommt.
-   */
-  function tippWelleFuellen(zustand) {
-    const welle = zustand.welle;
-    const sk = wellenSkalierung(welle);
-    const w = werteAus(zustand.stufenG, zustand.stufenP, wirkungAus(zustand.regal));
-    const boss = istBosswelle(welle);
-
-    tippKopf('Welle ' + welle + (boss ? '  ·  Bosswelle' : ''),
-      boss
-        ? 'Halbes Gefolge und ein Boss. Erreicht er das Tor, ist sofort Schluss.'
-        : 'Was diese Welle mitbringt — im Vergleich zur ersten.');
-
-    // Tempo
-    const tempo = Math.round((sk.tempoFaktor - 1) * 100);
-    const naechstes = Math.round((wellenTempo(welle + 1) - 1) * 100);
-    tipp.appendChild(tippZeile('»', 'Tempo', '+' + tempo + ' %',
-      naechstes > tempo ? 'nächste +' + naechstes + ' %' : '', '', '#9ecbff'));
-
-    // Leben
-    tipp.appendChild(tippZeile('♥', 'Leben', '×' + sk.lpFaktor.toFixed(2).replace('.', ','),
-      '', '', '#ff8a6a'));
-
-    // Wie viele auf einmal
-    tipp.appendChild(tippZeile('⁙', 'Trupp', sk.truppGroesse + ' zugleich',
-      '', '', '#d2cefd'));
-
-    // Fundchance
-    tipp.appendChild(tippZeile('◈', 'Artefakt je Toter',
-      w.fundchance.toFixed(2).replace('.', ',') + ' %', '', '', '#c98fe8'));
-
-    // Goldwert
-    const liste = zustand.anstehend || [];
-    let gold = 0;
-    if (liste.length) {
-      for (const id of liste) {
-        const k = RECKEN.find((r) => r.id === id);
-        if (k) gold += k.gold;
-      }
-      gold = gold / liste.length;
-    } else {
-      const moeglich = RECKEN.filter((r) => welle >= r.abWelle);
-      gold = moeglich.reduce((a, r) => a + r.gold, 0) / Math.max(1, moeglich.length);
-    }
-    if (boss) gold *= 1 + BOSS.goldFaktor / Math.max(1, liste.length || 10);
-    tipp.appendChild(tippZeile('◆', 'Gold je Recke', '~' + zahl(Math.round(gold * 10) / 10),
-      '', '', '#e0b64f'));
-
-    // Der Hinweis auf die Schwelle, solange sie noch kommt
-    if (welle < TEMPO_SCHWELLE) {
-      const rest = TEMPO_SCHWELLE - welle;
-      tipp.appendChild(tippZeile('!', 'Ab Welle ' + TEMPO_SCHWELLE,
-        'ziehen sie an', 'noch ' + rest, '', '#ffd08a'));
-    } else if (sk.tempoFaktor >= TEMPO_DECKEL - 0.001) {
-      tipp.appendChild(tippZeile('!', 'Tempo', 'am Anschlag', '', '', '#ffd08a'));
-    }
-  }
-
   /** Die Schadensart als eigene Zeile, in ihrer Farbe. */
   function artZeile(art) {
     const a = SCHADENSARTEN[art] || SCHADENSARTEN.physisch;
@@ -249,148 +180,6 @@ export function anzeigeAnlegen(wurzel, rueckrufe) {
     tippAusrichten(knopf);
   }
 
-  /* ---------- Gedrückthalten am Handy ---------- */
-
-  /*
-    Mit der Maus genügt Überfahren. Am Finger gibt es das nicht: Wer
-    tippt, kauft. Deshalb gilt hier — **antippen kauft, halten zeigt**.
-
-    Zwei Dinge sind dabei wichtig und beide bewusst gelöst:
-
-    1. Der Finger darf den Tooltip nicht verdecken. Er erscheint
-       deshalb *über* dem Druckpunkt, mit `FINGERLUFT` Abstand — die
-       Fingerkuppe deckt rund 22 px ab, die Hand liegt darunter.
-    2. Er verschwindet **nicht** beim Loslassen, sondern bleibt stehen,
-       bis irgendwo hingetippt oder gescrollt wird. Sonst müsste man
-       ihn lesen, während die eigene Hand davor liegt.
-  */
-
-  /** So lange muss gedrückt werden, bis der Tooltip kommt. */
-  const HALTEDAUER = 380;
-  /** So weit über dem Druckpunkt steht er dann. */
-  const FINGERLUFT = 34;
-  /** Ab so vielen Bildpunkten Bewegung gilt es als Wischen, nicht als Halten. */
-  const WACKELN = 10;
-
-  let halteUhr = null;
-  let haltePunkt = null;
-  let gehaltenerKnopf = null;
-  let klickVerschlucken = false;
-
-  function haltenAbbrechen() {
-    if (halteUhr) { clearTimeout(halteUhr); halteUhr = null; }
-    haltePunkt = null;
-  }
-
-  function tippSchliessen() {
-    tipp.hidden = true;
-    tipp.classList.remove('gehalten');
-    if (gehaltenerKnopf) {
-      gehaltenerKnopf.classList.remove('haelt');
-      gehaltenerKnopf = null;
-    }
-  }
-
-  /**
-   * Setzt den Tooltip über den Druckpunkt, innerhalb des Bildschirms.
-   *
-   * `el` ist das gedrückte Element und wird für den Notfall gebraucht:
-   * Sitzt es ganz oben — wie das Wellensymbol in der Kopfzeile —, ist
-   * über dem Finger kein Platz. Früher klebte der Tooltip dann bei
-   * y = 4 und lag damit **unter der Fingerkuppe**; gemessen ragte er
-   * 148 Punkte über den Druckpunkt hinaus nach unten.
-   *
-   * Jetzt rutscht er in diesem Fall unter das *Element* statt an den
-   * Bildrand. Die Fingerkuppe deckt rund 22 Punkte ab, die Unterkante
-   * des Elements liegt darunter — so bleibt er lesbar.
-   */
-  function tippUeberFinger(x, y, el) {
-    tipp.hidden = false;
-    tipp.classList.add('gehalten');
-    const wr = wurzel.getBoundingClientRect();
-    const breite = tipp.offsetWidth;
-    const hoehe = tipp.offsetHeight;
-    let links = x - wr.left - breite / 2;
-    links = Math.max(6, Math.min(links, wr.width - breite - 6));
-
-    let oben = y - wr.top - hoehe - FINGERLUFT;
-    if (oben < 4) {
-      // Kein Platz darüber: unter das Element, nicht unter den Finger.
-      const er = el ? el.getBoundingClientRect() : null;
-      oben = er ? er.bottom - wr.top + 10 : y - wr.top + FINGERLUFT;
-      oben = Math.min(oben, wr.height - hoehe - 6);
-      oben = Math.max(4, oben);
-    }
-    tipp.style.left = links + 'px';
-    tipp.style.top = oben + 'px';
-  }
-
-  /**
-   * Hängt einen Tooltip an ein Bedienelement.
-   *
-   * `fuellen()` schreibt den Inhalt und wird erst im Moment des Zeigens
-   * gerufen — so stehen dort immer die aktuellen Zahlen.
-   */
-  function tippAnbinden(el, fuellen) {
-    // Maus: wie gehabt beim Überfahren.
-    el.addEventListener('mouseenter', (e) => {
-      // Ein Fingertipp erzeugt hinterher ein `mouseenter`. Das würde den
-      // gehaltenen Tooltip überschreiben und falsch platzieren.
-      if (e.sourceCapabilities && e.sourceCapabilities.firesTouchEvents) return;
-      fuellen();
-      tippAusrichten(el);
-    });
-    el.addEventListener('mouseleave', () => {
-      if (!tipp.classList.contains('gehalten')) tippSchliessen();
-    });
-
-    // Finger: halten.
-    el.addEventListener('pointerdown', (e) => {
-      if (e.pointerType === 'mouse') return;
-      haltenAbbrechen();
-      haltePunkt = { x: e.clientX, y: e.clientY };
-      halteUhr = setTimeout(() => {
-        halteUhr = null;
-        klickVerschlucken = true;    // der Tipp danach darf nicht kaufen
-        gehaltenerKnopf = el;
-        el.classList.add('haelt');
-        fuellen();
-        tippUeberFinger(haltePunkt.x, haltePunkt.y, el);
-        if (navigator.vibrate) { try { navigator.vibrate(12); } catch (fehler) { /* egal */ } }
-      }, HALTEDAUER);
-    });
-
-    el.addEventListener('pointermove', (e) => {
-      if (!haltePunkt) return;
-      if (Math.abs(e.clientX - haltePunkt.x) > WACKELN
-        || Math.abs(e.clientY - haltePunkt.y) > WACKELN) haltenAbbrechen();
-    });
-    el.addEventListener('pointerup', haltenAbbrechen);
-    el.addEventListener('pointercancel', haltenAbbrechen);
-
-    // Der Klick nach einem Halten wird verschluckt — in der
-    // Erfassungsphase, damit er den Kauf gar nicht erst erreicht.
-    el.addEventListener('click', (e) => {
-      if (!klickVerschlucken) return;
-      klickVerschlucken = false;
-      e.preventDefault();
-      e.stopImmediatePropagation();
-    }, true);
-  }
-
-  // Ein Tipp irgendwo sonst schließt den gehaltenen Tooltip wieder.
-  document.addEventListener('pointerdown', (e) => {
-    if (!tipp.classList.contains('gehalten')) return;
-    if (gehaltenerKnopf && gehaltenerKnopf.contains(e.target)) return;
-    tippSchliessen();
-  }, true);
-  // Beim Scrollen ebenso: der Knopf wandert, der Tooltip nicht.
-  for (const el of wurzel.querySelectorAll('.seite')) {
-    el.addEventListener('scroll', () => {
-      if (tipp.classList.contains('gehalten')) tippSchliessen();
-    }, { passive: true });
-  }
-
   /* ---------- Aufbau der Läden ---------- */
 
   /** Ein Ladenknopf: Goldzeichen plus Preis. */
@@ -431,11 +220,13 @@ export function anzeigeAnlegen(wurzel, rueckrufe) {
       const { knopf, zeichen, preis } = preisKnopf();
       knopf.addEventListener('click', () => kaufen(ware.k));
       const zeile = { ware, titel, unter, knopf, zeichen, preis, li, stufen: name };
-      tippAnbinden(knopf, () => {
+      knopf.addEventListener('mouseenter', () => {
         const zustand = rueckrufe.zustand();
         const stufen = name === 'grommsch' ? zustand.stufenG : zustand.stufenP;
         tippWareFuellen(ware, wareZustand(ware, stufen, zustand.welle), zustand.welle);
+        tippAusrichten(knopf);
       });
+      knopf.addEventListener('mouseleave', () => { tipp.hidden = true; });
 
       li.append(text, knopf);
       liste.append(li);
@@ -476,7 +267,8 @@ export function anzeigeAnlegen(wurzel, rueckrufe) {
     // --- Der Klick: erst lernen, dann auf drei Achsen ausbauen ---
     const klick = zauberZeile(liste, KLICK.name, KLICK.kurz);
     klick.knopf.addEventListener('click', () => rueckrufe.klickKaufen());
-    tippAnbinden(klick.knopf, () => tippFuellen('klick', rueckrufe.zustand()));
+    klick.knopf.addEventListener('mouseenter', () => tippZeigen(klick.knopf, 'klick', rueckrufe.zustand()));
+    klick.knopf.addEventListener('mouseleave', () => { tipp.hidden = true; });
     const klickAchsen = document.createElement('div');
     klickAchsen.className = 'achsen';
     for (const achse of KLICK_ACHSEN) {
@@ -495,7 +287,8 @@ export function anzeigeAnlegen(wurzel, rueckrufe) {
     for (const z of ZAUBER) {
       const zeile = zauberZeile(liste, z.name, z.kurz);
       zeile.knopf.addEventListener('click', () => rueckrufe.zauberLernen(z.k));
-      tippAnbinden(zeile.knopf, () => tippFuellen(z.k, rueckrufe.zustand()));
+      zeile.knopf.addEventListener('mouseenter', () => tippZeigen(zeile.knopf, z.k, rueckrufe.zustand()));
+      zeile.knopf.addEventListener('mouseleave', () => { tipp.hidden = true; });
       const achsen = document.createElement('div');
       achsen.className = 'achsen';
       const achsKnoepfe = ACHSEN.map((a) => {
@@ -522,16 +315,6 @@ export function anzeigeAnlegen(wurzel, rueckrufe) {
   malvinaAufbauen();
 
   /* ---------- Knöpfe ---------- */
-
-  // Das Wellensymbol oben zeigt auf Halten (oder Überfahren) den
-  // Steckbrief der Welle.
-  if (feld.welle) {
-    feld.welle.classList.add('befragbar');
-    feld.welle.setAttribute('tabindex', '0');
-    feld.welle.setAttribute('role', 'button');
-    feld.welle.setAttribute('aria-label', 'Werte dieser Welle');
-    tippAnbinden(feld.welle, () => tippWelleFuellen(rueckrufe.zustand()));
-  }
 
   if (knoepfe.welle) knoepfe.welle.addEventListener('click', () => rueckrufe.welleStarten());
   if (knoepfe.neustart) {
@@ -596,27 +379,6 @@ export function anzeigeAnlegen(wurzel, rueckrufe) {
   function artefaktBei(ort, index, zustand) {
     const liste = ort === 'regal' ? zustand.regal : zustand.inventar;
     return liste ? liste[index] : null;
-  }
-
-  /** Kurzfassung eines Artefakts für den gehaltenen Tooltip. */
-  function tippArtefaktFuellen(artefakt) {
-    const s = seltenheitNach(artefakt.seltenheit);
-    const tags = tagsVon(artefakt).map((t) => TAG_NAMEN[t] || t).join(' · ');
-    tippKopf(artefakt.name, s.name + '  ·  Welle ' + artefakt.fundwelle + (tags ? '  ·  ' + tags : ''));
-    tipp.querySelector('.tipp-kopf').style.color = s.farbe;
-    for (const zeile of affixZeilen(artefakt)) {
-      const z = document.createElement('div');
-      z.className = 'tipp-zeile';
-      const links = document.createElement('span');
-      links.className = 'tipp-name';
-      links.style.color = TAG_FARBEN[zeile.tag] || '#e9e9ed';
-      links.textContent = zeile.name;
-      const rechts = document.createElement('span');
-      rechts.className = 'tipp-wert';
-      rechts.textContent = zeile.text;
-      z.append(links, rechts);
-      tipp.append(z);
-    }
   }
 
   function karteZeigen(ort, index) {
@@ -735,9 +497,6 @@ export function anzeigeAnlegen(wurzel, rueckrufe) {
     punkt.style.background = s.farbe;
     knopf.append(bild, punkt);
     knopf.addEventListener('click', () => karteZeigen(ort, index));
-    // Antippen öffnet die volle Karte, Halten zeigt die Kurzfassung —
-    // dieselbe Regel wie im Laden.
-    if (artefakt) tippAnbinden(knopf, () => tippArtefaktFuellen(artefakt));
     return knopf;
   }
 
@@ -863,7 +622,8 @@ export function anzeigeAnlegen(wurzel, rueckrufe) {
       if (e.k !== 'klick') {
         knopf.addEventListener('click', () => rueckrufe.zauberAusloesen(e.k));
       }
-      tippAnbinden(knopf, () => tippFuellen(e.k, rueckrufe.zustand()));
+      knopf.addEventListener('mouseenter', () => tippZeigen(knopf, e.k, rueckrufe.zustand()));
+      knopf.addEventListener('mouseleave', () => { tipp.hidden = true; });
       leiste.append(knopf);
     }
   }
@@ -1111,8 +871,7 @@ export function anzeigeAnlegen(wurzel, rueckrufe) {
         laeuft = (k === 'pranke' && szene.pranke)
           || (k === 'flamme' && szene.flamme)
           || (k === 'meteor' && szene.meteorZeit > 0);
-        scharf = (k === 'donner' && szene.donnerBereit)
-          || (k === 'flamme' && szene.flammeBereit);
+        scharf = k === 'donner' && szene.donnerBereit;
       }
       const bereit = rest <= 0 && !laeuft && szene.phase === 'tag';
 

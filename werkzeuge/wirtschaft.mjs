@@ -74,14 +74,6 @@ export const WAREN_GROMMSCH = [
     wertNaechste: (st) => '+1 Platz → ' + (4 + st) + ' Recken'
   },
   {
-    k: 'putztrupp', name: 'Putztrupp',
-    text: '+1 Goblin wischt Blut auf und bringt es heim',
-    preis: (st) => Math.round(30 * Math.pow(1.9, st)), max: 5,
-    wertJetzt: (st) => (1 + st) + ' Goblin' + (st ? 'snd' : '') === '1 Goblin'
-      ? '1 Goblin' : (1 + st) + ' Goblins',
-    wertNaechste: (st) => (2 + st) + ' Goblins, ' + (10 + 3 * (st + 1)) + ' Tempo'
-  },
-  {
     k: 'schlund', name: 'Zweiter Schlund',
     text: '+1 Recke wird gleichzeitig gefressen',
     preis: (st) => Math.round(25 * Math.pow(2.3, st)), max: 4,
@@ -210,7 +202,7 @@ const ABKLING_BODEN = 0.35;
 
 /* ---------------- Leere Stufen ---------------- */
 
-export const STUFEN_GROMMSCH_LEER = { klauen: 0, hallen: 0, schuetze: 0, pfeile: 0, schlund: 0, krit: 0, putztrupp: 0 };
+export const STUFEN_GROMMSCH_LEER = { klauen: 0, hallen: 0, schuetze: 0, pfeile: 0, schlund: 0, krit: 0 };
 export const STUFEN_PIPS_LEER = { sammler: 0, schatzjaeger: 0, stolz: 0, ernte: 0 };
 
 export function zauberStufenLeer() {
@@ -221,27 +213,15 @@ export function zauberStufenLeer() {
 
 /* ---------------- Abgeleitete Werte ---------------- */
 
-/**
- * Wie schnell die Fresszeit abläuft, als Faktor.
- *
- * Seit 0.10.0 zählt nicht mehr Leben herunter, sondern eine **Zeit**:
- * Jede Klasse bringt ihre eigene `fressZeit` mit (siehe
- * `spiel/daten/recken.js`), und dieser Faktor bestimmt, wie schnell sie
- * abläuft. 1 heißt Sekunde für Sekunde, 2 doppelt so schnell.
- *
- * Vorher hing die Verdauzeit an den Lebenspunkten. Das koppelte
- * Zähigkeit und Durchsatz aneinander und ließ Bosse ins Unspielbare
- * wachsen — gemessen am 28.08.2026 brauchte ein Boss auf Welle 20
- * 1.011 Sekunden reine Fresszeit.
- */
-export const FRESSTEMPO = 1;
+/** Grundgeschwindigkeit des Fressens, in Lebenspunkten je Sekunde. */
+export const FRESSTEMPO = 10;
 
 /**
  * Alles, was sich aus den gekauften Stufen ergibt.
  *
- * `fressTempo` ist der Faktor auf die Fresszeit — höher heißt schneller
- * durch; `kapazitaet` die Zahl der Recken, die gleichzeitig in der Burg
- * sein dürfen. Wird sie überschritten, ist die Welle verloren.
+ * `angriff` ist die Fressgeschwindigkeit in Lebenspunkten je Sekunde;
+ * `kapazitaet` die Zahl der Recken, die gleichzeitig in der Burg sein
+ * dürfen. Wird sie überschritten, ist die Welle verloren.
  *
  * `wirkung` ist die Summe der ausgerüsteten Artefakte (siehe
  * `spiel/artefakte.js`) und optional — ohne Regal rechnet alles wie
@@ -251,15 +231,12 @@ export function werte(stufenG, stufenP, wirkung) {
   const a = wirkung || null;
   const fress = 1 + 0.015 * stufenG.klauen + (a ? a.fressBonus / 100 : 0);
   return {
-    fressTempo: FRESSTEMPO * fress,
+    angriff: FRESSTEMPO * fress,
     kapazitaet: 3 + stufenG.hallen + (a ? a.kapazitaet : 0),
     // Wie viele Recken gleichzeitig gefressen werden. Der Rest wartet in
     // der Schlange — Kapazität ist der Puffer, der Schlund der Durchsatz.
     schlund: 1 + (stufenG.schlund || 0) + (a ? a.schlund : 0),
     schuetzen: stufenG.schuetze,
-    // Wie viele Goblins wischen und wie flink sie sind.
-    wischer: 1 + (stufenG.putztrupp || 0),
-    wischTempo: 34 + 12 * (stufenG.putztrupp || 0),
     pfeilSchaden: 10 + 10 * stufenG.pfeile,
     schuetzenKrit: 0.06 * (stufenG.krit || 0),
     stolzFaktor: 1 + 0.25 * stufenP.stolz,
@@ -277,32 +254,7 @@ export function werte(stufenG, stufenP, wirkung) {
 /* ---------------- Wie die Wellen von selbst wachsen ---------------- */
 
 /** Deckel, damit das Spiel nicht mechanisch unspielbar wird. */
-export const TEMPO_DECKEL = 2.6;
-
-/**
- * Ab dieser Welle ziehen die Recken merklich an.
- *
- * Davor wachsen sie um ein Prozent je Welle — das ist Untermalung, kein
- * Druck. Ab Welle 10 gibt es **einen sichtbaren Sprung** und danach eine
- * deutlich steilere Kurve, damit sich jede Welle von der vorherigen
- * abhebt statt nur nummeriert zu sein.
- *
- * Der Deckel liegt bei 2,6: Ein Bauer braucht dann noch gut zwölf
- * Sekunden über die Brücke. Schneller wäre nicht mehr schwer, sondern
- * nur noch unfair — Zielen und Zaubern brauchen eine Mindestzeit.
- */
-export const TEMPO_SCHWELLE = 10;
-const TEMPO_LANGSAM = 0.01;   // je Welle bis zur Schwelle
-const TEMPO_SPRUNG = 0.12;    // einmalig auf der Schwelle
-const TEMPO_SCHNELL = 0.05;   // je Welle danach
-
-export function wellenTempo(welle) {
-  const bis = Math.min(welle, TEMPO_SCHWELLE);
-  let faktor = 1 + TEMPO_LANGSAM * (bis - 1);
-  if (welle >= TEMPO_SCHWELLE) faktor += TEMPO_SPRUNG;
-  if (welle > TEMPO_SCHWELLE) faktor += TEMPO_SCHNELL * (welle - TEMPO_SCHWELLE);
-  return Math.min(TEMPO_DECKEL, faktor);
-}
+export const TEMPO_DECKEL = 1.5;
 
 /**
  * Was die Welle selbst mitbringt — ohne dass der Spieler etwas kauft.
@@ -316,7 +268,7 @@ export function wellenTempo(welle) {
 export function wellenSkalierung(welle) {
   return {
     lpFaktor: Math.pow(1.05, welle - 1),
-    tempoFaktor: wellenTempo(welle),
+    tempoFaktor: Math.min(TEMPO_DECKEL, 1 + 0.01 * (welle - 1)),
     truppGroesse: 1 + Math.floor(welle / 5)
   };
 }
@@ -359,50 +311,23 @@ export function klassenGewichte(klassen, welle) {
 
 /* ---------------- Bosse ---------------- */
 
-/**
- * Wie selten ein Boss kommt.
- *
- * Alle zehn Wellen. Die Zahl steht bewusst als eine einzige Konstante
- * hier — sie ist der Taktgeber des ganzen Spiels und soll sich an einer
- * Stelle ändern lassen.
- */
-export const BOSS_ABSTAND = 10;
-
+/** Jede fünfte Welle bringt einen Boss. */
 export function istBosswelle(welle) {
-  return welle >= BOSS_ABSTAND && welle % BOSS_ABSTAND === 0;
+  return welle >= 5 && welle % 5 === 0;
 }
 
 /**
- * Der Boss ist keine Mahlzeit mehr, sondern eine Frist.
+ * Der Boss: ein aufgewerteter Recke des höchsten verfügbaren Rangs.
  *
- * **Betritt er das Tor, ist die Burg sofort verloren.** Er wird also
- * nicht verdaut, er muss auf der Brücke sterben. Damit hängt seine
- * Schwierigkeit nicht mehr an Kapazität und Schlund, sondern allein an
- * der Frage: Reicht der Schaden, bevor er ankommt?
- *
- * Daraus folgt die Auslegung:
- *
- * - **Er geht langsam** (ein Drittel des Grundtempos). Über die knapp
- *   320 Bildpunkte der Brücke bleiben so gut 45 Sekunden Zeit.
- * - **Sein Leben ist an die Welle gekoppelt, nicht an eine Klasse.**
- *   `lpFaktor` mal dem Leben eines gewöhnlichen Recken derselben Welle.
- *   Vorher waren es 25 mal dem *stärksten* Rang, was mit jeder
- *   Klassenfreischaltung zusätzlich sprang — bei Welle 20 kamen so
- *   10.108 Lebenspunkte zusammen. Jetzt wächst er mit derselben Kurve
- *   wie alles andere und bleibt im Verhältnis gleich schwer.
- * - **Er wirft viel ab**, weil er der einzige seiner Art ist.
+ * Er ist nicht schnell und hat keine Sonderfähigkeit — er ist einfach
+ * zäh und blockiert lange einen Fressplatz. Damit ist jede fünfte Welle
+ * automatisch eine Kapazitäts- und Schlundprüfung, ohne eine einzige
+ * Sonderregel.
  */
 export const BOSS = {
-  // Fünf mal dem stärksten Rang sind rund 40 Bauern derselben Welle.
-  // Bei 80 Sekunden Laufzeit muss der Spieler also etwa einen halben
-  // Bauern je Sekunde umlegen — das schafft, wer die Welle davor
-  // überstanden hat, und es ist keine Formsache.
-  lpFaktor: 5,
-  // Auf der breiteren Bühne (635 px Weg) ergeben 0,6 des Grundtempos
-  // rund 88 Sekunden Zeit zum Töten. Mit dem alten Drittel wären es
-  // 160 Sekunden gewesen — zu träge, um spannend zu bleiben.
+  lpFaktor: 25,
   tempoFaktor: 0.6,
-  goldFaktor: 40,
+  goldFaktor: 10,
   groesse: 2
 };
 

@@ -1,235 +1,210 @@
 # Übergabeprotokoll — Slay'Em All!
 
-Stand **29.08.2026**, Version **0.14.0**.
-
-> **Achtung, wenn du eine ältere Fassung dieser Datei in der Hand hast.**
-> Es kursiert ein Übergabeprotokoll mit Stand **0.8.0** vom 28.08.2026,
-> auch als Werkbank-Export `Heldenschlacht Burg-Idle.zip`. Es ist **sechs
-> Fassungen veraltet** und beschreibt Regeln, die nicht mehr gelten —
-> unter anderem „Blut ist keine Währung", „Bosswellen alle fünf Wellen"
-> und „es gibt keinen Ton". Wer danach arbeitet, baut gegen fertige
-> Arbeit. Maßgeblich ist immer der Stand im Repository, siehe
-> `CLAUDE.md`.
+Stand **28.08.2026**, Version **0.8.0**. Zum Einfügen in einen neuen Chat.
 
 ---
 
 ## 1. Worum es geht
 
-`Slay'Em All!` ist ein Wellen-Idle-Spiel am Burgtor. Recken laufen über
-eine lange Ebene und eine Brücke ins Tor, das Monster im Inneren frisst
-sie einzeln. Tag ist Angriffswelle, Nacht ist Lager und Einkauf.
-
-**Verloren wird auf zwei Arten:** Passen mehr Recken gleichzeitig ins Tor
-als die Burg fasst, ist die Welle verloren. Und: Erreicht ein **Boss** das
-Tor, ist sofort Schluss — er wird nicht gefressen, er muss auf der Brücke
-sterben. Beides kostet fünf Wellen.
+`Slay'Em All!` ist ein Wellen-Idle-Spiel am Burgtor. Recken laufen über eine
+Brücke ins Tor, das Monster im Inneren frisst sie einzeln. Tag ist
+Angriffswelle, Nacht ist Lager und Einkauf. Verlieren geht nur durch Stau:
+Passen mehr Recken ins Tor als die Burg fasst, geht es fünf Wellen zurück.
 
 - Repository: `Kimpaliz/slay-em-all`, Zweig `main`, öffentlich
 - Live: <https://kimpaliz.github.io/slay-em-all/>
-- Sprache in Code und Texten: **Deutsch**, auch Dateinamen und Bezeichner
-- Kein Baukasten, keine Abhängigkeiten, nichts von fremden Servern.
-  Reine ES-Module, ein `<canvas>`, ein Stylesheet.
+- Sprache im Code und in allen Texten: **Deutsch**, auch Dateinamen und
+  Bezeichner (`wirtschaft.mjs`, `verbuchen()`, `REGAL_PLAETZE`)
+- Kein React, keine fremde Laufzeit, keine Abhängigkeiten. Reines
+  ES-Modul-JavaScript, ein `<canvas>`, ein Stylesheet.
+
+Historie in Kurzform: 0.1.0 Übernahme aus einer 481-KB-Einzeldatei →
+0.2.0 Aufteilung in Module → 0.3.0 Tag-Nacht-Schleife → 0.4.0 Schatzkammer →
+0.5.0 Wellen-Fassung (heutiger Zweig, 24 Dateien) → 0.6.0 Klick als Waffe +
+Fressschlange → 0.7.0 große Vereinfachung → 0.8.0 Artefakte.
 
 ---
 
 ## 2. Dateien
 
 ```
-CLAUDE.md             Arbeitsanweisung — wird beim Sitzungsstart gelesen
-index.html            Seite samt Titelbild
+index.html            Seite
 stil.css              Aussehen
-manifest.webmanifest  installierbare App, Vollbild, quer
-sw.js                 Dienst-Arbeiter: Netz zuerst, Vorrat als Rückhalt
-symbole/              drei App-Symbole, erzeugt statt gemalt
-spiel/                20 Module
-  spiel.js            Taktgeber, Titelbild, Uhr (fester Schritt 1/60 s)
+spiel/                19 Module
+  spiel.js            Start
   welt.js             Zustand
   speicher.js         Spielstand (Schlüssel slayemall.wellen.v3)
-  simulation.js       ein Zeitschritt der Welt
-  wellen.js           Auslosen, Phasen, Bosswellen
-  kampf.js            Schaden, Tode, Beute, verbuchen()
-  zauber.js           vier Fähigkeiten und der Klick
-  handel.js           Kauf bei den drei Händlern
-  artefakte.js        reine Logik, austauschbarer Zufall
-  artefakt-bild.js    Symbol in zwei Größen
-  klang.js            17 gerechnete Klänge, keine Tondatei
-  vollbild.js         Vollbildknopf für den normalen Browser
-  szene.js            das Bild
-  figuren.js          Recken, Trümmer, Münzen, Putzgoblins
-  effekte.js          Zauberwirkungen und Einblendungen
-  portraets.js        drei bewegte Händlerporträts
-  anzeige.js          Brücke zwischen Zustand und Oberfläche
-  eingabe.js          Maus, Finger, Tastatur
-  masse.js            die feste Bühne (800 × 200)
-  daten/              recken.js, bosse.js, texte.js, paletten.js,
-                      portraets-daten.js
+  simulation.js       Uhr, fester Schritt 1/60 s mit Nachholen
+  wellen.js           Auslosen, Spawn, Bosswellen
+  kampf.js            Schaden, Tod, verbuchen()
+  zauber.js           Vier Fähigkeiten (Tasten 1–4)
+  handel.js           Kauf bei den Händlern
+  artefakte.js        Reine Logik, austauschbarer Zufall
+  artefakt-bild.js    Symbol, zwei Größen
+  szene.js            Bühne, Himmel, Tor, Abgrund
+  figuren.js          Recken, Trümmer, Raben
+  effekte.js          Partikel, Rauch, Gluten
+  portraets.js        Drei Händlerporträts (28 × 32, von Hand gesetzt)
+  anzeige.js          Schreibt Werte in die Seite
+  eingabe.js          Maus, Tasten, Wischen
+  marktschreier.js    Textzeilen
+  masse.js            Liter in Badewannen und Bodenseen
+  daten/              recken.js, bosse.js, texte.js, paletten.js
 werkzeuge/
   wirtschaft.mjs      Regeln, Preise, Skalierung — ohne Browser, ohne Zufall
-  pruefe-wirtschaft.mjs   2.351 Prüfungen
-  pruefe-artefakte.mjs    15.108 Prüfungen
-  pruefe-simulation.mjs   26 Prüfungen
-  balance.mjs             spielt Wellen durch und urteilt
-  symbole-erzeugen.mjs    erzeugt die App-Symbole als PNG
-  vorschau-server.mjs     örtlicher Server
 docs/
-  UEBERGABE.md        diese Datei
-  ENTWURF.md          der 0.7er-Umbauplan, abgearbeitet
-  ROADMAP.md          Janniks Wunschliste
-  BALANCE-2026-08-28.md   Messbericht
-CHANGELOG.md          Änderungsprotokoll, ausführlich
+  ENTWURF.md          Der Umbauplan — vollständig abgearbeitet
+  UEBERGABE.md        Diese Datei
+CHANGELOG.md          Änderungsprotokoll, ausführlich, deutsch
+github.md            Repo-Bindung und Sync-Stand
 ```
+
+Daneben liegen im Projekt drei Vorschau-Hüllen für die Werkbank
+(`Slay Em All.dc.html`, `Vorschau Desktop.dc.html`, `Vorschau Handy Quer.dc.html`)
+— sie zeigen `index.html` in einem Rahmen und sind **nicht** Teil des Spiels.
+
+**Nicht im Projekt, aber im Repo:** `werkzeuge/pruefe-wirtschaft.mjs`,
+`werkzeuge/balance.mjs`, `werkzeuge/vorschau-server.mjs`.
 
 ---
 
-## 3. Regeln, wie sie **jetzt** gelten
+## 3. Regeln, wie sie jetzt gelten
 
-### Zwei Währungen
+**Eine Währung.** Alles kostet Gold. Gold fällt als Münze auf die Brücke und
+muss aufgesammelt werden. Blut steht nur noch als Bilanz in der Kopfzeile —
+vergossene Liter, kein Zahlungsmittel. Schrott ist fort.
 
-- **Gold** fällt als Münze auf die Brücke und muss aufgesammelt werden.
-  Ab 40 Gold je Stück fällt es als **Edelstein** statt als Kleingeld.
-  Damit bezahlt man bei **Grommsch** (Burgausbau) und **Pips** (Beute).
-- **Blut** ist seit 0.13.0 **wieder Zahlungsmittel** — aber es liegt am
-  Boden. Wer stirbt, hinterlässt eine Lache; die ist noch kein Geld.
-  **Putzgoblins** wischen sie auf und bringen das Blut heim. Eine Lache
-  fasst 60 Liter, der Rest versickert — **Blut stapelt sich nicht**.
-  Damit bezahlt man bei **Malvina** (Zauber, Klick, Morgenritual).
-- Schrott ist fort.
+**Der Klick.** Eine Fassung, drei Achsen (Schaden / Abklingzeit / Krit).
+Rangfolge beim Klicken: Blitz → Fundstück → Gegner → Münze.
 
-### Bühne
+**Zahlen ×10** gegenüber 0.6.0, Zeiten unverändert: 10 LP Fressen je Sekunde,
+Bauer 20 LP.
 
-800 × 200 Punkte, Landmarken um 320 nach rechts gerückt, links davor
-offenes Land. Der Weg ins Tor ist 635 Punkte lang. Die Leinwand passt
-nicht auf einen Schirm und **scrollt waagerecht**; der Blick beginnt am
-Tor. Nur die Einblendungen folgen dem sichtbaren Ausschnitt.
+**Fünf Schadensarten** mit eigener Farbe der schwebenden Zahl: Physisch weiß,
+Feuer orange, Blitz lila-weiß, Eis blau, Gift grün. Krit golden und größer.
 
-### Fresszeit statt Lebensabbau
+**Passive Wellenskalierung** je Welle: Menge (Deckel 80), Leben ×1,05,
+Tempo +1 % (Deckel +50 %), Truppgröße `1 + ⌊w/5⌋` **ohne Deckel**. Der
+Spawn-Abstand wächst mit — Gesamtmenge gleich, Spitzenlast am Tor steigt.
 
-Seit 0.10.0 zwei getrennte Achsen: `lp` sagt, wie schwer einer auf der
-Brücke zu töten ist, `fressZeit`, wie lange er das Tor blockiert.
-Normale Recken 2 Sekunden, der **Panzerritter** 7 — er ist der
-Verstopfer. Verdaut wird der Reihe nach; „Zweiter Schlund" erhöht den
-Durchsatz, Kapazität ist der Puffer.
+**Bosswellen** alle fünf Wellen: halbes Gefolge plus ein Boss mit 25-fachem
+Leben, 0,6-fachem Tempo, doppelter Größe, goldenem Lebensbalken, eigenem
+Namen. Zehnfaches Gold. Keine Sonderfähigkeit — die Blockade des
+Fressplatzes trägt allein.
 
-### Sieben Reckenklassen
+**Fressschlange.** Verdaut wird einer nach dem anderen; „Zweiter Schlund"
+erhöht den Durchsatz, Kapazität ist der Puffer.
 
-Bauer (ab 1) · Söldner (3) · Ritter (7) · **Panzerritter** (9) ·
-Paladin (12) · **Heilzauberer** (14, grüne Heilaura) · Großmeister (18).
+### Artefakte (0.8.0)
 
-### Wellenskalierung
-
-Menge (Deckel 80), Leben ×1,05 je Welle, Truppgröße `1 + ⌊w/5⌋` **ohne
-Deckel**. Das Tempo hat seit 0.14.0 eine **Schwelle bei Welle 10**:
-davor +1 % je Welle, dort einmalig **+12 %**, danach **+5 % je Welle**,
-Deckel +160 %. Am Anschlag braucht ein Bauer noch gut zwölf Sekunden
-über die Brücke — schneller wäre unfair.
-
-### Bosse
-
-**Alle zehn Wellen.** Halbes Gefolge plus ein Boss mit 14-fachem Leben
-eines gewöhnlichen Recken derselben Welle, 0,6-fachem Tempo, doppelter
-Größe. **Er wird nicht gefressen** — erreicht er das Tor, ist sofort
-Schluss. Er schüttelt Beeinträchtigungen ab: Frost und Raureif wirken nur
-ein Zehntel so lang, danach zehn Sekunden gar nicht. **Gift und Brand
-bleiben voll wirksam** — sie sind das Mittel, das gegen ihn wirken soll.
-
-### Zauber und Klick
-
-Vier Fähigkeiten auf den Tasten 1–4. **Donnerschlag** und
-**Flammenstoß** zielen: erster Druck bewaffnet den Zeiger, der Klick
-setzt. Der Flammenstoß ist seit 0.13.0 ein **Napalmwurf** — über zwei
-Sekunden fallen Brocken ins gewählte Gebiet, danach brennt der Boden
-drei Sekunden weiter. Der Klick hat drei Achsen (Schaden, Abklingzeit,
-Krit); Rangfolge beim Klicken: Zauberziel → Fundstück → Gegner → Münze.
-
-Fünf Schadensarten mit eigener Farbe: Physisch weiß, Feuer orange, Blitz
-lila-weiß, Eis blau, Gift grün. Krits golden und größer. **Blitztote
-platzen** — dreimal so viele Teile und Spritzer, steil nach oben.
-
-### Artefakte
-
-Dritter Reiter. Regal 5 Fassungen (wirkt) über Lager 20 Plätze (wartet),
-Antippen öffnet die Detailkarte. Fundchance 0,05 % je Toter,
-Bosswellen garantiert mindestens Selten, „Schatzjäger" bei Pips gibt
-+0,1 % je Stufe. Tags werden nie gespeichert, sondern aus den Affixen
-abgeleitet.
-
-### Bedienung
-
-Antippen kauft, **380 ms halten zeigt die Werte** — bei Waren,
-Fähigkeiten, Artefakten und am **Wellensymbol** (Tempo, Leben, Trupp,
-Fundchance, Gold je Recke). Der Tooltip steht über dem Druckpunkt und
-bleibt nach dem Loslassen stehen. Sitzt das Element ganz oben, rutscht
-er unter das Element statt an den Bildrand.
-
-### Ton
-
-17 Klänge, **beim Abspielen gerechnet**, keine einzige Tondatei. Der
-Tonapparat wird im „Spielen"-Knopf des Titelbilds geweckt, weil Browser
-eine echte Nutzergeste verlangen. Tonknopf in der Kopfzeile.
+- Dritter Reiter, am Handy die dritte Wischseite
+- **Regal 5 Fassungen** (wirkt) über **Lager 20 Plätze** (wartet)
+- Antippen öffnet Detailkarte mit Anlegen / Ablegen / Verkaufen. Kein Ziehen.
+- Lager voll → neuer Fund zahlt sich sofort als Gold aus
+- Datenform: `{ name, seltenheit, fundwelle, affixe: [{ k, wert }] }`.
+  **Tags werden nie gespeichert**, sondern beim Laden aus den Affixen abgeleitet.
+- Güte skaliert mit der Fundwelle: `1 + 0,35 × ⌊Fundwelle/5⌋`
+- Seltenheiten: Gewöhnlich 1 Affix / 100 G · Selten 2 / 400 · Episch 3 / 1.600 ·
+  Legendär 4 / 6.400. Legendär erst ab Welle 15.
+- **Fundchance 0,05 %** je getötetem Recken; Bosswellen **garantiert**,
+  mindestens Selten. Pips-Ware „Schatzjäger" (50 G, ×2,0, max 10): +0,1 % je Stufe.
+- 15 Affixe über sechs Tags — Feuer, Gift, Eis, Blitz, Gold, Burg. Kern ist
+  „Brennende Berührung": Klick zündet an, 10 Schaden/s je ausgerüstetem
+  Feuer-Artefakt. Gift stapelt (eigene Uhr je Treffer), Frost nicht (stärkster gewinnt).
+- 5 legendäre Affixe: Der Zweite Schlund (+1 Maul) · Blutzoll (Münze je
+  500 Liter) · Rabenpakt (Raben tragen Restgold ein) · Hungriges Gemäuer
+  (Tod im Tor → +3 % Fresstempo, 6 s, ×10) · Aschenkrone (Verbrannter
+  hinterlässt Glut, Ketten gewollt)
+- **Kettenblitz nur als Affix**, nicht als Grundverhalten
 
 ---
 
 ## 4. Entscheidungen, die feststehen
 
+Nicht neu aufrollen, sie sind bewusst so gefallen:
+
 1. **Das Repository ist die Quelle.** Die Design-Werkbank wird für dieses
    Spiel nicht mehr als Exportziel benutzt — ihr Ausgabepaket würde die
-   Aufteilung überschreiben. Der ZIP vom 29.08. ist Stand 0.8.0 und
-   **darf nicht eingespielt werden**.
-2. Midas-Berührung, Infernale Berührung und Faust des Titanen sind
-   gestrichen, samt Goldstatuen. Kommen nicht zurück.
-3. Der Marktschreier ist entfernt (0.11.0) — das Laufband kostete Platz.
+   Aufteilung in 24 Dateien bei jedem Mal überschreiben.
+2. **Midas-Berührung, Infernale Berührung und Faust des Titanen sind
+   gestrichen**, samt Goldstatuen. Kommen nicht zurück.
+3. Blut und Schrott sind **keine Währungen** mehr.
 4. Seltenheitsnamen klassisch: Gewöhnlich / Selten / Episch / Legendär.
-5. Kein Ziehen-und-Fallenlassen bei Artefakten.
-6. Alte Spielstände werden **nicht umgerechnet**, sondern gelöscht.
-7. Fester Zeitschritt 1/60 s mit Nachholen; im Hintergrund pausiert das
-   Spiel (unsichtbar kann man nur verlieren).
-8. Harte Preisregel: **`preiswachstum > wirkung`**.
+5. Kein Ziehen-und-Fallenlassen bei Artefakten — Antippen, weil es am Handy
+   genauso gut geht.
+6. Alte Spielstände werden **nicht umgerechnet**, sondern gelöscht. Bei jedem
+   Schlüsselwechsel: neuer Schlüssel, alte werden beim Start entfernt.
+7. Fester Zeitschritt 1/60 s mit Nachholen statt schwankender Bildrate; im
+   Hintergrund pausiert das Spiel (unsichtbar kann man nur verlieren).
+8. Harte Preisregel: **`preiswachstum > wirkung`**, sonst trägt jede Stufe die
+   nächste und das Spiel ist nach zwanzig Minuten vorbei.
 9. Die alte Idle-Fassung bleibt als `v0.4.1-idle` erhalten.
-10. Die Simulation hängt nie am Zeichnen — `simulation.js` importiert
-    nichts aus `szene.js`.
 
 ---
 
-## 5. Was offen ist
+## 5. Was offen ist — in dieser Reihenfolge
 
-### 5.1 Die Kapazitätswand (wichtigster Punkt)
+### 5.1 Prüfskripte nachziehen (erster Schritt)
 
-„Tiefere Hallen" kostet 400 Gold, und so viel kommt früh nicht herein.
-Gemessen am 28.08.2026: Ein Bot, der jede Münze spart und **nichts
-anderes kauft**, hatte nach 30 Wellen erst 165 Gold. Ohne Kapazität
-verliert man zuverlässig und fällt fünf Wellen zurück, was das Einkommen
-weiter senkt. Seit 0.13.0 mildert der Blutkreislauf das (Zauber sind
-jetzt erreichbar), gelöst ist es nicht.
+`pruefe-wirtschaft.mjs` und `balance.mjs` kennen noch Blut und Schrott als
+Währungen, die drei gestrichenen Waren und die drei Klick-Spielarten. Sie
+**laufen gegen die heutige `wirtschaft.mjs` nicht durch**. Zuletzt grün waren
+sie bei 0.6.0 (1.910 Prüfungen, 0 Fehler; Balance über 30 Wellen, neun
+Kennzahlen grün).
 
-### 5.2 Unvermessen
+`pruefe-artefakte.mjs` **fehlt ganz**. `artefakte.js` ist genau dafür gebaut:
+Der Zufall ist austauschbar, mit gesetztem Startwert ergibt derselbe Wurf
+dasselbe Artefakt. Zu prüfen wären Verteilung der Seltenheiten, Güteskalierung
+über die Fundwelle, Bossgarantie ≥ Selten, Affixe je Stufe, das Ableiten der
+Tags, Regalsumme gegen Einzelaffixe.
 
-- Ob sich 0,05 % Fundchance plus Bossgarantie richtig anfühlt.
-- Ob die Truppgröße ohne Deckel irgendwann unspielbar wird.
-- Der Installationsvorgang am echten Gerät („Zum Startbildschirm
-  hinzufügen") — nur das lässt sich nicht aus der Ferne prüfen.
+### 5.2 Balance vermessen
 
-### 5.3 Wunschliste
+Zwei konkrete Verdachtsfälle:
 
-Siehe `docs/ROADMAP.md`: Bannerträger, weitere Einheiten und Kulturen,
-andere Burglayouts, Musik, Prestige, Zauber als Fundstücke mit
-gemeinsamen Werten.
+- **Scharfe Klauen ×1,35 gegen Leben ×1,05.** Stufe 40 kostet 660 k, die
+  Recken wachsen weiter. Gewollte Härte oder eine Wand? Sagt erst der Rechner.
+- **Truppgröße ohne Deckel.** `1 + ⌊w/5⌋` wächst endlos, die Spitzenlast am
+  Tor mit. Ab welcher Welle ist Kapazität nicht mehr kaufbar schnell genug?
+
+Dazu noch unvermessen: ob 0,05 % plus Bossgarantie sich richtig anfühlt.
+
+Zum Vergleich der Befund aus 0.5.0 über 60 Wellen, der zum ganzen 0.7.0-Umbau
+geführt hat — ab Welle 20 sank die Dauer, die Käufe versiegten, Gold häufte
+sich ungenutzt an. Ob das jetzt behoben ist, ist **nicht** nachgemessen.
+
+### 5.3 Ton
+
+Es gibt keinen. Noch nie angefasst, kein Konzept, keine Dateien.
 
 ---
 
-## 6. Arbeitsweise
+## 6. Arbeitsweise, die sich eingespielt hat
 
-Steht verbindlich in **`CLAUDE.md`** im Wurzelverzeichnis. Kurz:
+- **Deutsch, durchgehend.** Auch Dateinamen, Funktionsnamen, Konstanten,
+  Commit-Texte, Changelog. Keine englischen Bezeichner.
+- **Der Changelog ist ausführlich** und erklärt Entscheidungen mit Begründung,
+  nicht nur Änderungen. Jeder Eintrag hat „Geprüft" und „Offen".
+- **Geprüft heißt gemessen.** Nicht „sollte gehen", sondern eine Zahl:
+  Bildpunkte ausgelesen, Prüfungen gezählt, Wellen durchgespielt, Durchsatz
+  gegen die Rechnung gestellt. Beim Aufteilen wurde die Szene in 240 Felder
+  zerlegt und zeichenweise verglichen.
+- **Reine Rechnung getrennt.** `wirtschaft.mjs` kennt weder Browser noch
+  Zufall, damit sie in Node prüfbar bleibt. Neue Regeln gehören dorthin, nicht
+  in die Anzeige.
+- **Eine Stelle je Sache.** `verbuchen()` ist die einzige Stelle, die bei jedem
+  Tod genau einmal läuft — Drop, Blutzoll und Gutschrift hängen dort.
+- Bei jedem Umbau wurden **echte Fehler gefunden**, weil gemessen wurde
+  (Beute kam nie an; Brücke deckelte den Zulauf; doppelte Bildschleife;
+  Hintergrund lief mit 24 % Geschwindigkeit). Das lohnt sich weiter.
+- Kein Deckel, wo keiner sein muss; Deckel dort, wo die Anzeige sonst bricht.
 
-- **Erst lesen, dann anfassen** — `CHANGELOG.md`, `docs/ENTWURF.md`,
-  `README.md`. Der Chatverlauf ist nicht die Quelle der Wahrheit.
-- **Jede Änderung wird notiert**, mit Grund, gemessenen Zahlen und
-  Fehlern samt Ursache.
-- **Geprüft heißt gemessen.** Nicht „sollte gehen", sondern eine Zahl.
-- **Jedes Modul einmal laden**, nicht nur `node --check` — das löst
-  Importe nicht auf und übersieht tote Importe.
-- **Am Handy nachmessen.** In 0.11.0 wurde das versäumt; zwei Fehler
-  machten die Seite auf dem Telefon unbenutzbar.
-- Reine Rechnung bleibt in `wirtschaft.mjs`, ohne Browser und ohne
-  Zufall.
-- **Eine Stelle je Sache.** `verbuchen()` läuft bei jedem Tod genau
-  einmal.
+---
+
+## 7. Erster Satz für den neuen Chat
+
+> Slay'Em All! steht auf 0.8.0, `docs/ENTWURF.md` ist vollständig umgesetzt.
+> Nächster Schritt: die drei Prüfskripte in `werkzeuge/` gegen die heutige
+> `wirtschaft.mjs` nachziehen und `pruefe-artefakte.mjs` neu schreiben, danach
+> die Kurve aus Scharfe Klauen ×1,35 gegen Leben ×1,05 vermessen.
+> Lies `docs/UEBERGABE.md` und `CHANGELOG.md` (Einträge 0.7.0 und 0.8.0).

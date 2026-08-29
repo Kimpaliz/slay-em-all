@@ -7,7 +7,7 @@
 
 import { MASSE } from './masse.js';
 import { muenzeAufsammeln, fundstueckNehmen } from './kampf.js';
-import { blitzSetzen, klickAngriff, napalmSetzen } from './zauber.js';
+import { blitzSetzen, klickAngriff } from './zauber.js';
 import { wirkungAus } from './artefakte.js';
 import { ZAUBER, werte as werteAus } from '../werkzeuge/wirtschaft.mjs';
 
@@ -85,11 +85,6 @@ export function eingabeAnlegen(leinwand, welt, rueckrufe) {
     const { x, y } = ortAus(e);
     const werte = werteAus(welt.zustand.stufenG, welt.zustand.stufenP, wirkungAus(welt.zustand.regal));
 
-    if (welt.szene.flammeBereit) {
-      napalmSetzen(welt, x);
-      rueckrufe.geaendert();
-      return;
-    }
     if (welt.szene.donnerBereit) {
       blitzSetzen(welt, x, werte);
       rueckrufe.geaendert();
@@ -119,8 +114,7 @@ export function eingabeAnlegen(leinwand, welt, rueckrufe) {
   leinwand.addEventListener('mousemove', (e) => {
     const { x, y } = ortAus(e);
     let zeiger = 'default';
-    if (welt.szene.flammeBereit) welt.szene.zielX = x;
-    if (welt.szene.donnerBereit || welt.szene.flammeBereit) zeiger = 'crosshair';
+    if (welt.szene.donnerBereit) zeiger = 'crosshair';
     else if (fundBei(x, y)) zeiger = 'pointer';
     else if (angriffBereit() && reckeBei(x, y)) zeiger = 'crosshair';
     else if (muenzeBei(x, y)) zeiger = 'pointer';

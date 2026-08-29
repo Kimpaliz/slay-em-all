@@ -12,15 +12,16 @@
 // überfordert. Deshalb ist "Tiefere Hallen" bei Grommsch der eigentliche
 // Verteidigungskauf und nicht bloß ein Durchsatzkauf.
 //
-// Jede zehnte Welle ist eine Bosswelle: halbes Gefolge plus ein Boss,
-// der als Letzter anrückt. Erreicht er das Tor, ist die Burg sofort
-// verloren — er muss auf der Brücke sterben.
+// Jede fünfte Welle ist eine Bosswelle: halbes Gefolge plus ein sehr
+// zäher Recke, der als Letzter anrückt und im Tor lange einen Fressplatz
+// blockiert.
 
 import { MASSE } from './masse.js';
-import { klang } from './klang.js';
 import { buehneRaeumen } from './welt.js';
+import { melden } from './marktschreier.js';
 import { RECKEN } from './daten/recken.js';
-import { bossName } from './daten/bosse.js';
+import { bossName, BOSS_ANKUNFT } from './daten/bosse.js';
+import { WELLE_GESCHAFFT, WELLE_VERLOREN, ausListe, mitNamen } from './daten/texte.js';
 import {
   wellenStaerke, rueckfall, verfuegbareKlassen, klassenGewichte, istBosswelle
 } from '../werkzeuge/wirtschaft.mjs';
@@ -72,7 +73,6 @@ function phaseSetzen(szene, phase) {
 }
 
 export function welleStarten(welt) {
-  klang('welleStart');
   const { zustand, szene } = welt;
   if (szene.phase !== 'nacht') return false;
 
@@ -94,12 +94,17 @@ export function welleStarten(welt) {
     unter: bossWelle ? szene.spawnBoss + ' führt an' : szene.wellenGroesse + ' Recken im Anmarsch',
     farbe: bossWelle ? '#e0b64f' : '#ff9a4a', zeit: 0, dauer: bossWelle ? 4 : 3
   };
+  melden(szene, bossWelle
+    ? mitNamen(ausListe(BOSS_ANKUNFT), szene.spawnBoss)
+    : ausListe([
+      'Welle ' + zustand.welle + '! Frisches Fleisch im Anmarsch!',
+      'Tor auf! Welle ' + zustand.welle + ' will Ruhm — wir nehmen den Rest!'
+    ]));
   zustand.phase = 'tag';
   return true;
 }
 
 export function welleGewonnen(welt) {
-  klang('welleGeschafft');
   const { zustand, szene } = welt;
   phaseSetzen(szene, 'nacht');
   szene.nachtzeit = 0;
@@ -108,6 +113,7 @@ export function welleGewonnen(welt) {
     unter: 'Nachtlager — Beute einsammeln und aufrüsten',
     farbe: '#9184d9', zeit: 0, dauer: 4
   };
+  melden(szene, ausListe(WELLE_GESCHAFFT));
   zustand.welle += 1;
   zustand.phase = 'nacht';
   welleAuslosen(zustand);
@@ -121,7 +127,6 @@ export function welleGewonnen(welt) {
  * dass er die Beute tatsächlich verliert.
  */
 export function welleVerloren(welt) {
-  klang('verloren');
   const { zustand, szene } = welt;
   const ziel = rueckfall(zustand.welle);
 
@@ -141,8 +146,7 @@ export function welleVerloren(welt) {
       zustand: 'flieht',
       getroffen: 0,
       wartet: false,
-      // Ein Boss steht hier nie: Betritt er das Tor, ist die Welle
-      // sofort vorbei, er wird also nie verschluckt.
+      boss: !!opfer.boss,
       groesse: opfer.groesse || 1
     });
   }
@@ -153,16 +157,11 @@ export function welleVerloren(welt) {
   szene.donnerBereit = false;
 
   szene.spruchband = {
-    // Zwei Arten zu verlieren, zwei Meldungen: überfüllt oder
-    // durchgelassen. Die zweite ist die neue — ein Boss, der das Tor
-    // erreicht, beendet die Welle auf der Stelle.
-    text: szene.bossDurch ? 'DER BOSS IST DURCH' : 'DIE BURG IST ÜBERRANNT',
-    unter: szene.bossDurch
-      ? szene.bossDurch + ' hat das Tor erreicht — zurück zu Welle ' + ziel
-      : 'Das Monster ist bezwungen — zurück zu Welle ' + ziel,
+    text: 'DIE BURG IST ÜBERRANNT',
+    unter: 'Das Monster ist bezwungen — zurück zu Welle ' + ziel,
     farbe: '#c1444f', zeit: 0, dauer: 4.5
   };
-  szene.bossDurch = null;
+  melden(szene, ausListe(WELLE_VERLOREN));
   zustand.welle = ziel;
   zustand.phase = 'niederlage';
 }

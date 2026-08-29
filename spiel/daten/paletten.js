@@ -43,17 +43,12 @@ export const TAG_PALETTE = {
   licht: '220,205,160'
 };
 
-/**
- * Die Sterne stehen fest — sie flackern nur, sie wandern nicht.
- * Ihre Zahl richtet sich nach der Bühnenbreite, damit der Himmel über
- * dem neuen Land links nicht leer bleibt.
- */
-export function sterneAnlegen(breite = 800) {
+/** Die 60 Sterne stehen fest — sie flackern nur, sie wandern nicht. */
+export function sterneAnlegen() {
   const sterne = [];
-  const anzahl = Math.round(breite / 8);
-  for (let i = 0; i < anzahl; i++) {
+  for (let i = 0; i < 60; i++) {
     sterne.push({
-      x: (i * 61 + 13) % breite,
+      x: (i * 61 + 13) % 480,
       y: 4 + ((i * 37) % 74),
       helligkeit: 0.14 + ((i * 17) % 55) / 100,
       phase: (i * 1.7) % 6.28

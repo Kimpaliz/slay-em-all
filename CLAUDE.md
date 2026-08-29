@@ -3,6 +3,10 @@
 Diese Datei wird beim Start automatisch gelesen. Sie gilt für jede
 Sitzung, die an „Slay'Em All!" arbeitet.
 
+**Maßgeblicher Stand seit dem 29.08.2026:** der Werkbank-Zweig 0.8.x
+(Entscheidung Jannik). Der zuvor hier entstandene Zweig 0.9.0–0.14.1
+liegt vollständig unter dem Etikett `v0.14.1-eigener-zweig`.
+
 ## Vor jeder Änderung: hier nachschauen
 
 **Erst lesen, dann anfassen.** In dieser Reihenfolge:
@@ -42,16 +46,14 @@ node werkzeuge/pruefe-wirtschaft.mjs
 ```
 
 ```bash
-node werkzeuge/pruefe-artefakte.mjs
-```
-
-```bash
-node werkzeuge/pruefe-simulation.mjs
-```
-
-```bash
 node werkzeuge/balance.mjs 30
 ```
+
+**Stand 29.08.2026:** Beide Skripte stammen vom 0.6.0-Stand und sind
+noch nicht an die heutige `wirtschaft.mjs` angepasst — sie nachzuziehen
+ist der erste offene Schritt (siehe `docs/UEBERGABE.md`, 5.1). Ein
+`pruefe-artefakte.mjs` fehlt und soll neu entstehen; `artefakte.js` hat
+dafür austauschbaren Zufall.
 
 Dazu **jedes Modul einmal wirklich laden**, nicht nur die Syntax prüfen
 — `node --check` löst Importe nicht auf und übersieht deshalb tote
@@ -61,10 +63,8 @@ Importe:
 for f in spiel/*.js spiel/daten/*.js; do node -e "import('./$f').catch(e=>{console.log('$f',e.message);process.exit(1)})"; done
 ```
 
-**Und am Handy nachmessen, nicht nur am Schreibtisch.** In 0.11.0 wurde
-das versäumt; zwei Fehler machten die Seite auf dem Telefon unbenutzbar
-und fielen erst auf, als Jannik es meldete. Ein Fenster von 916 × 412
-hätte beide gefunden.
+**Und am Handy nachmessen, nicht nur am Schreibtisch.** Ein Fenster von
+916 × 412 findet, was der Schreibtisch versteckt.
 
 ## Grenzen
 

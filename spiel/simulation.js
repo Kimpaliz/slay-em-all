@@ -11,18 +11,18 @@
 // ändert, kann Tode um einen Bildschritt verschieben.
 
 import { MASSE, festerBoden, ausklang } from './masse.js';
-import { klang } from './klang.js';
 import { reckeAnlegen } from './welt.js';
+import { melden } from './marktschreier.js';
 import {
-  schaden, torTod, zermalmen, lacheSetzen, muenzenFallen, muenzeAufsammeln, BOSS_CC_FAKTOR, rauchen,
+  schaden, torTod, zermalmen, lacheSetzen, muenzenFallen, muenzeAufsammeln, rauchen,
   vergiften, fundstueckNehmen
 } from './kampf.js';
 import { wirkungAus } from './artefakte.js';
-import { RECKEN, FRESSZEIT_NORMAL } from './daten/recken.js';
+import { RECKEN } from './daten/recken.js';
 import {
   welleGewonnen, welleVerloren, niederlageBeenden, welleStarten, bossKlasse, RITUAL_WARTEZEIT
 } from './wellen.js';
-import { reckenName } from './daten/texte.js';
+import { NACHTS, ausListe, reckenName } from './daten/texte.js';
 import {
   werte as werteAus, spawnAbstand, wellenSkalierung, BOSS
 } from '../werkzeuge/wirtschaft.mjs';
@@ -39,7 +39,7 @@ export function schritt(welt, dt, einstellungen = {}) {
   const werte = werteAus(zustand.stufenG, zustand.stufenP, wirkung);
   // Hungriges Gemäuer: gestapelte Fressboni, jeder 3 %.
   if (wirkung.hungrigesGemaeuer > 0 && szene.sattStapel > 0) {
-    werte.fressTempo *= 1 + 0.03 * szene.sattStapel;
+    werte.angriff *= 1 + 0.03 * szene.sattStapel;
   }
   const blutmenge = einstellungen.blutmenge != null ? einstellungen.blutmenge : BLUTMENGE;
   const ruetteln = einstellungen.ruetteln !== false;
@@ -57,8 +57,6 @@ export function schritt(welt, dt, einstellungen = {}) {
   reckenFuehren(welt, dt, werte);
   abklingzeitenFuehren(szene, dt);
 
-  wischerFuehren(welt, dt, werte);
-  heilungFuehren(welt, dt);
   brandFuehren(welt, dt, werte);
   giftFuehren(welt, dt, werte);
   prankeFuehren(welt, dt, werte);
@@ -66,7 +64,6 @@ export function schritt(welt, dt, einstellungen = {}) {
   pfeileFuehren(welt, dt, werte);
   blitzeFuehren(szene, dt);
   flammeFuehren(welt, dt, werte);
-  napalmFuehren(welt, dt, werte);
   meteoreFuehren(welt, dt, werte);
   brennendeFuehren(welt, dt, werte);
   brandfleckenFuehren(szene, dt);
@@ -125,11 +122,8 @@ function phaseFuehren(welt, dt, werte) {
     // der Schlund der Durchsatz — zwei getrennte Käufe, zwei Nöte.
     const maeuler = Math.min(werte.schlund, szene.imTor.length);
     for (let i = maeuler - 1; i >= 0; i--) {
-      // Es zaehlt eine Zeit herunter, kein Leben. Wie zaeh einer auf der
-      // Bruecke war, spielt hier keine Rolle mehr — nur, was seine
-      // Klasse an Fresszeit mitbringt.
-      szene.imTor[i].fressRest -= werte.fressTempo * dt;
-      if (szene.imTor[i].fressRest <= 0) {
+      szene.imTor[i].lp -= werte.angriff * dt;
+      if (szene.imTor[i].lp <= 0) {
         const opfer = szene.imTor[i];
         szene.imTor.splice(i, 1);
         torTod(welt, opfer, 9, true, werte);
@@ -152,6 +146,7 @@ function phaseFuehren(welt, dt, werte) {
     if (zustand.ritual >= 1 && zustand.ritualAn && szene.nachtzeit >= RITUAL_WARTEZEIT) {
       welleStarten(welt);
     }
+    if (Math.random() < dt * 0.02) melden(szene, ausListe(NACHTS));
   }
 
   if (szene.phase === 'niederlage') {
@@ -234,7 +229,6 @@ function reckenFuehren(welt, dt, werte) {
   for (let i = szene.recken.length - 1; i >= 0; i--) {
     const r = szene.recken[i];
     if (r.getroffen > 0) r.getroffen -= dt;
-    if (r.ccSperre > 0) r.ccSperre -= dt;
     if (r.frost) {
       r.frost.rest -= dt;
       if (r.frost.rest <= 0) delete r.frost;
@@ -256,139 +250,20 @@ function reckenFuehren(welt, dt, werte) {
     // Frost aus dem Regal bremst, Raureif bremst kurz vor dem Tor.
     let tempo = r.tempo;
     if (r.frost) tempo *= r.frost.faktor;
-    // Raureif ist ebenfalls eine Beeinträchtigung — auf einen Boss wirkt
-    // sie nur zu einem Zehntel, und auch das nur außerhalb seiner Sperre.
-    if (raureif > 0 && r.x > MASSE.TOR_LINKS - 40) {
-      const wirkt = r.boss ? (r.ccSperre > 0 ? 0 : raureif * BOSS_CC_FAKTOR) : raureif;
-      tempo *= 1 - wirkt;
-    }
+    if (raureif > 0 && r.x > MASSE.TOR_LINKS - 40) tempo *= 1 - raureif;
 
     r.x += tempo * dt;
     if (r.x >= MASSE.TOR_EINTRITT) {
       szene.recken.splice(i, 1);
-
-      // Der Boss wird nicht gefressen. Erreicht er das Tor, ist die
-      // Burg auf der Stelle verloren — er ist eine Frist, keine
-      // Mahlzeit. Deshalb muss er auf der Brücke sterben.
-      if (r.boss) {
-        szene.bossDurch = r.name;
-        welleVerloren(welt);
-        break;
-      }
-
-      const fressZeit = r.klasse.fressZeit || FRESSZEIT_NORMAL;
       szene.imTor.push({
         klasse: r.klasse, name: r.name, lp: r.lp, maxLp: r.maxLp,
-        fressZeit, fressRest: fressZeit,
-        groesse: r.groesse || 1
+        boss: !!r.boss, groesse: r.groesse || 1
       });
       if (szene.imTor.length > werte.kapazitaet) {
         welleVerloren(welt);
         break;
       }
     }
-  }
-}
-
-/**
- * Der Heilzauberer hält seine Nachbarn am Leben.
- *
- * Er heilt in einem festen Umkreis und **nicht sich selbst** — sonst
- * wäre er in einer Gruppe von zweien unsterblich. Geheilt wird nur bis
- * zum vollen Leben; wer schon voll ist, kostet nichts.
- *
- * Für die Anzeige merkt sich jeder Geheilte einen kurzen Schimmer.
- */
-function heilungFuehren(welt, dt) {
-  const szene = welt.szene;
-  const heiler = szene.recken.filter((r) => r.klasse.heilt && r.zustand === 'laeuft');
-  if (!heiler.length) return;
-
-  for (const h of heiler) {
-    const { reichweite, proSekunde } = h.klasse.heilt;
-    for (const r of szene.recken) {
-      if (r === h || r.zustand !== 'laeuft') continue;
-      if (r.lp >= r.maxLp) continue;
-      if (Math.abs(r.x - h.x) > reichweite) continue;
-      r.lp = Math.min(r.maxLp, r.lp + proSekunde * dt);
-      r.geheilt = 0.35;
-    }
-  }
-  // Der Schimmer verblasst.
-  for (const r of szene.recken) {
-    if (r.geheilt > 0) r.geheilt = Math.max(0, r.geheilt - dt);
-  }
-}
-
-/**
- * Die Putzgoblins.
- *
- * Der Kreislauf, den sie schliessen: Blut faellt beim Sterben als Lache
- * auf den Boden und ist dort **noch kein Geld**. Erst wenn ein Goblin
- * hinlaeuft und aufwischt, wird es gutgeschrieben. Weil eine Lache nur
- * `LACHE_FASST` Liter haelt, geht alles verloren, was daneben vergossen
- * wird, solange niemand abtraegt — deshalb lohnt sich der Putztrupp.
- *
- * Jeder Goblin hat drei Zustaende: `hin` (zur Lache), `wischt` (dabei),
- * `heim` (zurueck ans Tor). Er sucht immer die **volleste erreichbare**
- * Lache, nicht die naechste — sonst wischte er ewig an Tropfen herum,
- * waehrend die grosse Pfuetze ueberlaeuft.
- */
-function wischerFuehren(welt, dt, werte) {
-  const { zustand, szene } = welt;
-  const heim = MASSE.TOR_LINKS - 6;
-
-  // Fehlende Goblins nachziehen, ueberzaehlige gehen heim und verschwinden.
-  while (szene.wischer.length < werte.wischer) {
-    szene.wischer.push({ x: heim, ziel: null, tun: 'heim', fortschritt: 0, phase: Math.random() * 6.28 });
-  }
-  if (szene.wischer.length > werte.wischer) szene.wischer.length = werte.wischer;
-
-  for (const g of szene.wischer) {
-    g.phase += dt * 6;
-
-    if (g.tun === 'wischt') {
-      g.fortschritt += dt;
-      if (g.fortschritt >= 0.7) {
-        const i = szene.lachen.indexOf(g.ziel);
-        if (i >= 0) {
-          const gewonnen = Math.round(g.ziel.blut || 0);
-          szene.lachen.splice(i, 1);
-          if (gewonnen > 0) {
-            zustand.blut += gewonnen;
-            szene.zahlen.push({
-              x: g.x, y: MASSE.DECK - 14,
-              text: '+' + gewonnen, farbe: '#c1444f', zeit: 0
-            });
-          }
-        }
-        g.ziel = null;
-        g.tun = 'heim';
-      }
-      continue;
-    }
-
-    if (g.tun === 'hin') {
-      // Ziel verschwunden? Dann heim.
-      if (!g.ziel || szene.lachen.indexOf(g.ziel) < 0) { g.ziel = null; g.tun = 'heim'; continue; }
-      const weg = g.ziel.x - g.x;
-      if (Math.abs(weg) < 3) { g.tun = 'wischt'; g.fortschritt = 0; continue; }
-      g.x += Math.sign(weg) * werte.wischTempo * dt;
-      continue;
-    }
-
-    // 'heim': zurueck ans Tor, unterwegs nach Arbeit schauen
-    const belegt = szene.wischer.map((a) => a.ziel).filter(Boolean);
-    let beste = null;
-    for (const l of szene.lachen) {
-      if (!l.blut || l.blut < 1) continue;
-      if (belegt.includes(l)) continue;
-      if (!beste || l.blut > beste.blut) beste = l;
-    }
-    if (beste) { g.ziel = beste; g.tun = 'hin'; continue; }
-
-    const weg = heim - g.x;
-    if (Math.abs(weg) > 2) g.x += Math.sign(weg) * werte.wischTempo * 0.8 * dt;
   }
 }
 
@@ -529,10 +404,9 @@ function schuetzenFuehren(welt, dt, werte) {
 
     // Vorhalten: Es wird dorthin geschossen, wo das Ziel gleich sein wird.
     const ziel = ziele[(Math.random() * ziele.length) | 0];
-    const ax = MASSE.SCHUETZE_X + a * 24;
+    const ax = 306 + a * 24;
     const ay = 22;
     const flugzeit = Math.max(0.45, Math.min(1.1, (ax - ziel.x) / 150));
-    klang('pfeil');
     szene.pfeile.push({
       x: ax, y: ay,
       vx: ((ziel.x + ziel.tempo * flugzeit + 3) - ax) / flugzeit,
@@ -605,62 +479,6 @@ function blitzeFuehren(szene, dt) {
  * Sie qualmt, solange sie brennt, und noch eine Weile danach — der Rauch
  * gleitet über die Planken hoch und fadet aus.
  */
-/**
- * Der Napalm-Wurf und der Brandboden, den er hinterlaesst.
- *
- * Zwei Abschnitte: Solange `zeit < dauer` fallen Brocken ins Gebiet und
- * zuenden Getroffene an. Jeder Einschlag legt ausserdem eine brennende
- * Stelle auf den Boden, die drei Sekunden haelt — wer danach
- * hindurchlaeuft, faengt ebenfalls Feuer. Deshalb lohnt es sich, das
- * Gebiet **vor** die Recken zu legen statt auf sie.
- */
-function napalmFuehren(welt, dt, werte) {
-  const szene = welt.szene;
-  const n = szene.napalm;
-
-  if (n) {
-    n.zeit += dt;
-    n.takt -= dt;
-    if (n.takt <= 0) {
-      n.takt = 0.11;
-      const x = n.von + Math.random() * (n.bis - n.von);
-      szene.explosionen.push({ x, zeit: 0.2 });
-      rauchen(szene, x, MASSE.DECK - 7, 2, { dauer: 2.2, steigen: 16, streuung: 4 });
-      // Eine brennende Stelle bleibt liegen.
-      szene.brandboden.push({ x, rest: 3, breite: 14 });
-      if (szene.brandboden.length > 26) szene.brandboden.shift();
-      if (festerBoden(x)) {
-        szene.brandflecken.push({ x, breite: 4 + Math.random() * 4 });
-        if (szene.brandflecken.length > 30) szene.brandflecken.shift();
-      }
-      // Wer im Einschlag steht, brennt sofort.
-      for (let i = szene.recken.length - 1; i >= 0; i--) {
-        const r = szene.recken[i];
-        if (r.zustand !== 'laeuft') continue;
-        if (Math.abs(r.x + 3 - x) < 13) schaden(welt, r, n.schaden, 'napalm', 'feuer', werte);
-      }
-    }
-    if (n.zeit >= n.dauer) szene.napalm = null;
-  }
-
-  // Der Boden brennt nach und zuendet Durchlaeufer an.
-  for (let i = szene.brandboden.length - 1; i >= 0; i--) {
-    const b = szene.brandboden[i];
-    b.rest -= dt;
-    if (b.rest <= 0) { szene.brandboden.splice(i, 1); continue; }
-    if (Math.random() < dt * 6) {
-      rauchen(szene, b.x + (Math.random() * 10 - 5), MASSE.DECK - 4, 1,
-        { dauer: 1.4, steigen: 14, streuung: 2 });
-    }
-    for (const r of szene.recken) {
-      if (r.zustand !== 'laeuft' || r.brand) continue;
-      if (Math.abs(r.x + 3 - b.x) < b.breite / 2) {
-        r.brand = { rest: 3, takt: 0, schadenJeSekunde: Math.max(10, Math.round(werte.pfeilSchaden)) };
-      }
-    }
-  }
-}
-
 function flammeFuehren(welt, dt, werte) {
   const szene = welt.szene;
   const f = szene.flamme;
@@ -701,13 +519,8 @@ function meteoreFuehren(welt, dt, werte) {
     szene.meteorTakt -= dt;
     if (szene.meteorTakt <= 0) {
       szene.meteorTakt = 0.38;
-      // Der Schauer geht dort nieder, wo die Recken tatsächlich sind.
-      // Vorher lag der Bereich fest zwischen Klippe und Tor — auf der
-      // verbreiterten Bühne waren das nur noch 204 von 635 Punkten
-      // Laufweg, das ganze neue Land bekam nichts ab.
-      const zone = szene.meteorZone || { von: MASSE.KLIPPE, bis: MASSE.TOR_RECHTS };
       szene.meteore.push({
-        x: zone.von + Math.random() * Math.max(20, zone.bis - zone.von) + 26,
+        x: MASSE.KLIPPE + 10 + Math.random() * (MASSE.TOR_RECHTS - MASSE.KLIPPE - 14) + 26,
         y: -10, vx: -26, vy: 100
       });
     }
@@ -883,13 +696,9 @@ function drachlingFuehren(welt, dt, werte) {
 
   const d = szene.drachling;
   d.phase += dt;
-  // Er fliegt schneller, seit die Bühne doppelt so breit ist — sonst
-  // bräuchte er für eine Runde über 40 Sekunden. Vorher kehrte er schon
-  // bei `KLIPPE - 70` um und hat das neue Land nie gesehen; Münzen, die
-  // dort lagen, blieben liegen.
-  d.x += d.richtung * (55 + 20 * stufe) * dt;
+  d.x += d.richtung * (28 + 13 * stufe) * dt;
   if (d.x > MASSE.MAUER - 8) d.richtung = -1;
-  if (d.x < 20) d.richtung = 1;
+  if (d.x < MASSE.KLIPPE - 70) d.richtung = 1;
   d.y = MASSE.DECK - 26 + Math.sin(d.phase * 2.1) * 6;
 
   const reichweite = 17 + 7 * stufe;

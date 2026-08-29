@@ -9,7 +9,6 @@
 // schlägt beim Klick ein. Deshalb hat er zwei Schritte statt einem.
 
 import { MASSE } from './masse.js';
-import { klang } from './klang.js';
 import { schaden, spritzen, rauchen, einfrieren } from './kampf.js';
 import { ZAUBER, zauberWerte, klickWerte } from '../werkzeuge/wirtschaft.mjs';
 
@@ -25,7 +24,7 @@ export function werteVon(zustand, k) {
 /** Ist der Zauber gerade mitten in seiner Wirkung? */
 export function laeuftGerade(szene, k) {
   if (k === 'pranke') return !!szene.pranke;
-  if (k === 'flamme') return !!szene.napalm;
+  if (k === 'flamme') return !!szene.flamme;
   if (k === 'meteor') return szene.meteorZeit > 0;
   return false;
 }
@@ -52,13 +51,9 @@ export function pruefen(welt, k) {
 export function ausloesen(welt, k) {
   const { zustand, szene } = welt;
 
-  // Donnerschlag und Flammenstoß lassen sich wieder entschärfen.
+  // Der Donnerschlag lässt sich auch wieder entschärfen.
   if (k === 'donner' && szene.donnerBereit) {
     szene.donnerBereit = false;
-    return true;
-  }
-  if (k === 'flamme' && szene.flammeBereit) {
-    szene.flammeBereit = false;
     return true;
   }
   if (pruefen(welt, k)) return false;
@@ -74,34 +69,13 @@ export function ausloesen(welt, k) {
     return true;
   }
   if (k === 'flamme') {
-    /*
-      Der Flammenstoss zielt jetzt, statt blind aus dem Tor zu stossen.
-
-      Der erste Druck bewaffnet nur den Zeiger — genau wie beim
-      Donnerschlag. Erst der Klick auf die Bruecke legt das Zielgebiet
-      fest, und dort geht dann ueber mehrere Sekunden Feuer nieder.
-      Die Abklingzeit laeuft deshalb auch erst beim Einschlag an, nicht
-      schon beim Anvisieren: Wer sich vertut und wieder entschaerft,
-      soll nicht bestraft werden.
-    */
-    szene.flammeBereit = !szene.flammeBereit;
+    szene.flamme = {
+      zeit: 0, reichweite: 0, wirkbereich: w.wirkbereich, schaden: w.schaden, qualm: 0
+    };
+    szene.abklingzeit.flamme = w.abklingzeit;
     return true;
   }
   if (k === 'meteor') {
-    klang('meteor');
-    // Zielzone beim Auslösen festhalten: dort, wo die Recken gerade
-    // stehen, mit etwas Rand. Steht niemand draußen, deckt der Schauer
-    // die Anmarschstrecke vor dem Tor ab.
-    let von = Infinity;
-    let bis = -Infinity;
-    for (const r of szene.recken) {
-      if (r.zustand !== 'laeuft') continue;
-      von = Math.min(von, r.x);
-      bis = Math.max(bis, r.x);
-    }
-    szene.meteorZone = von <= bis
-      ? { von: Math.max(0, von - 30), bis: Math.min(MASSE.TOR_RECHTS, bis + 30) }
-      : { von: MASSE.TOR_LINKS - 220, bis: MASSE.TOR_RECHTS };
     szene.meteorZeit = 6;
     szene.meteorTakt = 0;
     szene.meteorWirkung = w.wirkbereich;
@@ -197,39 +171,8 @@ function kettenSpringen(welt, ziel, menge, anzahl, werte) {
   }
 }
 
-/**
- * Das Napalm geht an der angeklickten Stelle nieder.
- *
- * Anders als der alte Stoss wirkt es **ueber Zeit**: Ueber gut zwei
- * Sekunden fallen Brocken in das gewaehlte Gebiet, jeder zuendet an,
- * was er trifft. Danach brennt der Boden dort noch drei Sekunden weiter
- * und setzt jeden in Brand, der hindurchlaeuft.
- *
- * Damit ist der Zauber kein Notknopf mehr, sondern eine Entscheidung:
- * Man legt ihn vor die Recken, nicht auf sie.
- */
-export function napalmSetzen(welt, x) {
-  const { zustand, szene } = welt;
-  const w = werteVon(zustand, 'flamme');
-  szene.flammeBereit = false;
-  szene.abklingzeit.flamme = w.abklingzeit;
-  klang('flamme');
-
-  const halb = w.wirkbereich / 2;
-  szene.napalm = {
-    von: Math.max(0, x - halb),
-    bis: Math.min(MASSE.TOR_RECHTS, x + halb),
-    zeit: 0,
-    dauer: 2.2,        // so lange fallen Brocken
-    takt: 0,
-    schaden: w.schaden
-  };
-  return true;
-}
-
 /** Der Blitz schlägt an der angeklickten Stelle ein. */
 export function blitzSetzen(welt, x, werte) {
-  klang('blitz');
   const { zustand, szene } = welt;
   const w = werteVon(zustand, 'donner');
   // Geladene Klauen aus dem Regal legen auf den Donnerschlag drauf.

@@ -167,58 +167,6 @@ export function rauchZeichnen(ctx, p) {
   ctx.globalAlpha = 1;
 }
 
-/* ---------------- Napalm ---------------- */
-
-/**
- * Der brennende Boden nach einem Napalm-Wurf.
- *
- * Er flackert und wird nach hinten heraus schwaecher, damit man sieht,
- * wie lange die Stelle noch gefaehrlich ist — die Hoehe der Flammen
- * folgt der Restzeit.
- */
-export function brandbodenZeichnen(ctx, b, zeit) {
-  const anteil = Math.max(0, Math.min(1, b.rest / 3));
-  const x0 = Math.round(b.x - b.breite / 2);
-  const w = Math.round(b.breite);
-
-  ctx.globalAlpha = 0.35 + anteil * 0.4;
-  ctx.fillStyle = '#3a1a0c';
-  ctx.fillRect(x0, MASSE.DECK, w, 2);
-  ctx.globalAlpha = 1;
-
-  for (let i = 0; i < w; i += 2) {
-    const x = x0 + i;
-    const h = Math.round((2 + streu(i + Math.floor(zeit * 14)) * 6) * anteil);
-    if (h <= 0) continue;
-    const heiss = streu(i * 3 + Math.floor(zeit * 11));
-    ctx.fillStyle = heiss < 0.35 ? '#b32a12' : heiss < 0.75 ? '#ff7a2a' : '#ffd08a';
-    ctx.fillRect(x, MASSE.DECK - h, 2, h);
-  }
-}
-
-/**
- * Das Zielgebiet, solange der Wurf noch nicht gesetzt ist.
- * Ohne diese Vorschau waere der Wurf blindes Raten.
- */
-export function napalmZielZeichnen(ctx, x, wirkbereich, zeit) {
-  const halb = wirkbereich / 2;
-  const von = Math.round(x - halb);
-  const w = Math.round(wirkbereich);
-  const puls = 0.35 + 0.25 * Math.sin(zeit * 6);
-
-  ctx.globalAlpha = puls;
-  ctx.fillStyle = '#ff7a2a';
-  ctx.fillRect(von, MASSE.DECK - 1, w, 1);
-  // Klammern an den Raendern
-  ctx.fillRect(von, MASSE.DECK - 7, 1, 7);
-  ctx.fillRect(von + w - 1, MASSE.DECK - 7, 1, 7);
-  ctx.fillRect(von, MASSE.DECK - 7, 4, 1);
-  ctx.fillRect(von + w - 4, MASSE.DECK - 7, 4, 1);
-  ctx.globalAlpha = puls * 0.25;
-  ctx.fillRect(von, MASSE.DECK - 26, w, 26);
-  ctx.globalAlpha = 1;
-}
-
 /* ---------------- Einblendungen ---------------- */
 
 /**
@@ -243,13 +191,10 @@ export function belegungZeichnen(ctx, imTor, kapazitaet, schlund, zeit) {
   for (let i = 0; i < zeigen; i++) {
     const x = x0 + i * abstand;
     // Fressbalken: Über jedem Recken, der gerade im Maul steckt, läuft
-    // seine Fresszeit ab — von voll (frisch geschluckt) bis leer (tot).
-    // Nicht sein Leben: Wie zäh er auf der Brücke war, spielt im Tor
-    // keine Rolle mehr.
+    // sein Restleben ab — von voll (frisch geschluckt) bis leer (tot).
     if (i < anzahl && i < schlund) {
       const opfer = imTor[i];
-      const ganz = opfer.fressZeit || opfer.klasse.fressZeit || 2;
-      const anteil = Math.max(0, Math.min(1, (opfer.fressRest != null ? opfer.fressRest : ganz) / ganz));
+      const anteil = Math.max(0, Math.min(1, opfer.lp / (opfer.maxLp || opfer.klasse.lp)));
       ctx.fillStyle = 'rgba(6,7,12,0.8)';
       ctx.fillRect(x, y - 5, 5, 2);
       ctx.fillStyle = anteil > 0.5 ? '#ff9a4a' : '#ff6a52';
@@ -282,28 +227,27 @@ export function belegungZeichnen(ctx, imTor, kapazitaet, schlund, zeit) {
 }
 
 /** Das große Spruchband bei Wellenbeginn, Sieg und Niederlage. */
-export function spruchbandZeichnen(ctx, band, mitte = 240) {
+export function spruchbandZeichnen(ctx, band) {
   const deckkraft = Math.max(0, Math.min(1, Math.min(band.zeit * 2.5, (band.dauer - band.zeit) * 1.6)));
   if (deckkraft <= 0) return;
 
   ctx.globalAlpha = deckkraft * 0.85;
   ctx.fillStyle = 'rgba(6,7,12,0.85)';
-  const links = Math.round(mitte - 130);
-  ctx.fillRect(links, 26, 260, 32);
+  ctx.fillRect(110, 26, 260, 32);
   ctx.fillStyle = band.farbe;
-  ctx.fillRect(links, 26, 260, 1);
-  ctx.fillRect(links, 57, 260, 1);
+  ctx.fillRect(110, 26, 260, 1);
+  ctx.fillRect(110, 57, 260, 1);
 
   ctx.globalAlpha = deckkraft;
   ctx.font = 'bold 11px ui-monospace, monospace';
   let breite = ctx.measureText(band.text).width;
   ctx.fillStyle = band.farbe;
-  ctx.fillText(band.text, Math.round(mitte - breite / 2), 40);
+  ctx.fillText(band.text, Math.round(240 - breite / 2), 40);
 
   ctx.font = '8px ui-monospace, monospace';
   breite = ctx.measureText(band.unter).width;
   ctx.fillStyle = '#b9b7c9';
-  ctx.fillText(band.unter, Math.round(mitte - breite / 2), 51);
+  ctx.fillText(band.unter, Math.round(240 - breite / 2), 51);
   ctx.globalAlpha = 1;
 }
 

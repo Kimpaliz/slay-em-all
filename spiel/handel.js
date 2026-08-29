@@ -68,9 +68,9 @@ export function zauberLernen(welt, schluessel) {
   const zauber = ZAUBER.find((z) => z.k === schluessel);
   if (!zauber) return false;
   if (zustand.zauber[schluessel].gelernt >= 1) return false;
-  if (zustand.blut < zauber.preis) return false;
+  if (zustand.gold < zauber.preis) return false;
 
-  zustand.blut -= zauber.preis;
+  zustand.gold -= zauber.preis;
   zustand.zauber[schluessel].gelernt = 1;
   welt.sprueche.malvina = ausListe(SPRUCH_MALVINA);
   return true;
@@ -85,9 +85,9 @@ export function zauberVerbessern(welt, schluessel, achse) {
   if (stufen.gelernt < 1) return false;
 
   const preis = ausbauPreis(zauber, stufen[achse]);
-  if (zustand.blut < preis) return false;
+  if (zustand.gold < preis) return false;
 
-  zustand.blut -= preis;
+  zustand.gold -= preis;
   stufen[achse] += 1;
   welt.sprueche.malvina = ausListe(SPRUCH_MALVINA);
   return true;
@@ -106,8 +106,8 @@ export const KLICK_ACHSEN = [
 export function klickKaufen(welt) {
   const zustand = welt.zustand;
   if (zustand.klick.gekauft >= 1) return false;
-  if (zustand.blut < KLICK.preis) return false;
-  zustand.blut -= KLICK.preis;
+  if (zustand.gold < KLICK.preis) return false;
+  zustand.gold -= KLICK.preis;
   zustand.klick.gekauft = 1;
   welt.sprueche.malvina = ausListe(SPRUCH_MALVINA);
   return true;
@@ -118,8 +118,8 @@ export function klickVerbessern(welt, achse) {
   const zustand = welt.zustand;
   if (zustand.klick.gekauft < 1) return false;
   const preis = klickAusbauPreis(zustand.klick[achse]);
-  if (zustand.blut < preis) return false;
-  zustand.blut -= preis;
+  if (zustand.gold < preis) return false;
+  zustand.gold -= preis;
   zustand.klick[achse] += 1;
   welt.sprueche.malvina = ausListe(SPRUCH_MALVINA);
   return true;
@@ -129,8 +129,8 @@ export function klickVerbessern(welt, achse) {
 export function ritualKaufen(welt) {
   const zustand = welt.zustand;
   if (zustand.ritual >= 1) return false;
-  if (zustand.blut < RITUAL_PREIS) return false;
-  zustand.blut -= RITUAL_PREIS;
+  if (zustand.gold < RITUAL_PREIS) return false;
+  zustand.gold -= RITUAL_PREIS;
   zustand.ritual = 1;
   zustand.ritualAn = true;
   welt.sprueche.malvina = ausListe(SPRUCH_MALVINA);
