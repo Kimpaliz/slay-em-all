@@ -1,5 +1,74 @@
 # Änderungsprotokoll
 
+## 0.8.1 — 29.08.2026
+
+**Der Werkbank-Zweig ist jetzt der Stand von `main`, komplett
+durchgetestet.** Entscheidung Jannik: Die in der Design-Werkbank
+weiterentwickelte Fassung 0.8.0 ist die maßgebliche Version. Der zuvor
+im Repository entstandene Zweig (0.9.0–0.14.1: Ton, Titelbild,
+installierbare App, Blutkreislauf, 800er-Bühne, Boss als Frist) liegt
+vollständig unter dem Etikett `v0.14.1-eigener-zweig` — nichts ist
+verloren, es ist nur nicht mehr der Stand von `main`.
+
+### Der geerbte Zombie-Arbeiter
+
+Der einzige echte Fehler des Zweigwechsels selbst: Der alte Zweig hatte
+einen Dienst-Arbeiter (`sw.js`), und **jeder Browser, der die Seite
+schon besucht hat, trägt ihn noch in sich** — auf der Live-Seite war er
+nachweislich aktiv, mit 31 Dateien im Vorrat. Eine gelöschte `sw.js`
+meldet 404, und ein 404 lässt den alten Arbeiter unangetastet ewig
+weiterlaufen; offline servierte er den alten Spielstand.
+
+Deshalb liegt jetzt bewusst wieder eine `sw.js` da — als
+**Selbstabschalter**: Der Browser prüft die Adresse beim nächsten
+Besuch, tauscht die Fassung ein, und die neue leert alle Vorratslager,
+meldet sich ab und lädt offene Fenster neu.
+
+### Durchgetestet (UI und Gameplay, Janniks Auftrag)
+
+Alle 23 Module laden (nicht nur Syntax — Importe wirklich aufgelöst).
+Im Browser mit echten Klicks:
+
+- **Neustart** zweistufig, löscht den Spielstand wirklich.
+- **Welle 1:** 5 Erledigte → 5 Münzen liegen, eingesammelt → 5 Gold.
+  Liegengebliebenes Gold bleibt über die Nacht liegen (Regel, kein
+  Fehler: ohne Rabenpakt sammelt das Wellenende nicht ein).
+- **Klick kaufen:** bei 5 Gold korrekt gesperrt, bei 18 gekauft;
+  Angriff aufs Ziel 26 → 16 LP, Abklingzeit 2 s, Schadenszahl schwebt.
+- **Bosswelle 5:** Ansage mit Namen („Marschall Wolfram die Schwerste
+  Mahlzeit"), Boss doppelt groß mit 1.216 LP, Welle gewonnen,
+  **Bossgarantie erfüllt** — „Aschenkette des Zeugmeisters" (Selten,
+  2 Affixe, Fundwelle 5) landete im Lager.
+- **Artefakte:** Karte öffnet mit Name, Seltenheit, Tags, Affixen und
+  drei Knöpfen; Anlegen verschiebt ins Regal; die **Regalsumme wirkt**
+  (Gierschimmer +7,05 % Münzwert, Giftpfeile 9 Schaden/s in
+  `wirkungAus`).
+- **Zauber:** Drachenpranke gekauft (158 → 118 Gold), in der Leiste,
+  Tooltip mit Werten und Schadensart.
+- **Speicher-Umlauf:** sichern → laden hält Welle, Gold, Klick, Zauber
+  und das Regal-Artefakt samt Namen.
+- **Handy quer (916 × 412):** alles im Bild, Brückenboden sichtbar,
+  Reiter erreichbar. **Hochkant (390 × 844):** kein seitlicher
+  Überlauf, alle drei Wischseiten mit allen Knöpfen erreichbar, Reiter
+  schalten exklusiv.
+
+### Beobachtungen, keine Fehler
+
+- Ohne Eingreifen gehen frühe Wellen verloren (der Vorspul-Test ohne
+  Klicks blieb bei Welle 2–3 hängen). Das Spiel verlangt Gegenwehr —
+  Regel, kein Fehler.
+- Handy quer nutzt 58 % des Bildschirms. Der ersetzte Zweig hatte mit
+  aufgelegter Steuerung 90 % erreicht; wenn das gewünscht ist, wäre es
+  auf diesem Zweig neu zu bauen.
+
+### Offen (unverändert aus der Übergabe)
+
+`pruefe-wirtschaft.mjs` bricht am fehlenden `BOSS_ABSTAND` — die
+Skripte stammen vom 0.6.0-Stand und kennen den heutigen nicht.
+`balance.mjs` läuft dagegen an. Nachziehen bleibt der erste offene
+Schritt, dazu ein neues `pruefe-artefakte.mjs`.
+
+
 ## 0.8.0 — 28.08.2026
 
 **Artefakte.** Abschnitt 6 des Entwurfs ist gebaut — der dritte Reiter, das
